@@ -1,0 +1,67 @@
+[package]
+name = "download_craft"
+version = "0.9.10"
+edition = "2021"
+description = "SA2 Downloader — a lightweight, offline-first download manager (egui GUI + CLI)"
+license = "MIT"
+
+[profile.release]
+# Smaller and a little faster: whole-program optimisation, one codegen unit,
+# no debug symbols in the shipped binary.
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[workspace]
+members = [".", "crates/downloadcraft-engine"]
+
+[dependencies]
+downloadcraft-engine = { path = "crates/downloadcraft-engine", version = "0.1.0" }
+eframe = "0.32"
+egui = "0.32"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "stream", "json", "http2"] }
+md-5 = "0.10"
+# FTPS: the same TLS stack reqwest already uses (ring, native roots).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+rustls-native-certs = "0.8"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+dirs = "5"
+url = "2"
+anyhow = "1"
+ab_glyph = "0.2"
+arboard = "3"
+clap = { version = "4", features = ["derive"] }
+notify-rust = "4"
+rfd = "0.15"
+raw-window-handle = "0.6"
+image = { version = "0.25", default-features = false, features = ["png"] }
+rustybuzz = "0.20.1"
+unicode-segmentation = "1.13.3"
+flate2 = "1"
+# Self-update: unpack the portable release zip.
+zip = { version = "2", default-features = false, features = ["deflate", "deflate64"] }
+# Extract finished archives: 7z in pure Rust; RAR through the UnRAR reader
+# (extraction only; see NOTICE.md for its licence).
+sevenz-rust2 = { version = "0.24", default-features = false, features = ["aes256", "bzip2", "ppmd"] }
+unrar = "0.5"
+
+[target.'cfg(windows)'.dependencies]
+tray-icon = "0.20"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_Storage_FileSystem", "Win32_UI_WindowsAndMessaging", "Win32_System_Diagnostics_Debug", "Win32_Security_Cryptography", "Win32_Networking_WinHttp"] }
+
+[target.'cfg(unix)'.dependencies]
+shlex = "2"
+
+[build-dependencies]
+# Only for the Linux zig builds (see build.rs).
+cc = "1"
+
+[dev-dependencies]
+sevenz-rust2 = { version = "0.24", default-features = false, features = ["compress", "util"] }
+rcgen = "0.13"

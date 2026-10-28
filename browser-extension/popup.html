@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><style>
+/* Colors are set from the panel theme (app Light/Dark/System) by popup.js. */
+:root {
+  --bg:#0b0f19; --card:#151d30; --hover:#243252; --line:rgba(255,255,255,0.08); --text:#f8fafc;
+  --dim:#94a3b8; --muted:#64748b; --accent:#3b82f6; --accent-soft:rgba(59,130,246,.18);
+  --ok:#10b981; --bad:#f43f5e; --warn:#f59e0b; --thumb:linear-gradient(135deg,#6366f1,#8b5cf6);
+}
+* { box-sizing:border-box; }
+body { width:430px; margin:0; background:var(--bg); color:var(--text);
+  font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif; }
+button, input, select { font:inherit; color:inherit; }
+.top { display:flex; align-items:center; gap:8px; padding:12px 14px 10px; border-bottom:1px solid var(--line); }
+.logo { width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#3b82f6,#8b5cf6); box-shadow:0 2px 10px rgba(59,130,246,.4); display:grid; place-items:center; flex:none; }
+.logo svg { width:15px; height:15px; }
+.brand { font-weight:700; font-size:14px; flex:1; letter-spacing:-.01em; background:linear-gradient(135deg,#ffffff 40%,#93c5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.conn { font-size:11px; padding:2px 8px; border-radius:99px; background:var(--card); border:1px solid var(--line); color:var(--dim); white-space:nowrap; }
+.conn.ok { color:var(--ok); border-color:rgba(16,185,129,.3); } .conn.bad { color:var(--bad); border-color:rgba(244,63,94,.3); }
+.tabs { display:flex; gap:4px; margin:10px 12px 8px; padding:3px; background:var(--card); border:1px solid var(--line); border-radius:10px; }
+.tab { all:unset; flex:1; text-align:center; padding:6px 0; border-radius:8px; cursor:pointer; color:var(--dim); font-weight:600; transition:all .15s ease; }
+.tab.on { background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; box-shadow:0 2px 8px rgba(37,99,235,.35); }
+.tab .n { display:inline-block; min-width:18px; padding:0 5px; margin-left:4px; border-radius:99px; font-size:11px; background:rgba(255,255,255,.22); }
+.tab:not(.on) .n { background:var(--accent-soft); color:var(--accent); }
+.tab .n:empty { display:none; }
+/* toolbar: filter menu, title search, quick actions */
+.tools { display:flex; gap:5px; align-items:center; margin:0 12px 8px; }
+.ib { all:unset; box-sizing:border-box; width:30px; height:30px; flex:none; border-radius:99px; display:grid; place-items:center;
+  background:var(--card); border:1px solid var(--line); cursor:pointer; color:var(--dim); position:relative; transition:all .15s ease; }
+.ib:hover { background:var(--hover); color:var(--text); border-color:rgba(255,255,255,.15); }
+.ib.on { background:#facc15; border-color:#facc15; color:#1e1e1e; }
+.ib.off { color:var(--bad); }
+.ib svg { width:15px; height:15px; }
+.search { flex:1; min-width:0; display:flex; align-items:center; gap:6px; height:30px; padding:0 10px; border-radius:99px; background:var(--card); border:1px solid var(--line); }
+.search svg { width:14px; height:14px; color:var(--muted); flex:none; }
+.search input { all:unset; flex:1; min-width:0; font-size:12px; }
+.view { padding:0 12px 12px; max-height:440px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--hover) transparent; }
+/* The popup is at most 600px tall: header, tabs, tools and the status line
+   plus the list must fit, or the whole page grows a second scrollbar. */
+#videosView { max-height:400px; }
+html, body { overflow:hidden; }
+.view[hidden] { display:none; }
+.group { margin-bottom:8px; }
+.ghead { display:flex; align-items:center; gap:6px; padding:8px 2px 6px; cursor:pointer; user-select:none; }
+.ghead b { font-size:12px; }
+.ghead .n { color:var(--muted); font-weight:600; font-size:11px; }
+.ghead .sub { color:var(--muted); font-size:11px; flex:1; }
+.ghead .chev { color:var(--dim); transition:transform .15s; }
+.group.closed .chev { transform:rotate(-90deg); }
+.group.closed .gbody { display:none; }
+.pillsrc { font-size:10px; font-weight:700; padding:1px 6px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.pillsrc.br { background:rgba(16,185,129,.14); color:var(--ok); }
+.notice { padding:8px 10px; margin-bottom:8px; border-radius:9px; background:rgba(245,158,11,.12); color:var(--warn); font-size:12px; }
+.sec { display:flex; align-items:center; justify-content:space-between; margin:6px 0; color:var(--dim); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+.card { display:flex; gap:10px; padding:9px; background:var(--card); border:1px solid var(--line); border-radius:11px; margin-bottom:8px; transition:border-color .15s ease, transform .1s ease; }
+.card:hover { border-color:rgba(255,255,255,.14); }
+.thumb { position:relative; flex:none; width:92px; height:54px; border-radius:7px; overflow:hidden; background:var(--thumb); }
+.thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.thumb .dur { position:absolute; right:4px; bottom:4px; padding:0 4px; border-radius:4px; background:rgba(0,0,0,.75); color:#fff; font-size:10px; font-weight:600; }
+.thumb .ph { position:absolute; inset:0; display:grid; place-items:center; color:#fff; opacity:.85; }
+.body { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.title { font-weight:600; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+.meta { display:flex; align-items:center; gap:6px; color:var(--dim); font-size:11px; flex-wrap:wrap; }
+.tag { padding:0 6px; border-radius:5px; background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:10px; letter-spacing:.02em; }
+.res-badge { font-size:10px; font-weight:800; padding:1px 6px; border-radius:99px; letter-spacing:.03em; text-transform:uppercase; display:inline-flex; align-items:center; }
+.res-8k { background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; box-shadow:0 0 8px rgba(236,72,153,.5); }
+.res-4k { background:linear-gradient(135deg,#6366f1,#3b82f6); color:#fff; box-shadow:0 0 8px rgba(99,102,241,.4); }
+.res-2k { background:linear-gradient(135deg,#06b6d4,#2563eb); color:#fff; }
+.res-fhd { background:rgba(59,130,246,.2); color:#60a5fa; border:1px solid rgba(59,130,246,.4); }
+.queued { color:var(--ok); font-weight:600; }
+.row { display:flex; gap:6px; align-items:center; }
+select { flex:1; min-width:0; height:30px; padding:0 8px; background:var(--bg); border:1px solid var(--line); border-radius:7px; cursor:pointer; }
+.dl { all:unset; box-sizing:border-box; height:30px; padding:0 11px; border-radius:7px; background:linear-gradient(135deg,#3b82f6,#2563eb); box-shadow:0 2px 8px rgba(37,99,235,.35); color:#fff; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; white-space:nowrap; transition:filter .15s ease; }
+.dl.br { background:linear-gradient(135deg,#10b981,#059669); color:#fff; box-shadow:0 2px 8px rgba(16,185,129,.35); }
+.dl:hover { filter:brightness(1.1); }
+.dl[disabled] { opacity:.5; cursor:default; }
+.dl svg { width:13px; height:13px; }
+.more { all:unset; box-sizing:border-box; width:26px; height:30px; border-radius:7px; display:grid; place-items:center; cursor:pointer; color:var(--dim); position:relative; }
+.more:hover { background:var(--hover); }
+.menu { position:absolute; right:0; top:32px; z-index:5; min-width:170px; padding:4px; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.menu button { all:unset; display:block; width:100%; box-sizing:border-box; padding:6px 8px; border-radius:6px; cursor:pointer; color:var(--text); font-size:12px; text-align:left; }
+.menu button:hover { background:var(--hover); }
+.menu button.sel { color:var(--accent); font-weight:700; }
+.empty { text-align:center; color:var(--dim); padding:22px 12px; }
+.empty b { display:block; color:var(--text); margin-bottom:4px; }
+.manual { display:flex; gap:6px; margin-top:8px; }
+input[type=text] { flex:1; min-width:0; height:32px; padding:0 9px; background:var(--card); border:1px solid var(--line); border-radius:7px; }
+.btn { all:unset; box-sizing:border-box; height:32px; padding:0 12px; border-radius:7px; background:var(--card); border:1px solid var(--line); cursor:pointer; font-weight:600; display:flex; align-items:center; }
+.btn:hover { background:var(--hover); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+/* downloads tab */
+.job { padding:9px 10px; background:var(--card); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:9px; margin-bottom:7px; }
+.job.done { border-left-color:var(--ok); } .job.failed, .job.cancelled { border-left-color:var(--bad); }
+.job.paused, .job.queued { border-left-color:var(--warn); }
+.job .jt { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); }
+.job .jt .src { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.job .jn { font-weight:600; margin:4px 0; word-break:break-all; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.job .jb { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); }
+.job .jb .grow { flex:1; }
+.bar { height:5px; border-radius:99px; background:var(--hover); overflow:hidden; margin:6px 0 4px; }
+.bar i { display:block; height:100%; background:var(--accent); border-radius:99px; transition:width .3s; }
+.bar.ind i { width:35% !important; animation:slide 1.2s linear infinite; }
+@keyframes slide { from { margin-left:-35%; } to { margin-left:100%; } }
+.chip { padding:0 6px; border-radius:5px; font-weight:700; font-size:10px; background:var(--accent-soft); color:var(--accent); }
+.chip.ok { background:rgba(34,197,94,.14); color:var(--ok); } .chip.bad { background:rgba(239,68,68,.14); color:var(--bad); }
+.chip.warn { background:rgba(245,158,11,.14); color:var(--warn); }
+.ja { all:unset; cursor:pointer; color:var(--dim); width:22px; height:22px; display:grid; place-items:center; border-radius:6px; }
+.ja:hover { background:var(--hover); color:var(--text); }
+.ja svg { width:14px; height:14px; }
+.err { color:var(--bad); font-size:11px; margin-top:3px; }
+/* settings */
+.opt { display:flex; align-items:center; gap:10px; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; }
+.opt .txt { flex:1; }
+.opt .txt b { display:block; font-weight:600; }
+.opt .txt span { color:var(--dim); font-size:11px; }
+.sw { position:relative; width:34px; height:19px; flex:none; }
+.sw input { opacity:0; width:0; height:0; }
+.sw i { position:absolute; inset:0; border-radius:99px; background:var(--hover); cursor:pointer; transition:background .15s; }
+.sw i::after { content:""; position:absolute; left:2px; top:2px; width:15px; height:15px; border-radius:50%; background:#fff; transition:left .15s; }
+.sw input:checked + i { background:var(--accent); }
+.sw input:checked + i::after { left:17px; }
+.sw input:disabled + i { opacity:.45; cursor:default; }
+.opt input[type=text] { display:block; width:100%; }
+label.fl { display:block; color:var(--dim); font-size:11px; margin:2px 0 4px; }
+#status { min-height:16px; padding:0 12px 10px; color:var(--dim); font-size:11px; }
+#status.ok { color:var(--ok); } #status.bad { color:var(--bad); }
+</style></head>
+<body>
+<div class="top">
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></div>
+  <div class="brand">SA2 Downloader</div>
+  <div class="conn" id="conn" data-i18n="popChecking">Checking…</div>
+</div>
+<div class="tabs">
+  <button class="tab on" id="tabVideos" data-i18n="popVideos">Videos<span class="n" id="count"></span></button>
+  <button class="tab" id="tabDownloads" data-i18n="popDownloads">Downloads<span class="n" id="dlCount"></span></button>
+  <button class="tab" id="tabSettings" data-i18n="popSettings">Settings</button>
+</div>
+
+<div id="viewVideos">
+  <div class="tools">
+    <button class="ib" id="filterBtn" title="Show: all, videos, streams or other files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"/></svg></button>
+    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" name="q" placeholder="Filter by title"></label>
+    <button class="ib" id="autoBtn" title="Send the browser's downloads to the app automatically"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></button>
+    <button class="ib" id="detectBtn" title="Video detection on/off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button>
+    <button class="ib" id="pauseBtn" title="Pause all downloads in the app"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <button class="ib" id="refreshBtn" title="Look for videos on this page again"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+    <button class="ib" id="clearBtn" title="Clear what was found on this page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+  </div>
+  <div class="view" id="videosView">
+    <div id="videos"></div>
+    <div class="manual">
+      <input type="text" id="url" placeholder="Paste a link to download…">
+      <button class="btn primary" id="send" data-i18n="popSend">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="viewDownloads" hidden>
+  <div id="downloads"></div>
+</div>
+
+<div class="view" id="viewSettings" hidden>
+  <div class="opt"><div class="txt"><b data-i18n="popCapture">Capture browser downloads</b><span data-i18n="popCaptureHint">Hand every download to SA2 Downloader.</span></div>
+    <label class="sw"><input type="checkbox" id="auto"><i></i></label></div>
+  <div class="opt"><div class="txt"><b data-i18n="popVideoDetection">Video detection</b><span data-i18n="popVideoHint">Find videos on pages and show the download bar on players.</span></div>
+    <label class="sw"><input type="checkbox" id="detect"><i></i></label></div>
+  <div class="opt"><div class="txt"><b data-i18n="popDeep">Deep video detection</b><span data-i18n="popDeepHint">Reads the first 4 KB of unlabeled responses to find hidden streams.</span></div>
+    <label class="sw"><input type="checkbox" id="deep"><i></i></label></div>
+  <div class="opt"><div class="txt"><b data-i18n="popOneClick">One-click download in my last quality</b><span data-i18n="popOneClickHint">The video button downloads the quality you picked last; its ▾ opens the menu.</span></div>
+    <label class="sw"><input type="checkbox" id="oneClick"><i></i></label></div>
+  <div class="opt"><div class="txt"><b data-i18n="popHideBubble">Hide browser download bubble</b><span data-i18n="popBubbleHint">While capture is on and the app is connected.</span></div>
+    <label class="sw"><input type="checkbox" id="hideUI"><i></i></label></div>
+  <div class="opt" style="display:block">
+    <label class="fl" for="minSize" data-i18n="popMinSize">Ignore files smaller than (KB)</label>
+    <input type="text" id="minSize" placeholder="100">
+    <label class="fl" for="block" style="margin-top:8px" data-i18n="popNeverSites">Never capture from these sites</label>
+    <input type="text" id="block" placeholder="example.com, other.org">
+    <div class="row" style="margin-top:8px;justify-content:flex-end"><button class="btn primary" id="saveFilters" data-i18n="popSaveFilters">Save filters</button></div>
+  </div>
+  <div class="row"><button class="btn" id="restoreVideoButtons" data-i18n="popRestoreButtons">Show hidden video buttons again</button></div>
+</div>
+<div id="status"></div>
+<script src="rank.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

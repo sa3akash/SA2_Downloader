@@ -1,0 +1,128 @@
+{
+  "extName": {
+    "message": "Send to SA2 Downloader"
+  },
+  "extDescription": {
+    "message": "Sends downloads and videos to SA2 Downloader — or downloads them right in the browser."
+  },
+  "menuDownload": {
+    "message": "Download with SA2 Downloader"
+  },
+  "menuDownloadAll": {
+    "message": "Download all links with SA2 Downloader"
+  },
+  "busyResolving": {
+    "message": "Resolving…"
+  },
+  "busyCapturing": {
+    "message": "Capturing…"
+  },
+  "barChooseQuality": {
+    "message": "Choose video quality in SA2 Downloader"
+  },
+  "barDownloadVideo": {
+    "message": "Download this video with SA2 Downloader"
+  },
+  "panelHint": {
+    "message": "Pick a quality below, or send the link as-is."
+  },
+  "panelSendLink": {
+    "message": "Send video link to app"
+  },
+  "panelVideoFiles": {
+    "message": "Video Files"
+  },
+  "panelOtherFiles": {
+    "message": "Other Files"
+  },
+  "panelDownload": {
+    "message": "Download"
+  },
+  "panelCancel": {
+    "message": "Cancel"
+  },
+  "panelClose": {
+    "message": "Close"
+  },
+  "queued": {
+    "message": "✓ Queued"
+  },
+  "popCapture": {
+    "message": "Capture browser downloads"
+  },
+  "popChecking": {
+    "message": "Checking…"
+  },
+  "popDeep": {
+    "message": "Deep video detection"
+  },
+  "popDownloads": {
+    "message": "Downloads"
+  },
+  "popVideoHint": {
+    "message": "Find videos on pages and show the download bar on players."
+  },
+  "popCaptureHint": {
+    "message": "Hand every download to SA2 Downloader."
+  },
+  "popHideBubble": {
+    "message": "Hide browser download bubble"
+  },
+  "popMinSize": {
+    "message": "Ignore files smaller than (KB)"
+  },
+  "popNeverSites": {
+    "message": "Never capture from these sites"
+  },
+  "popDeepHint": {
+    "message": "Reads the first 4 KB of unlabeled responses to find hidden streams."
+  },
+  "popSaveFilters": {
+    "message": "Save filters"
+  },
+  "popSend": {
+    "message": "Send"
+  },
+  "popSettings": {
+    "message": "Settings"
+  },
+  "popRestoreButtons": {
+    "message": "Show hidden video buttons again"
+  },
+  "popVideoDetection": {
+    "message": "Video detection"
+  },
+  "popVideos": {
+    "message": "Videos"
+  },
+  "popBubbleHint": {
+    "message": "While capture is on and the app is connected."
+  },
+  "barDownload": {
+    "message": "Download"
+  },
+  "menuDownloadVideo": {
+    "message": "Download video with SA2 Downloader"
+  },
+  "popOneClick": {
+    "message": "One-click download in my last quality"
+  },
+  "popOneClickHint": {
+    "message": "The video button downloads the quality you picked last; its ▾ opens the menu."
+  },
+  "barMoreQualities": {
+    "message": "Other qualities"
+  },
+  "barAudio": {
+    "message": "audio"
+  },
+  "qualityBest": {
+    "message": "Best"
+  },
+  "chipAudioOnly": {
+    "message": "Audio only, as MP3"
+  },
+  "panelSocialHint": {
+    "message": "The app fetches this post's video with its sound."
+  }
+}

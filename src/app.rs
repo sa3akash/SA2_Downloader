@@ -427,6 +427,8 @@ pub(crate) const MI_SLIDESHOW: &str = "\u{e41b}";
 pub(crate) const MI_FILTER: &str = "\u{e152}";
 /// Circle with an X (sidebar "Failed").
 pub(crate) const MI_CANCEL: &str = "\u{e5c9}";
+/// Cross X (close / delete).
+pub(crate) const MI_CLOSE: &str = "\u{e5cd}";
 /// Circle with a clock (sidebar "Unfinished").
 pub(crate) const MI_SCHEDULE: &str = "\u{e8b5}";
 /// Circle with a tick (sidebar "Finished").
@@ -445,7 +447,10 @@ pub(crate) const MI_TUNE: &str = "\u{e429}";
 pub(crate) const MI_INSERT_FILE: &str = "\u{e24d}";
 pub(crate) const MI_SHARE: &str = "\u{e80d}";
 /// Collapsed / expanded affordances for the sidebar sections.
-const MI_OPEN: &str = "\u{e89e}";
+const MI_OPEN: &str = "\u{e0b2}";
+const MI_MOVE: &str = "\u{e2c7}";
+const MI_PAUSE_BARS: &str = "\u{e037}";
+const MI_STOP_SQUARE: &str = "\u{e047}";
 const MI_SPEED: &str = "\u{e9e4}";
 const MI_ARROW_DOWN: &str = "\u{e5db}";
 const MI_CHECK: &str = "\u{e5ca}";
@@ -9918,17 +9923,20 @@ impl CraftApp {
             for (i, q) in self.queues.iter().enumerate().take(20) {
                 sub.push((q.name.clone(), "", MoveToQueue(i as u8 + 1)));
             }
-            v.push(CtxEntry::Sub { label: t("Move"), icon: MI_REORDER, key: 1, items: sub });
+            v.push(CtxEntry::Sub { label: t("Move"), icon: MI_MOVE, key: 1, items: sub });
         } else {
-            v.push(item("Move", MI_REORDER, "", MoveToQueue(0), !is_running));
+            v.push(item("Move", MI_MOVE, "", MoveToQueue(0), !is_running));
         }
         v.push(item("Rename", MI_EDIT, "F2", Rename, !is_running));
         v.push(CtxEntry::Sep);
 
-        // Group 3: Resume / Stop / Redownload / Refresh URL
-        v.push(item("Resume", MI_PLAY, "Space", Resume, is_paused || is_failed));
-        v.push(item("Stop", MI_STOP, "", Pause, is_running));
+        // Group 3: Resume / Stop / Redownload
+        v.push(item("Resume", MI_PAUSE_BARS, "Space", Resume, is_paused || is_failed));
+        v.push(item("Stop", MI_STOP_SQUARE, "", Pause, is_running));
         v.push(item("Redownload", MI_ARROW_DOWN, "", Redownload, true));
+        v.push(CtxEntry::Sep);
+
+        // Group 4: Refresh URL
         v.push(item("Refresh URL", MI_REFRESH, "", RefreshAddress, !is_running));
         v.push(CtxEntry::Sep);
 
@@ -9953,12 +9961,12 @@ impl CraftApp {
             v.push(item("Extract", MI_UNARCHIVE, "", Extract, true));
         }
 
-        // Group 4: Delete
+        // Group 5: Delete
         let _ = shift;
-        v.push(CtxEntry::Item { label: t("Delete"), icon: MI_CANCEL, hint: "Del", act: RemoveFile, enabled: true, danger: true });
+        v.push(CtxEntry::Item { label: t("Delete"), icon: MI_CLOSE, hint: "Del", act: RemoveFile, enabled: true, danger: true });
         v.push(CtxEntry::Sep);
 
-        // Group 5: Properties
+        // Group 6: Properties
         v.push(item("Properties", MI_PROPERTIES, "", Details, true));
         v
     }

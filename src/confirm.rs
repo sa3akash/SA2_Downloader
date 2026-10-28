@@ -224,6 +224,8 @@ struct ConfirmApp {
     quality_open: bool,
     loading_playlist: bool,
     playlist_rx: Option<Receiver<anyhow::Result<(String, Vec<(String, String)>)>>>,
+    real_formats: Vec<engine::RealVideoFormat>,
+    formats_rx: Option<Receiver<Option<engine::RealVideoInfo>>>,
 }
 
 const CATEGORIES: &[&str] = &[
@@ -584,6 +586,19 @@ impl ConfirmApp {
             };
             let _ = tx.send(out);
         });
+
+        let (ftx, frx) = std::sync::mpsc::channel();
+        self.formats_rx = Some(frx);
+        let f_url = self.url.clone();
+        let f_opts = opts;
+        rt.spawn(async move {
+            let info = if let Ok(client) = f_opts.build_client() {
+                engine::probe_real_video_formats(&client, &f_opts, &f_url).await
+            } else {
+                None
+            };
+            let _ = ftx.send(info);
+        });
     }
 
     /// Queue the download. `start` = also wake the main app to begin it now
@@ -827,13 +842,10 @@ pub fn run() -> eframe::Result<()> {
         quality_open: false,
         loading_playlist: false,
         playlist_rx: None,
+        real_formats: Vec::new(),
+        formats_rx: None,
     };
-    // Prefill filename from server when the extension sent none useful.
-    // A browser-known size skips probing entirely (server re-probes of
-    // media URLs often 403 off-session).
-    if known_size.is_none() {
-        app.start_probe();
-    }
+    app.start_probe();
     let _rt_keepalive = rt;
 
     let mut viewport = egui::ViewportBuilder::default()
@@ -918,6 +930,40 @@ impl eframe::App for ConfirmApp {
                             self.auto_name = Some(self.filename.clone());
                         }
                     }
+                }
+            }
+        }
+        if let Some(rx) = self.formats_rx.as_ref() {
+            while let Ok(Some(info)) = rx.try_recv() {
+                if let Some(t) = info.title {
+                    let untouched_guess = self.auto_name.as_deref() == Some(self.filename.as_str());
+                    if untouched_guess
+                        || self.filename == filename_from_url(&self.url)
+                        || crate::model::is_fallback_filename(&self.filename)
+                    {
+                        self.filename = crate::model::apply_rename_template(
+                            &self.rename_template,
+                            &engine::sanitize_filename(&t),
+                            &self.url,
+                        );
+                        self.category = category_of(&self.filename).to_string();
+                        if untouched_guess {
+                            self.auto_name = Some(self.filename.clone());
+                        }
+                    }
+                }
+                if let Some(d) = info.duration_secs {
+                    if self.duration_secs == 0 {
+                        self.duration_secs = d;
+                    }
+                }
+                if !info.formats.is_empty() {
+                    if self.probe_size.is_none() || self.probe_size == Some(0) {
+                        if let Some(first_sz) = info.formats.first().and_then(|f| f.size) {
+                            self.probe_size = Some(first_sz);
+                        }
+                    }
+                    self.real_formats = info.formats;
                 }
             }
         }
@@ -1322,43 +1368,75 @@ impl eframe::App for ConfirmApp {
 
                 // Resolution / Quality dropdown
                 let q_rect = at(q_x, row_y, q_w, 28.0);
-                let cur_q_disp = match self.quality_pref.trim().to_ascii_lowercase().as_str() {
-                    "" | "best" | "max" | "highest" => "Best Quality".to_string(),
-                    "audio" => "Audio only (MP3)".to_string(),
-                    "2160p" | "4k" => "4K (2160p)".to_string(),
-                    "1440p" | "2k" => "2K (1440p)".to_string(),
-                    "1080p" => "1080p Full HD".to_string(),
-                    "720p" => "720p HD".to_string(),
-                    "480p" => "480p SD".to_string(),
-                    "360p" => "360p SD".to_string(),
-                    other => other.to_string(),
+                let cur_q_disp = if !self.real_formats.is_empty() {
+                    if let Some(cur) = self.real_formats.iter().find(|f| {
+                        f.quality_val.eq_ignore_ascii_case(&self.quality_pref)
+                            || (self.quality_pref == "best" && f.quality_val == "best")
+                    }) {
+                        cur.label.clone()
+                    } else {
+                        self.real_formats[0].label.clone()
+                    }
+                } else {
+                    match self.quality_pref.trim().to_ascii_lowercase().as_str() {
+                        "" | "best" | "max" | "highest" => "Best Quality".to_string(),
+                        "audio" => "Audio only (MP3)".to_string(),
+                        "2160p" | "4k" => "4K (2160p)".to_string(),
+                        "1440p" | "2k" => "2K (1440p)".to_string(),
+                        "1080p" => "1080p Full HD".to_string(),
+                        "720p" => "720p HD".to_string(),
+                        "480p" => "480p SD".to_string(),
+                        "360p" => "360p SD".to_string(),
+                        other => other.to_string(),
+                    }
                 };
 
-                let q_opts = vec![
-                    "Best Quality".to_string(),
-                    "4K (2160p)".to_string(),
-                    "2K (1440p)".to_string(),
-                    "1080p Full HD".to_string(),
-                    "720p HD".to_string(),
-                    "480p SD".to_string(),
-                    "360p SD".to_string(),
-                    "Audio only (MP3)".to_string(),
-                ];
+                let q_opts: Vec<String> = if !self.real_formats.is_empty() {
+                    self.real_formats.iter().map(|f| f.label.clone()).collect()
+                } else {
+                    vec![
+                        "Best Quality".to_string(),
+                        "4K (2160p)".to_string(),
+                        "2K (1440p)".to_string(),
+                        "1080p Full HD".to_string(),
+                        "720p HD".to_string(),
+                        "480p SD".to_string(),
+                        "360p SD".to_string(),
+                        "Audio only (MP3)".to_string(),
+                    ]
+                };
 
                 if let Some(pick) = combo(ui, q_rect, "quality_combo", &cur_q_disp, &q_opts, &mut self.quality_open) {
-                    match pick.as_str() {
-                        "Best Quality" => self.quality_pref = "best".to_string(),
-                        "4K (2160p)" => self.quality_pref = "2160p".to_string(),
-                        "2K (1440p)" => self.quality_pref = "1440p".to_string(),
-                        "1080p Full HD" => self.quality_pref = "1080p".to_string(),
-                        "720p HD" => self.quality_pref = "720p".to_string(),
-                        "480p SD" => self.quality_pref = "480p".to_string(),
-                        "360p SD" => self.quality_pref = "360p".to_string(),
-                        "Audio only (MP3)" => {
-                            self.quality_pref = "audio".to_string();
-                            self.category = "Music".to_string();
+                    if let Some(rf) = self.real_formats.iter().find(|f| f.label == pick) {
+                        self.quality_pref = rf.quality_val.clone();
+                        if let Some(sz) = rf.size {
+                            self.probe_size = Some(sz);
                         }
-                        other => self.quality_pref = other.to_string(),
+                        if rf.is_audio {
+                            self.category = "Music".to_string();
+                            if !self.filename.ends_with(".mp3") {
+                                let stem = std::path::Path::new(&self.filename)
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or(&self.filename);
+                                self.filename = format!("{stem}.mp3");
+                            }
+                        }
+                    } else {
+                        match pick.as_str() {
+                            "Best Quality" => self.quality_pref = "best".to_string(),
+                            "4K (2160p)" => self.quality_pref = "2160p".to_string(),
+                            "2K (1440p)" => self.quality_pref = "1440p".to_string(),
+                            "1080p Full HD" => self.quality_pref = "1080p".to_string(),
+                            "720p HD" => self.quality_pref = "720p".to_string(),
+                            "480p SD" => self.quality_pref = "480p".to_string(),
+                            "360p SD" => self.quality_pref = "360p".to_string(),
+                            "Audio only (MP3)" => {
+                                self.quality_pref = "audio".to_string();
+                                self.category = "Music".to_string();
+                            }
+                            other => self.quality_pref = other.to_string(),
+                        }
                     }
                 }
             }

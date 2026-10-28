@@ -4367,10 +4367,12 @@ async fn download_inner(
     // proves nothing about the full video's size or completeness.
     let resolve_page = match vimeo_download_target(&url, &opts.referer)? {
         Some(page) => Some(page),
-        // YouTube, Instagram, TikTok, X or Reddit: yt-dlp knows each site's
+        // YouTube, Instagram, TikTok, X, Reddit, Facebook, etc.: yt-dlp knows each site's
         // player (the video and its separate audio, the real qualities).
         None if is_youtube_page(&url) => Some(url.clone()),
+        None if is_googlevideo_url(&url) && is_youtube_page(&opts.referer) => Some(opts.referer.clone()),
         None if social_video_page(&url) => Some(url.clone()),
+        None if social_video_page(&opts.referer) => Some(opts.referer.clone()),
         None if is_playlist_url_or_query(&url) => Some(url.clone()),
         None => fragment_page(&normalize_media_url(&url), &opts.referer)?,
     };
@@ -6235,12 +6237,18 @@ async fn write_cookie_jar(cookie: &str, domain: &str) -> Result<Option<CookieJar
 /// one combination players still object to.
 fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
     let p = pref.trim().to_ascii_lowercase();
-    if p == "best" || p == "max" || p == "highest" || p == "auto" {
+    if p.is_empty() || p == "best" || p == "max" || p == "highest" || p == "auto" {
         return if can_merge {
             "bv*+ba[ext=m4a]/bv*+ba/b".to_string()
         } else {
             "b".to_string()
         };
+    }
+    if let Some(fid) = p.strip_prefix("format:").or_else(|| p.strip_prefix("f:")) {
+        return fid.to_string();
+    }
+    if p.chars().all(|c| c.is_ascii_digit() || c == '+' || c == '/') && p.contains('+') {
+        return p;
     }
     match (quality_cap(pref), can_merge) {
         (Some(h), true) => format!(
@@ -6697,8 +6705,6 @@ async fn download_with_ytdlp(
         .arg(opts.timeout_secs.max(5).to_string())
         .arg("--concurrent-fragments")
         .arg(connections.clamp(1, 8).to_string())
-        .arg("--merge-output-format")
-        .arg("mp4")
         .arg("-f")
         .arg(if wants_audio_only(&opts.quality_pref) {
             "ba[ext=m4a]/ba/b".to_string()
@@ -6735,6 +6741,7 @@ async fn download_with_ytdlp(
     }
     if let Some(ff) = &merge_ffmpeg {
         cmd.arg("--ffmpeg-location").arg(ff);
+        cmd.arg("--merge-output-format").arg("mp4");
         // Audio only: an MP3 (best VBR); without ffmpeg the m4a as served.
         if wants_audio_only(&opts.quality_pref) {
             cmd.arg("-x").arg("--audio-format").arg("mp3").arg("--audio-quality").arg("0");
@@ -6933,8 +6940,20 @@ async fn download_with_ytdlp(
     // Postprocessing can change the extension. Only the exact file reported
     // by this run, with the expected stem and directory, may be promoted.
     if !dest.is_file() {
-        if let Some(path)=final_path.filter(|p| valid_ytdlp_output(p,dest)) {
-            tokio::fs::rename(path,dest).await?;
+        if let Some(path) = final_path.filter(|p| valid_ytdlp_output(p, dest)) {
+            let _ = tokio::fs::rename(path, dest).await;
+        }
+    }
+    if !dest.is_file() {
+        let stem = dest.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        if !stem.is_empty() {
+            for ext in &["mp4", "webm", "mkv", "m4a", "mp3", "mov", "flv", "ts"] {
+                let cand = home.join(format!("{stem}.{ext}"));
+                if cand.is_file() {
+                    let _ = tokio::fs::rename(&cand, dest).await;
+                    break;
+                }
+            }
         }
     }
     let len = tokio::fs::metadata(dest).await.map(|m| m.len()).unwrap_or(0);
@@ -6965,6 +6984,196 @@ async fn download_with_ytdlp(
         shared.set_resolution(r);
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RealVideoFormat {
+    pub label: String,
+    pub quality_val: String,
+    pub size: Option<u64>,
+    pub is_audio: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RealVideoInfo {
+    pub title: Option<String>,
+    pub duration_secs: Option<u64>,
+    pub formats: Vec<RealVideoFormat>,
+}
+
+pub async fn probe_real_video_formats(
+    client: &reqwest::Client,
+    opts: &EngineOpts,
+    url: &str,
+) -> Option<RealVideoInfo> {
+    let is_video = is_youtube_page(url)
+        || social_video_page(url)
+        || is_googlevideo_url(url)
+        || url.contains("vimeo.com")
+        || url.contains("dailymotion.com")
+        || url.contains("twitch.tv")
+        || url.contains("bilibili.com")
+        || url.contains("soundcloud.com")
+        || has_direct_ext(url);
+    if !is_video {
+        return None;
+    }
+    let target = if is_googlevideo_url(url) && is_youtube_page(&opts.referer) {
+        opts.referer.as_str()
+    } else {
+        url
+    };
+    let exe = ensure_ytdlp(client).await.ok()?;
+    let mut cmd = tokio::process::Command::new(exe);
+    cmd.kill_on_drop(true);
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.arg("-J")
+        .arg("--no-warnings")
+        .arg("--no-playlist")
+        .arg("--socket-timeout").arg("10");
+    if let Some((name, path)) = js_runtime_path() {
+        cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
+    }
+    if let Some(p) = opts.effective_proxy(target) {
+        cmd.arg("--proxy").arg(p);
+    }
+    if !opts.cookie.trim().is_empty() {
+        if let Ok(Some(jar)) = write_cookie_jar(&opts.cookie, &cookie_domain(target)).await {
+            cmd.arg("--cookies").arg(&jar.0);
+        }
+    }
+    cmd.arg(target).stdin(std::process::Stdio::null());
+    let out = tokio::time::timeout(std::time::Duration::from_secs(20), cmd.output()).await.ok()?.ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    let title = v.get("title").and_then(|t| t.as_str()).map(|s| s.to_string());
+    let duration_secs = v.get("duration").and_then(|d| d.as_f64()).map(|d| d as u64);
+
+    let formats_arr = v.get("formats").and_then(|f| f.as_array())?;
+
+    let mut best_audio_size: Option<u64> = None;
+    for f in formats_arr {
+        let vcodec = f.get("vcodec").and_then(|s| s.as_str()).unwrap_or("");
+        let acodec = f.get("acodec").and_then(|s| s.as_str()).unwrap_or("");
+        if (vcodec == "none" || vcodec.is_empty()) && acodec != "none" && !acodec.is_empty() {
+            let sz = f.get("filesize").and_then(|s| s.as_u64())
+                .or_else(|| f.get("filesize_approx").and_then(|s| s.as_u64()));
+            if let Some(s) = sz {
+                if best_audio_size.map(|cur| s > cur).unwrap_or(true) {
+                    best_audio_size = Some(s);
+                }
+            }
+        }
+    }
+
+    let mut heights: Vec<u64> = Vec::new();
+    let mut height_best_info: std::collections::HashMap<u64, (Option<u64>, Option<u64>, Option<f64>)> = std::collections::HashMap::new();
+
+    for f in formats_arr {
+        let vcodec = f.get("vcodec").and_then(|s| s.as_str()).unwrap_or("");
+        if vcodec == "none" || vcodec.is_empty() {
+            continue;
+        }
+        let height = f.get("height").and_then(|h| h.as_u64());
+        let width = f.get("width").and_then(|w| w.as_u64());
+        let fps = f.get("fps").and_then(|v| v.as_f64());
+        let sz = f.get("filesize").and_then(|s| s.as_u64())
+            .or_else(|| f.get("filesize_approx").and_then(|s| s.as_u64()));
+        let acodec = f.get("acodec").and_then(|s| s.as_str()).unwrap_or("");
+        let total_sz = if acodec == "none" || acodec.is_empty() {
+            sz.and_then(|v| best_audio_size.map(|a| v.saturating_add(a))).or(sz)
+        } else {
+            sz
+        };
+
+        if let Some(h) = height {
+            if h >= 144 && h <= 4320 {
+                if !heights.contains(&h) {
+                    heights.push(h);
+                }
+                let replace = match height_best_info.get(&h) {
+                    None => true,
+                    Some((_, cur_sz, _)) => total_sz.is_some() && cur_sz.is_none(),
+                };
+                if replace {
+                    height_best_info.insert(h, (width, total_sz, fps));
+                }
+            }
+        }
+    }
+
+    heights.sort_by(|a, b| b.cmp(a));
+
+    let mut out_formats = Vec::new();
+    let highest_size = heights.first().and_then(|h| height_best_info.get(h)).and_then(|(_, s, _)| *s);
+    out_formats.push(RealVideoFormat {
+        label: match highest_size {
+            Some(sz) => format!("Best Quality • {}", crate::model::format_bytes(sz)),
+            None => "Best Quality (Auto)".to_string(),
+        },
+        quality_val: "best".to_string(),
+        size: highest_size,
+        is_audio: false,
+    });
+
+    for h in heights {
+        let (width, sz, fps) = height_best_info.get(&h).copied().unwrap_or((None, None, None));
+        let title_prefix = match h {
+            4320 => "8K (4320p)",
+            2160 => "4K (2160p)",
+            1440 => "2K (1440p)",
+            1080 => "1080p Full HD",
+            720 => "720p HD",
+            480 => "480p SD",
+            360 => "360p SD",
+            _ => "",
+        };
+        let mut desc = if !title_prefix.is_empty() {
+            title_prefix.to_string()
+        } else {
+            format!("{h}p")
+        };
+        if let (Some(w), Some(h_val)) = (width, Some(h)) {
+            desc.push_str(&format!(" ({w}×{h_val})"));
+        }
+        if let Some(f) = fps {
+            if f >= 50.0 {
+                desc.push_str(&format!(" {}fps", f.round()));
+            }
+        }
+        if let Some(s) = sz {
+            desc.push_str(&format!(" • {}", crate::model::format_bytes(s)));
+        }
+
+        out_formats.push(RealVideoFormat {
+            label: desc,
+            quality_val: format!("{h}p"),
+            size: sz,
+            is_audio: false,
+        });
+    }
+
+    out_formats.push(RealVideoFormat {
+        label: match best_audio_size {
+            Some(s) => format!("Audio only (MP3) • {}", crate::model::format_bytes(s)),
+            None => "Audio only (MP3)".to_string(),
+        },
+        quality_val: "audio".to_string(),
+        size: best_audio_size,
+        is_audio: true,
+    });
+
+    Some(RealVideoInfo {
+        title,
+        duration_secs,
+        formats: out_formats,
+    })
 }
 
 /// Check if a URL points to a BitTorrent file or Magnet link.

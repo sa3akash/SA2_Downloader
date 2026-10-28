@@ -408,6 +408,8 @@ impl LinksApp {
             }
             item.description = r.text.clone();
             item.total_bytes = r.size;
+            item.quality_pref = self.quality_pref.clone();
+            item.expects_audio = true;
             match crate::model::append_to_queue(&mut item) {
                 crate::model::AppendResult::Added(id) => added.push(id),
                 crate::model::AppendResult::AlreadyQueued(_) => already += 1,
@@ -841,6 +843,43 @@ impl LinksApp {
             p.text(Pos2::new(path.max.x + 10.0, row_y), Align2::LEFT_CENTER, &avail_str, semi(11.0), t.dim);
         }
 
+        // Quality / Resolution selection combo box
+        let q_r = Rect::from_min_size(Pos2::new(area.max.x - 410.0, area.max.y - 30.0), Vec2::new(175.0, 28.0));
+        let cur_q = match self.quality_pref.as_str() {
+            "" | "best" => "Best Quality",
+            "2160p" => "4K (2160p)",
+            "1440p" => "2K (1440p)",
+            "1080p" => "1080p Full HD",
+            "720p" => "720p HD",
+            "480p" => "480p SD",
+            "360p" => "360p SD",
+            "audio" => "Audio only (MP3)",
+            other => other,
+        };
+        let q_opts = vec![
+            "Best Quality".to_string(),
+            "4K (2160p)".to_string(),
+            "2K (1440p)".to_string(),
+            "1080p Full HD".to_string(),
+            "720p HD".to_string(),
+            "480p SD".to_string(),
+            "360p SD".to_string(),
+            "Audio only (MP3)".to_string(),
+        ];
+        if let Some(pick) = crate::confirm::combo(ui, q_r, "links_q", cur_q, &q_opts, &mut self.q_open) {
+            match pick.as_str() {
+                "Best Quality" => self.quality_pref = "best".to_string(),
+                "4K (2160p)" => self.quality_pref = "2160p".to_string(),
+                "2K (1440p)" => self.quality_pref = "1440p".to_string(),
+                "1080p Full HD" => self.quality_pref = "1080p".to_string(),
+                "720p HD" => self.quality_pref = "720p".to_string(),
+                "480p SD" => self.quality_pref = "480p".to_string(),
+                "360p SD" => self.quality_pref = "360p".to_string(),
+                "Audio only (MP3)" => self.quality_pref = "audio".to_string(),
+                other => self.quality_pref = other.to_string(),
+            }
+        }
+
         // Bottom row: Action pill buttons [Cancel ✕] and [Download ⬇]
         let cancel_r = Rect::from_min_size(Pos2::new(area.max.x - 224.0, area.max.y - 30.0), Vec2::new(98.0, 28.0));
         let resp_c = ui.interact(cancel_r, egui::Id::new("links-btn-cancel"), Sense::click());
@@ -1038,6 +1077,8 @@ pub fn run() -> eframe::Result<()> {
         focused: false,
         done: false,
         exited: false,
+        quality_pref: "best".to_string(),
+        q_open: false,
     };
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("Download all links — SA2 Downloader")

@@ -90,3 +90,4 @@ $icoFs.Close()
 $orig.Dispose()
 
 Write-Host "Successfully generated assets/icon.ico"
+

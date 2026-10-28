@@ -12,7 +12,7 @@ a=p.parse_args()
 repo=pathlib.Path(__file__).resolve().parents[1]
 version=(repo/'VERSION').read_text().strip()
 osname=a.platform or {'Windows':'windows','Darwin':'macos','Linux':'linux'}[platform.system()]
-cand_names = ['sa2_downloader.exe', 'sa2_download.exe', 'download_craft.exe'] if osname=='windows' else ['sa2_downloader', 'sa2_download', 'download_craft']
+cand_names = ['sa2_downloader.exe'] if osname=='windows' else ['sa2_downloader']
 binary = a.binary
 if not binary:
     for name in cand_names:
@@ -28,18 +28,18 @@ with tempfile.TemporaryDirectory() as temp:
     root.mkdir()
     if osname=='macos':
         contents=root/'Download Craft.app/Contents'
-        dest=contents/'MacOS/sa2_download'
+        dest=contents/'MacOS/sa2_downloader'
         dest.parent.mkdir(parents=True)
         with (contents/'Info.plist').open('wb') as f:
             plistlib.dump({'CFBundleName':'Download Craft','CFBundleDisplayName':'Download Craft',
-                'CFBundleIdentifier':'com.SA2Downloader.app','CFBundleExecutable':'sa2_download',
+                'CFBundleIdentifier':'com.SA2Downloader.app','CFBundleExecutable':'sa2_downloader',
                 'CFBundlePackageType':'APPL','CFBundleVersion':version.rsplit('.',1)[0]+version.rsplit('.',1)[1] if version.count('.')==3 else version,'CFBundleShortVersionString':version,
                 'LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True},f)
     else:
         dest=root/binary.name
     shutil.copy2(binary,dest)
-    if osname=='windows' and binary.name != 'sa2_download.exe':
-        shutil.copy2(binary, root/'sa2_download.exe')
+    if osname=='windows' and binary.name != 'sa2_downloader.exe':
+        shutil.copy2(binary, root/'sa2_downloader.exe')
     if osname!='windows': dest.chmod(0o755)
     stage_extensions(repo,root)
     if osname=='macos':

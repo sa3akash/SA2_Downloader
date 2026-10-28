@@ -16,7 +16,7 @@ DESKTOP='''[Desktop Entry]
 Type=Application
 Name=Download Craft
 Comment=Download manager with browser capture
-Exec=sa2_download
+Exec=sa2_downloader
 Icon=com.SA2Downloader.app
 Terminal=false
 Categories=Network;FileTransfer;
@@ -25,10 +25,10 @@ StartupNotify=true
 
 def install_tree(root,binary):
     app=root/'usr/lib/SA2Downloader';app.mkdir(parents=True)
-    shutil.copy2(binary,app/'sa2_download');(app/'sa2_download').chmod(0o755)
+    shutil.copy2(binary,app/'sa2_downloader');(app/'sa2_downloader').chmod(0o755)
     stage_extensions(REPO,app)
     bindir=root/'usr/bin';bindir.mkdir(parents=True)
-    (bindir/'sa2_download').symlink_to('../lib/SA2Downloader/sa2_download')
+    (bindir/'sa2_downloader').symlink_to('../lib/SA2Downloader/sa2_downloader')
     desktop=root/'usr/share/applications/com.SA2Downloader.app.desktop';desktop.parent.mkdir(parents=True);desktop.write_text(DESKTOP)
     icon=root/'usr/share/icons/hicolor/256x256/apps/com.SA2Downloader.app.png';icon.parent.mkdir(parents=True);shutil.copy2(REPO/'assets/icon.png',icon)
     docs=root/'usr/share/doc/SA2Downloader';docs.mkdir(parents=True)
@@ -89,7 +89,7 @@ Download Craft desktop download manager with Chrome, Brave and Firefox capture.
 mkdir -p %{{buildroot}}
 cp -a "{root}/usr" %{{buildroot}}/
 %files
-/usr/bin/sa2_download
+/usr/bin/sa2_downloader
 /usr/lib/SA2Downloader
 /usr/share/applications/com.SA2Downloader.app.desktop
 /usr/share/icons/hicolor/256x256/apps/com.SA2Downloader.app.png
@@ -104,7 +104,7 @@ cp -a "{root}/usr" %{{buildroot}}/
         run=appdir/'AppRun';run.write_text('''#!/bin/sh
 APPDIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 export APPDIR
-exec "$APPDIR/usr/lib/SA2Downloader/sa2_download" "$@"
+exec "$APPDIR/usr/lib/SA2Downloader/sa2_downloader" "$@"
 ''');run.chmod(0o755)
         squash=temp/'payload.squashfs'
         subprocess.run([a.mksquashfs,str(appdir),str(squash),'-noappend','-all-root','-no-xattrs','-comp','zstd','-processors','2'],check=True)

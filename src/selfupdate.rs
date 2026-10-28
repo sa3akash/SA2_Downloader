@@ -2,7 +2,7 @@
 //!
 //! 1. Download the release's portable .zip to a temp folder and check it
 //!    against the SHA-256 GitHub publishes for the asset (and its size).
-//! 2. Unpack it there; the folder holding `sa2_download.exe` is the new
+//! 2. Unpack it there; the folder holding `sa2_downloader.exe` is the new
 //!    portable folder.
 //! 3. Install: every file the new folder has replaces the one in the app's
 //!    folder. The old file is first renamed to `<name>.dcold` (Windows lets a
@@ -123,7 +123,7 @@ pub fn unpack(zip_path: &Path) -> Result<PathBuf> {
 }
 
 fn exe_name() -> &'static str {
-    if cfg!(windows) { "sa2_download.exe" } else { "sa2_download" }
+    if cfg!(windows) { "sa2_downloader.exe" } else { "sa2_downloader" }
 }
 
 /// The folder (the unpack root or one level down) holding the program.

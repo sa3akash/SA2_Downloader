@@ -1,6 +1,6 @@
 //! Command-line interface for SA2 Downloader.
 //!
-//! Shares the queue file (`%APPDATA%/sa2_download/queue.json`) and settings
+//! Shares the queue file (`%APPDATA%/sa2_downloader/queue.json`) and settings
 //! (`ui.json`) with the GUI, so both front-ends manage the same list.
 //!
 //! Note: downloads run in the process that starts them. `download`/`get`

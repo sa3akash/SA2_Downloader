@@ -1,7 +1,7 @@
 //! IDM-style standalone per-download progress window.
 //!
 //! Launched as a separate window when a download starts from a confirm dialog
-//! or the main Add dialog: `sa2_download.exe --progress <id>`.
+//! or the main Add dialog: `sa2_downloader.exe --progress <id>`.
 //!
 //! The surface is the card drawn in `Downloading gui concepts.html` — frameless
 //! and transparent, so that rounded card *is* the window: title bar with the

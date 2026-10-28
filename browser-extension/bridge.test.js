@@ -31,7 +31,7 @@ function load() {
   const ctx = { chrome, console, setTimeout, clearTimeout, TextEncoder, URL, btoa: (s) => Buffer.from(s, 'binary').toString('base64'), Date, Map, Set, Promise, Object, String, Array, Number, JSON, Uint8Array };
   vm.createContext(ctx);
   vm.runInContext(source + '\nthis.DCBridge = DCBridge;', ctx);
-  ctx.DCBridge.start('com.sa2_download');
+  ctx.DCBridge.start('com.sa2_downloader');
   return { B: ctx.DCBridge, listeners, posted, port: () => portMsg, gone: () => portGone };
 }
 

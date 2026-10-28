@@ -151,7 +151,7 @@ too (MIT).
   its page, keeping every byte already downloaded.
 - **Checks every reply.** A wrong `Content-Range`, a different size, or an HTML error page instead of
   the file is caught before it can corrupt the download.
-- **ZIP preview.** `sa2_download peek <url>` lists what's inside a remote ZIP without downloading it.
+- **ZIP preview.** `sa2_downloader peek <url>` lists what's inside a remote ZIP without downloading it.
 
 Measured on a home connection (100 MB, 8 connections) against 0.9.8: speedtest.belwue.net went from
 70.6 s to **21.4 s**, and mirror.nforce.com from 28.2 s to **19.7 s**.
@@ -182,7 +182,7 @@ let done = SA2Downloader_engine::Downloader::new(reqwest::Client::new())
 3. In the app, open **Settings → Browser Integration** and press **Install** for your browser, so the
    extension can talk to the app. (Without it, the extension still downloads in the browser.)
 
-Your queue and settings live in `%APPDATA%\sa2_download` (Windows) and carry over between versions.
+Your queue and settings live in `%APPDATA%\sa2_downloader` (Windows) and carry over between versions.
 
 ---
 
@@ -191,7 +191,7 @@ Your queue and settings live in `%APPDATA%\sa2_download` (Windows) and carry ove
 Prerequisites: [Rust stable](https://www.rust-lang.org/tools/install) (MSVC build tools on Windows).
 
 ```powershell
-cargo build --release   # target\release\sa2_download.exe (portable)
+cargo build --release   # target\release\sa2_downloader.exe (portable)
 cargo test --workspace  # app + engine crate: unit and local HTTP tests (no network needed)
 node --test browser-extension/*.test.js   # extension tests
 ```
@@ -199,9 +199,9 @@ node --test browser-extension/*.test.js   # extension tests
 Packaging: `python scripts/package.py --platform windows --arch x64` (see [PORTABLE-BUILDS.md](PORTABLE-BUILDS.md)
 for macOS and Linux).
 
-**Command line:** `sa2_download.exe add "https://example.com/file.zip"`,
-`sa2_download.exe get "https://example.com/file.zip" -o out.zip`,
-`sa2_download.exe peek "https://example.com/file.zip"`, `sa2_download.exe --help`.
+**Command line:** `sa2_downloader.exe add "https://example.com/file.zip"`,
+`sa2_downloader.exe get "https://example.com/file.zip" -o out.zip`,
+`sa2_downloader.exe peek "https://example.com/file.zip"`, `sa2_downloader.exe --help`.
 
 ---
 

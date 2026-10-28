@@ -2,7 +2,7 @@
 // paused in the browser, handed to the app, and resumed in the browser when
 // the app cannot take it. No clicks, no pasting - zero config.
 
-const HOST = "com.sa2_download";
+const HOST = "com.sa2_downloader";
 const GRACE_MS = 15_000; // ignore our own fallback re-downloads
 const seen = new Map(); // url -> timestamp (loop guard)
 let hostOk = true;

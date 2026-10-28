@@ -3309,7 +3309,7 @@ impl CraftApp {
     fn side_opts(&self, d: &DownloadItem) -> EngineOpts {
         EngineOpts {
             user_agent: if self.user_agent.trim().is_empty() {
-                format!("sa2_download/{}", crate::model::APP_VERSION)
+                format!("sa2_downloader/{}", crate::model::APP_VERSION)
             } else {
                 self.user_agent.clone()
             },
@@ -3595,7 +3595,7 @@ impl CraftApp {
         self.probe_size = None;
         self.probe_name = None;
         let ua = if self.user_agent.trim().is_empty() {
-            format!("sa2_download/{}", crate::model::APP_VERSION)
+            format!("sa2_downloader/{}", crate::model::APP_VERSION)
         } else {
             self.user_agent.clone()
         };
@@ -3673,7 +3673,7 @@ impl CraftApp {
         let depth = if self.grab_depth { self.grab_levels.clamp(1, 5) } else { 0 };
         let stay = self.grab_stay;
         let ua = if self.user_agent.trim().is_empty() {
-            format!("sa2_download/{}", crate::model::APP_VERSION)
+            format!("sa2_downloader/{}", crate::model::APP_VERSION)
         } else {
             self.user_agent.clone()
         };
@@ -3867,7 +3867,7 @@ impl CraftApp {
         self.selfupd_rx = Some(rx);
         self.update_busy = true;
         self.update_status = format!("Downloading {}…", asset.name);
-        let ua = format!("sa2_download/{}", crate::model::APP_VERSION);
+        let ua = format!("sa2_downloader/{}", crate::model::APP_VERSION);
         self.rt.spawn(async move {
             let res: anyhow::Result<usize> = async {
                 let client = reqwest::Client::builder().user_agent(ua).build()?;
@@ -3963,7 +3963,7 @@ impl CraftApp {
             .next()
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "sa2_downloader_update.zip".to_string());
+            .unwrap_or_else(|| "sa2_downloaderer_update.zip".to_string());
         if self.queue_url(url, Some(fname.clone()), true, None) {
             self.push_log(format!("Downloading update: {fname}"));
             notify("SA2 Downloader — update", &format!("Downloading {fname}"));
@@ -4117,7 +4117,7 @@ impl CraftApp {
     fn export_list(&mut self) {
         let file = rfd::FileDialog::new()
             .add_filter("Text", &["txt"])
-            .set_file_name("sa2_download_urls.txt")
+            .set_file_name("sa2_downloader_urls.txt")
             .set_title("Export URL list")
             .save_file();
         let Some(path) = file else { return };
@@ -4310,7 +4310,7 @@ impl CraftApp {
             timeout_secs: item.eff_timeout(self.timeout_secs),
             max_retries: item.eff_retries(self.max_retries),
             user_agent: if self.user_agent.trim().is_empty() {
-                format!("sa2_download/{}", crate::model::APP_VERSION)
+                format!("sa2_downloader/{}", crate::model::APP_VERSION)
             } else {
                 self.user_agent.clone()
             },
@@ -5562,7 +5562,7 @@ impl CraftApp {
         }
     }
 
-    /// Consume `%APPDATA%/sa2_download/wake.json` (`{"start":[ids]}`):
+    /// Consume `%APPDATA%/sa2_downloader/wake.json` (`{"start":[ids]}`):
     /// start IDs queued by a standalone dialog's "Start Download".
     fn check_wake(&mut self) {
         let path = match crate::model::config_dir() {
@@ -5719,7 +5719,7 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
     std::fs::create_dir_all(&base).map_err(|e| e.to_string())?;
 
     let exe = crate::platform::launch_path().map_err(|e| e.to_string())?;
-    let bat = base.join("sa2_download_host.bat");
+    let bat = base.join("sa2_downloader_host.bat");
     // NOTE: `@echo off` is mandatory — cmd echoes every command to stdout
     // by default, which corrupts the length-prefixed native-messaging
     // protocol and makes Chrome report the host as unreachable.
@@ -5730,7 +5730,7 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
     .map_err(|e| e.to_string())?;
 
     // Native host name (must match the browser extension's HOST constant).
-    const HOST_NAME: &str = "com.sa2_download";
+    const HOST_NAME: &str = "com.sa2_downloader";
     let manifest_path = base.join(format!("{browser}.json"));
     let manifest = match browser {
         "firefox" => serde_json::json!({
@@ -5798,7 +5798,7 @@ pub(crate) fn native_host_status(browser: &str) -> bool {
 #[cfg(not(windows))]
 pub(crate) fn native_host_status(browser: &str) -> bool {
     crate::platform::native_host_directory(browser)
-        .map(|d| d.join("com.sa2_download.json").is_file())
+        .map(|d| d.join("com.sa2_downloader.json").is_file())
         .unwrap_or(false)
 }
 
@@ -5806,12 +5806,12 @@ pub(crate) fn native_host_status(browser: &str) -> bool {
 /// Opera / Brave / Vivaldi share the Chromium layout with vendor keys.
 fn native_host_key(browser: &str) -> &'static str {
     match browser {
-        "chrome" => r"HKCU\Software\Google\Chrome\NativeMessagingHosts\com.sa2_download",
-        "edge" => r"HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.sa2_download",
-        "brave" => r"HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.sa2_download",
-        "opera" => r"HKCU\Software\Opera Software\NativeMessagingHosts\com.sa2_download",
-        "vivaldi" => r"HKCU\Software\Vivaldi\NativeMessagingHosts\com.sa2_download",
-        _ => r"HKCU\Software\Mozilla\NativeMessagingHosts\com.sa2_download",
+        "chrome" => r"HKCU\Software\Google\Chrome\NativeMessagingHosts\com.sa2_downloader",
+        "edge" => r"HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.sa2_downloader",
+        "brave" => r"HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.sa2_downloader",
+        "opera" => r"HKCU\Software\Opera Software\NativeMessagingHosts\com.sa2_downloader",
+        "vivaldi" => r"HKCU\Software\Vivaldi\NativeMessagingHosts\com.sa2_downloader",
+        _ => r"HKCU\Software\Mozilla\NativeMessagingHosts\com.sa2_downloader",
     }
 }
 
@@ -5885,16 +5885,16 @@ fn ensure_native_host(browser:&str)->Result<bool,String>{
 async fn update_check_async() -> (String, Option<crate::selfupdate::Asset>, bool) {
     let current = env!("CARGO_PKG_VERSION");
     let client = match reqwest::Client::builder()
-        .user_agent(format!("sa2_download/{current}"))
+        .user_agent(format!("sa2_downloader/{current}"))
         .connect_timeout(std::time::Duration::from_secs(15))
         .build()
     {
         Ok(c) => c,
         Err(e) => return (format!("Update check failed: {e:#}"), None, false),
     };
-    // sa2_download_UPDATE_API points the check at another release JSON
+    // sa2_downloader_UPDATE_API points the check at another release JSON
     // (used to test updates end to end without publishing one).
-    let api = std::env::var("sa2_download_UPDATE_API")
+    let api = std::env::var("sa2_downloader_UPDATE_API")
         .ok()
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| "https://api.github.com/repos/hungry-detective/SA2Downloader/releases/latest".to_string());

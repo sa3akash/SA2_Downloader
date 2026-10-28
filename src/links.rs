@@ -299,7 +299,7 @@ impl LinksApp {
         }
         let base = EngineOpts {
             user_agent: if self.prefs.user_agent.trim().is_empty() {
-                format!("sa2_download/{}", crate::model::APP_VERSION)
+                format!("sa2_downloader/{}", crate::model::APP_VERSION)
             } else {
                 self.prefs.user_agent.clone()
             },

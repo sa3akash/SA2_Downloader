@@ -2,7 +2,7 @@
 //!
 //! Launched as a separate OS window (always on top) when the browser
 //! extension captures a download:
-//!   `sa2_download.exe --confirm-download --url <url> [--filename ..]
+//!   `sa2_downloader.exe --confirm-download --url <url> [--filename ..]
 //!    [--referer ..] [--cookie ..] [--mime ..]`
 //!
 //! Unlike the in-canvas Add modal in the main window, this pops in front of
@@ -504,7 +504,7 @@ impl ConfirmApp {
         let page_mime = self.page_mime.clone();
         let opts = EngineOpts {
             user_agent: if self.user_agent.trim().is_empty() {
-                format!("sa2_download/{}", crate::model::APP_VERSION)
+                format!("sa2_downloader/{}", crate::model::APP_VERSION)
             } else {
                 self.user_agent.clone()
             },

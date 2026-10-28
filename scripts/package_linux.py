@@ -16,7 +16,7 @@ DESKTOP='''[Desktop Entry]
 Type=Application
 Name=Download Craft
 Comment=Download manager with browser capture
-Exec=download_craft
+Exec=sa2_download
 Icon=com.downloadcraft.app
 Terminal=false
 Categories=Network;FileTransfer;
@@ -25,10 +25,10 @@ StartupNotify=true
 
 def install_tree(root,binary):
     app=root/'usr/lib/downloadcraft';app.mkdir(parents=True)
-    shutil.copy2(binary,app/'download_craft');(app/'download_craft').chmod(0o755)
+    shutil.copy2(binary,app/'sa2_download');(app/'sa2_download').chmod(0o755)
     stage_extensions(REPO,app)
     bindir=root/'usr/bin';bindir.mkdir(parents=True)
-    (bindir/'download_craft').symlink_to('../lib/downloadcraft/download_craft')
+    (bindir/'sa2_download').symlink_to('../lib/downloadcraft/sa2_download')
     desktop=root/'usr/share/applications/com.downloadcraft.app.desktop';desktop.parent.mkdir(parents=True);desktop.write_text(DESKTOP)
     icon=root/'usr/share/icons/hicolor/256x256/apps/com.downloadcraft.app.png';icon.parent.mkdir(parents=True);shutil.copy2(REPO/'assets/icon.png',icon)
     docs=root/'usr/share/doc/downloadcraft';docs.mkdir(parents=True)
@@ -89,7 +89,7 @@ Download Craft desktop download manager with Chrome, Brave and Firefox capture.
 mkdir -p %{{buildroot}}
 cp -a "{root}/usr" %{{buildroot}}/
 %files
-/usr/bin/download_craft
+/usr/bin/sa2_download
 /usr/lib/downloadcraft
 /usr/share/applications/com.downloadcraft.app.desktop
 /usr/share/icons/hicolor/256x256/apps/com.downloadcraft.app.png
@@ -104,7 +104,7 @@ cp -a "{root}/usr" %{{buildroot}}/
         run=appdir/'AppRun';run.write_text('''#!/bin/sh
 APPDIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 export APPDIR
-exec "$APPDIR/usr/lib/downloadcraft/download_craft" "$@"
+exec "$APPDIR/usr/lib/downloadcraft/sa2_download" "$@"
 ''');run.chmod(0o755)
         squash=temp/'payload.squashfs'
         subprocess.run([a.mksquashfs,str(appdir),str(squash),'-noappend','-all-root','-no-xattrs','-comp','zstd','-processors','2'],check=True)

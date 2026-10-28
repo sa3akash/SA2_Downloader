@@ -14,15 +14,15 @@ Multi-connection parallel downloads, dynamic segmentation work-stealing, YouTube
 
 <br>
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nd2hpdGUnIGQ9J00yIDQuMmw4LjUtMS4ydjguNEgyek0xMS42IDIuOUwyMiAxLjV2OS45SDExLjZ6TTIgMTIuNmg4LjVWMjFMMiAxOS44ek0xMS42IDEyLjZIMjJ2OS45bC0xMC40LTEuNHonLz48L3N2Zz4=)](https://github.com/hungry-detective/downloadcraft/releases/download/v0.9.10/DownloadCraft-0.9.10-windows-x64-portable.zip)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nd2hpdGUnIGQ9J00yIDQuMmw4LjUtMS4ydjguNEgyek0xMS42IDIuOUwyMiAxLjV2OS45SDExLjZ6TTIgMTIuNmg4LjVWMjFMMiAxOS44ek0xMS42IDEyLjZIMjJ2OS45bC0xMC40LTEuNHonLz48L3N2Zz4=)](https://github.com/hungry-detective/downloadcraft/releases/download/v1.1.0/DownloadCraft-1.1.0-windows-x64-portable.zip)
 &nbsp;
-[![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/download/v0.9.10/DownloadCraft-0.9.10-macos-Universal.zip)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/download/v1.1.0/DownloadCraft-1.1.0-macos-Universal.zip)
 &nbsp;
-[![Download for Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/tag/v0.9.10)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/tag/v1.1.0)
 
-[![Chrome / Edge extension](https://img.shields.io/badge/Extension-Chrome%20%2F%20Edge-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/download/v0.9.10/DownloadCraft-Chrome-0.9.10.zip)
+[![Chrome / Edge extension](https://img.shields.io/badge/Extension-Chrome%20%2F%20Edge-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/download/v1.1.0/DownloadCraft-Chrome-1.1.0.zip)
 &nbsp;
-[![Firefox extension](https://img.shields.io/badge/Extension-Firefox-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/download/v0.9.10/DownloadCraft-Firefox-0.9.10.xpi)
+[![Firefox extension](https://img.shields.io/badge/Extension-Firefox-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](https://github.com/hungry-detective/downloadcraft/releases/download/v1.1.0/DownloadCraft-Firefox-1.1.0.xpi)
 
 <sub>Windows 10/11 · macOS 12+ (Apple Silicon & Intel) · Linux x86-64 (DEB, RPM, AppImage) · <a href="https://github.com/hungry-detective/downloadcraft/releases">all releases</a></sub>
 
@@ -34,17 +34,15 @@ Multi-connection parallel downloads, dynamic segmentation work-stealing, YouTube
 
 ---
 
-## ✨ What's new in 0.9.10
+## ✨ What's new in 1.1.0
 
-- **Google Drive links** download the file itself (big files and Docs/Sheets/Slides exports too).
-- **Archives unpack themselves**: ZIP, RAR (multi-part too) and 7z when they finish, or right-click → Extract.
-- **A smarter video button**: Instagram, TikTok, X and Reddit posts, MP3 audio only, one click in the quality
-  you picked last, right-click "Download video", and a neat round button on YouTube Shorts.
-- **Browser downloads keep their sound**: joined videos are now normal, seekable MP4 files.
-- **A tidier app**: redesigned Site Grabber, header icons, a toolbar that fits narrow windows, and
-  double-click a running download to see its progress window.
+- **New Modern IDM 7.0 Redesign**: full official color theme, faceted 3D brand logo, and unified visual styling.
+- **Enhanced Sidebar with Disk Space**: category-colored vector icons, live disk space arc meter gauge, and one-click Disk Cleaner.
+- **Refined Download List & Toolbar**: 44px rows with 2-line file information, format thumbnail cards, Spring Breeze progress bars, [+ Add Url] pill with cloud badge, and live Speed Test status bar.
+- **Redesigned Playlist Downloader**: multi-file batch window with format pills, auto-sorting, and disk availability indicator.
+- **Automated GitHub Releases**: CI builds across Windows, macOS, and Linux automatically publish release packages and extensions directly to GitHub Releases.
 
-Full notes: [Release 0.9.10](https://github.com/hungry-detective/downloadcraft/releases/tag/v0.9.10).
+Full notes: [Release 1.1.0](https://github.com/hungry-detective/downloadcraft/releases/tag/v1.1.0).
 
 ---
 
@@ -153,7 +151,7 @@ too (MIT).
   its page, keeping every byte already downloaded.
 - **Checks every reply.** A wrong `Content-Range`, a different size, or an HTML error page instead of
   the file is caught before it can corrupt the download.
-- **ZIP preview.** `download_craft peek <url>` lists what's inside a remote ZIP without downloading it.
+- **ZIP preview.** `sa2_download peek <url>` lists what's inside a remote ZIP without downloading it.
 
 Measured on a home connection (100 MB, 8 connections) against 0.9.8: speedtest.belwue.net went from
 70.6 s to **21.4 s**, and mirror.nforce.com from 28.2 s to **19.7 s**.
@@ -170,21 +168,21 @@ let done = downloadcraft_engine::Downloader::new(reqwest::Client::new())
 
 | Platform | Download | How |
 |---|---|---|
-| **Windows 10/11** | `DownloadCraft-0.9.10-windows-x64-portable.zip` | Extract and run `download_craft.exe` — nothing to install. |
-| **macOS 12+** | `DownloadCraft-0.9.10-macos-Universal.zip` | Move *Download Craft.app* to Applications (development build, not notarized — right-click → Open the first time). |
-| **Ubuntu / Debian / Mint** | `downloadcraft_0.9.10_amd64.deb` | `sudo apt install ./downloadcraft_0.9.10_amd64.deb` |
-| **Fedora** | `downloadcraft-0.9.10-1.x86_64.rpm` | `sudo dnf install ./downloadcraft-0.9.10-1.x86_64.rpm` |
-| **Other Linux** | `DownloadCraft-0.9.10-x86_64.AppImage` | Make it executable and open it. |
+| **Windows 10/11** | `DownloadCraft-1.1.0-windows-x64-portable.zip` | Extract and run `download_craft.exe` — nothing to install. |
+| **macOS 12+** | `DownloadCraft-1.1.0-macos-Universal.zip` | Move *Download Craft.app* to Applications (development build, not notarized — right-click → Open the first time). |
+| **Ubuntu / Debian / Mint** | `downloadcraft_1.1.0_amd64.deb` | `sudo apt install ./downloadcraft_1.1.0_amd64.deb` |
+| **Fedora** | `downloadcraft-1.1.0-1.x86_64.rpm` | `sudo dnf install ./downloadcraft-1.1.0-1.x86_64.rpm` |
+| **Other Linux** | `DownloadCraft-1.1.0-x86_64.AppImage` | Make it executable and open it. |
 
 **Browser extension**
-1. **Chrome / Edge / Brave:** extract `DownloadCraft-Chrome-0.9.10.zip`, open `chrome://extensions`, turn on
+1. **Chrome / Edge / Brave:** extract `DownloadCraft-Chrome-1.1.0.zip`, open `chrome://extensions`, turn on
    *Developer mode*, choose **Load unpacked** and pick the `browser-extension` folder.
 2. **Firefox:** open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick
-   `DownloadCraft-Firefox-0.9.10.xpi`.
+   `DownloadCraft-Firefox-1.1.0.xpi`.
 3. In the app, open **Settings → Browser Integration** and press **Install** for your browser, so the
    extension can talk to the app. (Without it, the extension still downloads in the browser.)
 
-Your queue and settings live in `%APPDATA%\download_craft` (Windows) and carry over between versions.
+Your queue and settings live in `%APPDATA%\sa2_download` (Windows) and carry over between versions.
 
 ---
 
@@ -193,7 +191,7 @@ Your queue and settings live in `%APPDATA%\download_craft` (Windows) and carry o
 Prerequisites: [Rust stable](https://www.rust-lang.org/tools/install) (MSVC build tools on Windows).
 
 ```powershell
-cargo build --release   # target\release\download_craft.exe (portable)
+cargo build --release   # target\release\sa2_download.exe (portable)
 cargo test --workspace  # app + engine crate: unit and local HTTP tests (no network needed)
 node --test browser-extension/*.test.js   # extension tests
 ```
@@ -201,9 +199,9 @@ node --test browser-extension/*.test.js   # extension tests
 Packaging: `python scripts/package.py --platform windows --arch x64` (see [PORTABLE-BUILDS.md](PORTABLE-BUILDS.md)
 for macOS and Linux).
 
-**Command line:** `download_craft.exe add "https://example.com/file.zip"`,
-`download_craft.exe get "https://example.com/file.zip" -o out.zip`,
-`download_craft.exe peek "https://example.com/file.zip"`, `download_craft.exe --help`.
+**Command line:** `sa2_download.exe add "https://example.com/file.zip"`,
+`sa2_download.exe get "https://example.com/file.zip" -o out.zip`,
+`sa2_download.exe peek "https://example.com/file.zip"`, `sa2_download.exe --help`.
 
 ---
 

@@ -3,23 +3,25 @@
 <head><meta charset="utf-8"><style>
 /* Colors are set from the panel theme (app Light/Dark/System) by popup.js. */
 :root {
-  --bg:#0b0f19; --card:#151d30; --hover:#243252; --line:rgba(255,255,255,0.08); --text:#f8fafc;
-  --dim:#94a3b8; --muted:#64748b; --accent:#3b82f6; --accent-soft:rgba(59,130,246,.18);
-  --ok:#10b981; --bad:#f43f5e; --warn:#f59e0b; --thumb:linear-gradient(135deg,#6366f1,#8b5cf6);
+  --bg:#262830; --card:#333333; --hover:#3e4250; --line:#4d4d4d; --text:#f2f2f2;
+  --dim:#a8a8a8; --muted:#7d8394; --accent:#60cd38; --accent-blue:#2d96f6;
+  --accent-soft:rgba(96,205,56,.18); --spring-breeze:linear-gradient(135deg,#4ce888,#60cd38);
+  --calming-sea:linear-gradient(135deg,#56ccf2,#2d96f6);
+  --ok:#60cd38; --bad:#f43f5e; --warn:#ffc225; --thumb:linear-gradient(135deg,#56ccf2,#2d96f6);
 }
 * { box-sizing:border-box; }
 body { width:430px; margin:0; background:var(--bg); color:var(--text);
   font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif; }
 button, input, select { font:inherit; color:inherit; }
 .top { display:flex; align-items:center; gap:8px; padding:12px 14px 10px; border-bottom:1px solid var(--line); }
-.logo { width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#3b82f6,#8b5cf6); box-shadow:0 2px 10px rgba(59,130,246,.4); display:grid; place-items:center; flex:none; }
-.logo svg { width:15px; height:15px; }
-.brand { font-weight:700; font-size:14px; flex:1; letter-spacing:-.01em; background:linear-gradient(135deg,#ffffff 40%,#93c5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.logo { width:24px; height:24px; display:grid; place-items:center; flex:none; }
+.logo svg { width:20px; height:20px; }
+.brand { font-weight:700; font-size:14px; flex:1; letter-spacing:-.01em; color:var(--text); }
 .conn { font-size:11px; padding:2px 8px; border-radius:99px; background:var(--card); border:1px solid var(--line); color:var(--dim); white-space:nowrap; }
-.conn.ok { color:var(--ok); border-color:rgba(16,185,129,.3); } .conn.bad { color:var(--bad); border-color:rgba(244,63,94,.3); }
+.conn.ok { color:var(--ok); border-color:rgba(96,205,56,.35); } .conn.bad { color:var(--bad); border-color:rgba(244,63,94,.3); }
 .tabs { display:flex; gap:4px; margin:10px 12px 8px; padding:3px; background:var(--card); border:1px solid var(--line); border-radius:10px; }
 .tab { all:unset; flex:1; text-align:center; padding:6px 0; border-radius:8px; cursor:pointer; color:var(--dim); font-weight:600; transition:all .15s ease; }
-.tab.on { background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; box-shadow:0 2px 8px rgba(37,99,235,.35); }
+.tab.on { background:var(--spring-breeze); color:#fff; box-shadow:0 2px 8px rgba(96,205,56,.35); }
 .tab .n { display:inline-block; min-width:18px; padding:0 5px; margin-left:4px; border-radius:99px; font-size:11px; background:rgba(255,255,255,.22); }
 .tab:not(.on) .n { background:var(--accent-soft); color:var(--accent); }
 .tab .n:empty { display:none; }
@@ -70,8 +72,8 @@ html, body { overflow:hidden; }
 .queued { color:var(--ok); font-weight:600; }
 .row { display:flex; gap:6px; align-items:center; }
 select { flex:1; min-width:0; height:30px; padding:0 8px; background:var(--bg); border:1px solid var(--line); border-radius:7px; cursor:pointer; }
-.dl { all:unset; box-sizing:border-box; height:30px; padding:0 11px; border-radius:7px; background:linear-gradient(135deg,#3b82f6,#2563eb); box-shadow:0 2px 8px rgba(37,99,235,.35); color:#fff; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; white-space:nowrap; transition:filter .15s ease; }
-.dl.br { background:linear-gradient(135deg,#10b981,#059669); color:#fff; box-shadow:0 2px 8px rgba(16,185,129,.35); }
+.dl { all:unset; box-sizing:border-box; height:30px; padding:0 11px; border-radius:7px; background:var(--spring-breeze); box-shadow:0 2px 8px rgba(96,205,56,.35); color:#fff; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; white-space:nowrap; transition:filter .15s ease; }
+.dl.br { background:var(--calming-sea); color:#fff; box-shadow:0 2px 8px rgba(45,150,246,.35); }
 .dl:hover { filter:brightness(1.1); }
 .dl[disabled] { opacity:.5; cursor:default; }
 .dl svg { width:13px; height:13px; }
@@ -127,7 +129,7 @@ label.fl { display:block; color:var(--dim); font-size:11px; margin:2px 0 4px; }
 </style></head>
 <body>
 <div class="top">
-  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></div>
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none"><polygon points="4,3 21,12 11,13" fill="#60CD38"/><polygon points="4,3 11,13 4,21" fill="#42A825"/><polygon points="4,21 11,13 21,12" fill="#2E7D1C"/></svg></div>
   <div class="brand">SA2 Downloader</div>
   <div class="conn" id="conn" data-i18n="popChecking">Checking…</div>
 </div>

@@ -1,68 +1,61 @@
-# Download Craft 0.9.10 — archives, Google Drive, and a smarter video button
+# Download Craft 1.1.0 — New Modern IDM 7.0 UI, Theme System & Automated Release Builds
 
-## What's new
+## What's new in 1.1.0
 
-**Downloads**
-- **Google Drive and Google Docs links**: paste a Drive share link and the file itself downloads, with its
-  real name and resume, including big files behind Drive's "can't scan for viruses" page. Docs, Sheets and
-  Slides links download as Word, Excel and PowerPoint files.
-- **Extract archives automatically**: Settings → On completion → *Extract archives when they finish* unpacks
-  ZIP, RAR (multi-part sets too) and 7z, into a new folder or next to the archive, optionally deleting the
-  archive afterwards. Right-click a finished archive → **Extract** works any time. Nothing is written outside
-  the folder, existing files are kept, and password-protected archives are left alone.
-- **Audio only**: the video menu's ♪ MP3 choice saves just the sound, as MP3.
+### Modern IDM V7.0 Redesign & Official Color Theme
+- **Official Brand Color System**:
+  - Primary colors: Apple Green (`#60CD38`), Bleu De France (`#2D96F6`), Light Gray (`#F2F2F2`), and Quill Grey (`#A8A8A8`).
+  - Secondary accents: Lightning Yellow (`#FFC225`), Dark Orchid (`#9542D6`), Vampire Grey (`#4D4D4D`), and Charcoal (`#333333`).
+  - Signature gradients: Spring Breeze (`#4CE888` → `#60CD38`) and Calming Sea (`#56CCF2` → `#2D96F6`).
+- **Brand 3D Faceted Logo**: High-fidelity vector rendering of the faceted green triangle-arrow emblem across the title bar, task creation dialogs, and progress monitors.
+- **Redesigned Left Sidebar**:
+  - Full navigation tree with vibrant category-specific vector icons (Musics `#FF6B6B`, Compressed `#FFC225`, Videos `#2D96F6`, Programs `#9542D6`, Documents `#56CCF2`, APKs `#60CD38`, Images `#22D3EE`).
+  - Interactive status views: All Downloads, Downloading, Queued, Paused, Finished, and Unfinished.
+  - Dedicated **Disk Space Card** at the bottom: features a smooth radial arc meter gauge, disk utilization percentage (e.g. `90%`), current download directory path, and a one-click **[Disk Cleaner]** gradient pill button that opens the downloads directory in File Explorer.
+- **Redesigned Top Toolbar**:
+  - Pill-shaped **[+ Add Url]** button featuring a circular cloud badge and a breathing Apple Green accent glow when a downloadable link is copied to the clipboard.
+  - Action buttons with clean Material vector icons: `Resume`, `Stop`, `Stop All`, divider, `Delete`, `Options`, `Queues`, `Scheduler`, and `Share`.
+- **Download List Table**:
+  - 44px comfortable row height with clear visual hierarchy.
+  - Two-line filename cell: Line 1 displays the file name in semi-bold text; Line 2 displays the category subtitle in muted tone.
+  - Format-specific thumbnail badges for MP4, MP3, ZIP, EXE, APK, PNG, and more.
+  - Status column featuring centered percentage and a rounded mini progress bar filled with the Spring Breeze gradient.
+- **Status Bar**:
+  - Left: Interactive **Select All** checkbox to toggle selection of all visible download items with live active/total counts.
+  - Right: Live **Speed Test** throughput meter (`⬇ Speed   ⬆ Speed`) with speed gauge icon.
+- **Context Menu**:
+  - 14px rounded context menu with grouped actions: Open, Open with..., Open folder, Move, Rename, Resume, Stop, Redownload, Refresh URL, Delete, Properties.
 
-**Browser extension**
-- **Instagram, TikTok, X and Reddit**: the video button finds the post the video belongs to (even in a feed)
-  and offers Best / 1080p / 720p / 480p / 360p or MP3; the app fetches it with its sound.
-- **One click in your quality**: the button remembers the quality you picked last ("Download 720p"); its ▾
-  opens the full menu. Turn it off in the popup's Settings.
-- **Right-click → Download video with Download Craft** on the video under the pointer.
-- **YouTube Shorts**: a small round button in the Short's own control row; it hides while you scroll and comes
-  back for the next Short, and it can be dragged anywhere.
-- **Download in browser** now writes a normal, indexed MP4: the sound no longer drops out partway through or
-  after skipping ahead.
-- The popup lists videos again (a translation step had emptied it), scrolls in one place, and its badge
-  counts the same videos the list shows.
-- Smaller things: the button is never cut off, waits for the player while a page loads, lights up as a whole
-  on hover; the menu has a sun / moon theme switch and one Cancel.
-- **Self-check**: when a site changes its layout so the button cannot find what it needs, a line appears in
-  the app's log.
+### Multi-File & Playlist Downloader ("New Download Task")
+- Modern window header with 3D faceted brand mark.
+- Format pill badges for each file (`[WEBM]`, `[MKV]`, `[MP4]`, `[VTT]`).
+- Clean table columns: `File Type`, `File Name`, `Download From`, `Size`.
+- Flexible save destination controls:
+  - `◉ Auto sorting` capsule pill
+  - `○ All files to one directory` with path input, browse picker, and real-time `Available: <size>` disk space indicator.
+- Action pill buttons: `[Cancel ✕]` and `[Download ⬇]` in Spring Breeze gradient.
 
-**App**
-- **Site Grabber redesign**: clear sections, file-type chips, a levels stepper, and a results list.
-- List headers with icons (Size, Status, Speed, Time left, Date), centred with their values; a selected row is
-  a soft tint without an outline; Add URL looks like the other toolbar buttons.
-- The toolbar fits narrow windows (icons only, then fewer buttons) and never covers Settings; Settings opens
-  even while a dialog is open.
-- Double-click a running download, or right-click → **Show download window**, to open its progress window.
+### Browser Extension & Floating Video Sniffer
+- Floating video sniffer download pill with faceted 3D play icon and close button.
+- Two-toned quality capsules: `[WEBM | 1440p]`, `[MKV | 2460p]`, `[MP4 | 1080p]`, `[VTT | EN-US]`.
+- Top thumbnail preview banner with video title and formatted file grids.
+- Unified popup matching the Spring Breeze and Calming Sea palettes.
 
-## Updating from 0.9.9
+---
 
-Use **Update now** in the app: it downloads this release, checks it and restarts. Then reload the browser
-extension (chrome://extensions → reload) with the files from this release.
+## Install & Download
 
-## Install
+All packages are compiled with full optimizations and attached directly to the GitHub Release for download and immediate use:
 
-**Windows 10/11.** Extract `DownloadCraft-0.9.10-windows-x64-portable.zip` and run `download_craft.exe` —
-nothing to install. Your queue and settings in `%APPDATA%\download_craft` carry over.
-
-**macOS 12+.** Unzip `DownloadCraft-0.9.10-macos-Universal.zip` and move `Download Craft.app` into
-Applications. This development build is not notarized: right-click → Open the first time.
-
-**Linux (x86-64, glibc 2.28+).**
-- Ubuntu, Debian, Mint, Pop!_OS: `sudo apt install ./downloadcraft_0.9.10_amd64.deb`
-- Fedora: `sudo dnf install ./downloadcraft-0.9.10-1.x86_64.rpm`
-- Other distributions: `DownloadCraft-0.9.10-x86_64.AppImage` (mark it executable; without FUSE run it
-  with `--appimage-extract-and-run`).
-
-**Browser extension (0.9.10).**
-- Chrome / Edge / Brave: extract `DownloadCraft-Chrome-0.9.10.zip`, open `chrome://extensions`, enable
-  Developer mode, **Load unpacked** → the `browser-extension` folder. Already installed? Press reload on
-  the extension and refresh open tabs.
-- Firefox: `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** →
-  `DownloadCraft-Firefox-0.9.10.xpi` (unsigned).
-- Then in the app: Settings → Browser Integration → **Install** for your browser.
+- **Windows 10/11 (64-bit)**: Download `DownloadCraft-1.1.0-windows-x64-portable.zip` — extract and run `download_craft.exe`. Portable, zero-install, preserves settings and downloads.
+- **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `DownloadCraft-1.1.0-macos-Universal.zip` — unzip and move `Download Craft.app` to your Applications folder.
+- **Linux (x86_64, glibc 2.28+)**:
+  - Ubuntu, Debian, Mint: `downloadcraft_1.1.0_amd64.deb` (`sudo apt install ./downloadcraft_1.1.0_amd64.deb`)
+  - Fedora, RHEL: `downloadcraft-1.1.0-1.x86_64.rpm` (`sudo dnf install ./downloadcraft-1.1.0-1.x86_64.rpm`)
+  - Any distribution: `DownloadCraft-1.1.0-x86_64.AppImage` (make executable and run).
+- **Browser Extension (1.1.0)**:
+  - Chrome / Edge / Brave: Download `DownloadCraft-Chrome-1.1.0.zip`, extract, go to `chrome://extensions`, enable *Developer mode*, click *Load unpacked*, and select the extension folder.
+  - Firefox: Download `DownloadCraft-Firefox-1.1.0.xpi`, open `about:debugging#/runtime/this-firefox`, and click *Load Temporary Add-on…*.
 
 ## Media helpers
 

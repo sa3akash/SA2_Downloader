@@ -396,33 +396,37 @@
       return {
         mode: "light",
         bg: "#ffffff",
-        card: "#f8fafc",
-        hover: "#eef2f7",
-        border: "#e2e8f0",
-        text: "#0f172a",
-        dim: "#64748b",
-        muted: "#94a3b8",
-        accent: "#2563eb",
-        accentLight: "rgba(37,99,235,.10)",
-        shadow: "0 12px 32px rgba(15,23,42,.18)",
-        thumbBg: "linear-gradient(135deg,#c7d2fe,#a5b4fc)",
+        card: "#f2f2f2", // #F2F2F2 Light Gray
+        hover: "#e9edf5",
+        border: "#dde2eb",
+        text: "#333333", // #333333 Charcoal
+        dim: "#4d4d4d", // #4D4D4D Vampire Grey
+        muted: "#a8a8a8", // #A8A8A8 Quill Grey
+        accent: "#60cd38", // #60CD38 Apple Green
+        accentBlue: "#2d96f6", // #2D96F6 Bleu De France
+        accentLight: "rgba(96,205,56,.14)",
+        shadow: "0 14px 40px rgba(0,0,0,.15)",
+        thumbBg: "linear-gradient(135deg,#56ccf2,#2d96f6)", // Calming Sea
+        springBreeze: "linear-gradient(135deg,#4ce888,#60cd38)", // Spring Breeze
         toggleBorder: "rgba(15,23,42,.2)",
         toggle: "☾",
       };
     }
     return {
       mode: "dark",
-      bg: "#0f172a",
-      card: "#1e293b",
-      hover: "#334155",
-      border: "#334155",
-      text: "#f1f5f9",
-      dim: "#94a3b8",
-      muted: "#64748b",
-      accent: "#3b82f6",
-      accentLight: "rgba(59,130,246,.16)",
-      shadow: "0 8px 32px rgba(0,0,0,.4)",
-      thumbBg: "linear-gradient(135deg,#667eea,#764ba2)",
+      bg: "#262830",
+      card: "#333333", // #333333 Charcoal
+      hover: "#3e4250",
+      border: "#4d4d4d", // #4D4D4D Vampire Grey
+      text: "#f2f2f2", // #F2F2F2 Light Gray
+      dim: "#a8a8a8", // #A8A8A8 Quill Grey
+      muted: "#7d8394",
+      accent: "#60cd38", // #60CD38 Apple Green
+      accentBlue: "#2d96f6", // #2D96F6 Bleu De France
+      accentLight: "rgba(96,205,56,.20)",
+      shadow: "0 14px 40px rgba(0,0,0,.5)",
+      thumbBg: "linear-gradient(135deg,#2d96f6,#1e40af)",
+      springBreeze: "linear-gradient(135deg,#4ce888,#60cd38)", // Spring Breeze
       toggleBorder: "rgba(241,245,249,.25)",
       toggle: "☀",
     };
@@ -453,7 +457,7 @@
       else if (k === "chip") { el.style.background = T.card; el.style.borderColor = T.border; el.style.color = T.text; }
       else if (k === "chipmini") { el.style.background = T.hover; el.style.color = T.dim; }
       else if (k === "btn") { el.style.background = T.card; el.style.borderColor = T.border; el.style.color = T.text; }
-      else if (k === "btnp") { el.style.background = T.accent; el.style.borderColor = T.accent; el.style.color = "#fff"; }
+      else if (k === "btnp") { el.style.background = T.springBreeze || T.accent; el.style.borderColor = T.accent; el.style.color = "#fff"; }
       else if (k === "badge") { el.style.background = T.accentLight; el.style.color = T.accent; }
       else if (k === "item") {
         const sel = !!el.getAttribute("data-dc-sel");

@@ -1,6 +1,6 @@
 [package]
 name = "download_craft"
-version = "0.9.10"
+version = "1.1.0"
 edition = "2021"
 description = "SA2 Downloader — a lightweight, offline-first download manager (egui GUI + CLI)"
 license = "MIT"

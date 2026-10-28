@@ -92,7 +92,7 @@ var DCBridge = (() => {
     if (live && port) {
       try { return await call(msg); } catch (e) { /* fall back below */ }
     }
-    return api.runtime.sendNativeMessage(host || "com.download_craft", msg);
+    return api.runtime.sendNativeMessage(host || "com.sa2_download", msg);
   }
 
   // ---- the browser's side of each request -----------------------------------

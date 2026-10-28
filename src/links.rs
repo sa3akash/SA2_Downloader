@@ -12,6 +12,7 @@
 //! Shift-click ranges) and a footer (selection, Save to, actions).
 
 use crate::app::pl;
+use crate::dm::*;
 use crate::engine::{self, EngineOpts};
 use crate::fonts::{icon, reg, semi};
 use crate::model::{category_of, config_dir, filename_from_url, format_bytes, DownloadItem};
@@ -298,7 +299,7 @@ impl LinksApp {
         }
         let base = EngineOpts {
             user_agent: if self.prefs.user_agent.trim().is_empty() {
-                format!("download_craft/{}", crate::model::APP_VERSION)
+                format!("sa2_download/{}", crate::model::APP_VERSION)
             } else {
                 self.prefs.user_agent.clone()
             },
@@ -448,10 +449,9 @@ impl LinksApp {
         let found: u64 = files.iter().map(|r| r.size.unwrap_or(0)).sum();
         let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 40.0), Sense::hover());
         let p = ui.painter();
-        // Page mark.
+        // Faceted 3D mark
         let fav = Rect::from_min_size(rect.min + Vec2::new(0.0, 3.0), Vec2::splat(34.0));
-        p.rect_filled(fav, 8.0, t.primary.gamma_multiply(0.16));
-        p.text(fav.center(), Align2::CENTER_CENTER, MI_GLOBE, icon(18.0), t.primary);
+        crate::dm::dm_mark(p, Rect::from_center_size(fav.center(), Vec2::splat(22.0)));
         // Stats, right to left.
         let mut right = rect.max.x;
         let stats = [
@@ -469,10 +469,14 @@ impl LinksApp {
             p.text(Pos2::new(r.min.x + 9.0 + wn, r.center().y), Align2::LEFT_CENTER, label, reg(11.5), t.dim);
             right = r.min.x - 6.0;
         }
-        // Title and address.
+        // Title and address: matching playlist.PNG "New Download Task"
         let x = fav.max.x + 12.0;
         let max_w = (right - x - 12.0).max(80.0);
-        let title = if self.title.trim().is_empty() { "Download all links".to_string() } else { self.title.clone() };
+        let title = if self.title.trim().is_empty() || self.title.trim() == "Download all links" {
+            "New Download Task".to_string()
+        } else {
+            self.title.clone()
+        };
         let title = crate::app::truncate_to_width(p, &title, semi(14.5), t.txt, max_w);
         crate::shaped::draw(p, Pos2::new(x, rect.min.y + 4.0), Align2::LEFT_TOP, &title, semi(14.5), t.txt);
         let url = crate::app::truncate_to_width(p, &self.page_url, reg(11.0), t.dim, max_w);
@@ -612,7 +616,7 @@ impl LinksApp {
                 _ => "",
             };
             let text = format!("{}{arrow}", label.to_uppercase());
-            if k == 2 {
+            if k == 3 {
                 p.text(Pos2::new(r.max.x - 10.0, r.center().y), Align2::RIGHT_CENTER, text, semi(10.5), fg);
             } else {
                 p.text(Pos2::new(r.min.x + 10.0, r.center().y), Align2::LEFT_CENTER, text, semi(10.5), fg);
@@ -675,27 +679,42 @@ impl LinksApp {
                     let dim = if row.kind == Kind::Page { 0.6 } else { 1.0 };
                     let cy = r.center().y;
                     paint_check(p, Rect::from_center_size(Pos2::new(r.min.x + CB_W / 2.0, cy), Vec2::splat(15.0)), row.checked, false, resp.hovered());
-                    // Name: type tile + name + link text.
-                    let col = row.kind.color(dark).gamma_multiply(dim);
-                    let tile = Rect::from_min_size(Pos2::new(xs[0] + 8.0, cy - 13.0), Vec2::splat(26.0));
-                    p.rect_filled(tile, 6.0, col.gamma_multiply(0.16));
-                    p.text(tile.center(), Align2::CENTER_CENTER, row.kind.glyph(), icon(15.0), col);
-                    let nx = tile.max.x + 9.0;
-                    let nw = (xs[0] + widths[0] - nx - 8.0).max(20.0);
+                    // Column 0: File Type pill badge (matching playlist.PNG)
+                    let ext = row.name.rsplit_once('.').map(|(_, e)| e.to_ascii_uppercase()).unwrap_or_else(|| row.kind.labels().1.to_ascii_uppercase());
+                    let pw = (crate::shaped::width(p, &ext, &semi(11.0)) + 16.0).min(widths[0] - 16.0);
+                    let pill = Rect::from_center_size(Pos2::new(xs[0] + widths[0] / 2.0, cy), Vec2::new(pw.max(52.0), 22.0));
+                    p.rect_filled(pill, 4.0, COLOR_CHARCOAL);
+                    p.rect_stroke(pill, 4.0, Stroke::new(1.0, COLOR_VAMPIRE_GREY), egui::StrokeKind::Inside);
+                    p.text(pill.center(), Align2::CENTER_CENTER, &ext, semi(11.0), Color32::WHITE);
+
+                    // Column 1: File Name + link text
+                    let nx = xs[1] + 10.0;
+                    let nw = (widths[1] - 20.0).max(20.0);
                     let name = crate::app::truncate_to_width(p, &row.name, semi(12.0), t.txt, nw);
                     crate::shaped::draw(p, Pos2::new(nx, cy - 1.0), Align2::LEFT_BOTTOM, &name, semi(12.0), t.txt.gamma_multiply(dim));
                     let sub = crate::app::truncate_to_width(p, &row.text, reg(10.5), t.dim, nw);
                     crate::shaped::draw(p, Pos2::new(nx, cy + 1.0), Align2::LEFT_TOP, &sub, reg(10.5), t.dim);
-                    // Type pill.
-                    let ext = row.name.rsplit_once('.').map(|(_, e)| e.to_ascii_uppercase()).filter(|e| e.len() <= 5).unwrap_or_default();
-                    let pill_txt = if ext.is_empty() { row.kind.labels().1.to_string() } else { format!("{ext} · {}", row.kind.labels().1) };
-                    let pw = crate::shaped::width(p, &pill_txt, &semi(10.5)) + 16.0;
-                    let pill = Rect::from_min_size(Pos2::new(xs[1] + 10.0, cy - 10.0), Vec2::new(pw.min(widths[1] - 16.0), 20.0));
-                    p.rect_filled(pill, 5.0, col.gamma_multiply(0.16));
-                    let pt = crate::app::truncate_to_width(p, &pill_txt, semi(10.5), col, pill.width() - 12.0);
-                    p.text(Pos2::new(pill.min.x + 8.0, cy), Align2::LEFT_CENTER, pt, semi(10.5), col);
-                    // Size, or a shimmer while it is being checked.
-                    let sx = xs[2] + widths[2] - 10.0;
+
+                    // Column 2: Download From: host + last folder tag
+                    let (host, folder) = host_and_folder(&row.url);
+                    let hx = xs[2] + 10.0;
+                    let hw = (widths[2] - 20.0).max(20.0);
+                    let host_s = crate::app::truncate_to_width(p, &host, reg(12.0), t.dim, hw * 0.65);
+                    let host_w = crate::shaped::width(p, &host_s, &reg(12.0));
+                    p.text(Pos2::new(hx, cy), Align2::LEFT_CENTER, &host_s, reg(12.0), t.dim);
+                    if !folder.is_empty() {
+                        let room = hw - host_w - 14.0;
+                        if room > 24.0 {
+                            let f = crate::app::truncate_to_width(p, &folder, reg(9.5), t.dim, room - 10.0);
+                            let fw = crate::shaped::width(p, &f, &reg(9.5)) + 10.0;
+                            let tag = Rect::from_min_size(Pos2::new(hx + host_w + 6.0, cy - 8.0), Vec2::new(fw, 16.0));
+                            p.rect_filled(tag, 4.0, t.surface_lt);
+                            crate::shaped::draw(p, Pos2::new(tag.min.x + 5.0, cy), Align2::LEFT_CENTER, &f, reg(9.5), t.dim);
+                        }
+                    }
+
+                    // Column 3: Size
+                    let sx = xs[3] + widths[3] - 10.0;
                     match (row.size, row.probe) {
                         (Some(s), _) => {
                             p.text(Pos2::new(sx, cy), Align2::RIGHT_CENTER, format_bytes(s), reg(12.0), t.txt.gamma_multiply(dim));
@@ -708,23 +727,6 @@ impl LinksApp {
                         }
                         _ => {
                             p.text(Pos2::new(sx, cy), Align2::RIGHT_CENTER, "—", reg(12.0), t.dim);
-                        }
-                    }
-                    // Download from: host + last folder tag.
-                    let (host, folder) = host_and_folder(&row.url);
-                    let hx = xs[3] + 10.0;
-                    let hw = (widths[3] - 20.0).max(20.0);
-                    let host_s = crate::app::truncate_to_width(p, &host, reg(12.0), t.dim, hw * 0.65);
-                    let host_w = crate::shaped::width(p, &host_s, &reg(12.0));
-                    p.text(Pos2::new(hx, cy), Align2::LEFT_CENTER, &host_s, reg(12.0), t.dim);
-                    if !folder.is_empty() {
-                        let room = hw - host_w - 14.0;
-                        if room > 24.0 {
-                            let f = crate::app::truncate_to_width(p, &folder, reg(9.5), t.dim, room - 10.0);
-                            let fw = crate::shaped::width(p, &f, &reg(9.5)) + 10.0;
-                            let tag = Rect::from_min_size(Pos2::new(hx + host_w + 6.0, cy - 8.0), Vec2::new(fw, 16.0));
-                            p.rect_filled(tag, 4.0, t.surface_lt);
-                            crate::shaped::draw(p, Pos2::new(tag.min.x + 5.0, cy), Align2::LEFT_CENTER, &f, reg(9.5), t.dim);
                         }
                     }
                     if resp.on_hover_text(&row.url).clicked() {
@@ -746,7 +748,7 @@ impl LinksApp {
         let n = checked.len();
         let bytes: u64 = checked.iter().map(|r| r.size.unwrap_or(0)).sum();
         let total: u64 = self.rows.iter().filter(|r| r.kind != Kind::Page).map(|r| r.size.unwrap_or(0)).sum();
-        let (area, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 74.0), Sense::hover());
+        let (area, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 84.0), Sense::hover());
         let p = ui.painter().clone();
         // Selection line + bar.
         let line_y = area.min.y + 10.0;
@@ -772,46 +774,47 @@ impl LinksApp {
         if self.probes_left > 0 {
             p.text(Pos2::new(bar.max.x + 12.0, bar.center().y), Align2::LEFT_CENTER, format!("checking {} …", self.probes_left), reg(10.5), t.dim);
         }
-        // Save to: label, segmented choice, folder field + Browse.
-        let row_y = area.max.y - 18.0;
-        p.text(Pos2::new(area.min.x, row_y), Align2::LEFT_CENTER, "Save to", reg(11.5), t.dim);
-        let seg = Rect::from_min_size(Pos2::new(area.min.x + 50.0, row_y - 15.0), Vec2::new(214.0, 30.0));
-        p.rect(seg, 6.0, t.surface, Stroke::new(1.0, t.card_bd), egui::StrokeKind::Inside);
-        for (k, (label, val)) in [("Category folders", true), ("One folder", false)].into_iter().enumerate() {
-            let r = Rect::from_min_size(Pos2::new(seg.min.x + 3.0 + k as f32 * 117.0, seg.min.y + 3.0), Vec2::new(if k == 0 { 114.0 } else { 91.0 }, 24.0));
-            let resp = ui.interact(r, egui::Id::new(("links-seg", k)), Sense::click());
-            let on = self.by_category == val;
-            if on {
-                p.rect_filled(r, 4.0, t.primary);
-            } else if resp.hovered() {
-                p.rect_filled(r, 4.0, t.surface_lt);
-            }
-            p.text(r.center(), Align2::CENTER_CENTER, label, reg(11.5), if on { Color32::WHITE } else { t.dim });
-            let resp = if val {
-                resp.on_hover_text("Every file into its category folder (Settings → Folders)")
-            } else {
-                resp.on_hover_text("All checked files into the folder on the right")
-            };
-            if resp.clicked() {
-                self.by_category = val;
-            }
-        }
-        // The action buttons are laid out from the right below; the folder
-        // field takes what is left between them and the choice, up to 330.
-        let dl_label = if n > 0 { format!("Download ({n})") } else { "Download".to_string() };
-        let buttons_w: f32 = [(dl_label.as_str(), true), ("Add to queue", true), ("Cancel", false)]
-            .iter()
-            .map(|(l, g)| crate::shaped::width(&p, l, &semi(12.0)) + if *g { 48.0 } else { 32.0 } + 8.0)
-            .sum();
-        let path_w = (area.max.x - buttons_w - 8.0 - (seg.max.x + 8.0)).clamp(90.0, 330.0);
-        let path = Rect::from_min_size(Pos2::new(seg.max.x + 8.0, row_y - 15.0), Vec2::new(path_w, 30.0));
+
+        // Save To row: label + Auto sorting radio pill + All files to one directory radio pill + path + Available disk space
+        let row_y = area.min.y + 44.0;
+        p.text(Pos2::new(area.min.x, row_y), Align2::LEFT_CENTER, "Save To:", semi(11.5), t.txt);
+
+        // Auto sorting capsule button
+        let opt0_w = 114.0;
+        let opt0_r = Rect::from_min_size(Pos2::new(area.min.x + 64.0, row_y - 13.0), Vec2::new(opt0_w, 26.0));
+        let resp0 = ui.interact(opt0_r, egui::Id::new("links-opt-auto"), Sense::click());
+        let on0 = self.by_category;
+        p.rect(opt0_r, 13.0, if on0 { t.primary.gamma_multiply(0.12) } else { t.surface }, Stroke::new(1.2, if on0 { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
+        p.circle_filled(Pos2::new(opt0_r.min.x + 13.0, opt0_r.center().y), 4.0, if on0 { t.primary } else { t.card_bd });
+        if on0 { p.circle_filled(Pos2::new(opt0_r.min.x + 13.0, opt0_r.center().y), 2.0, Color32::WHITE); }
+        p.text(Pos2::new(opt0_r.min.x + 24.0, opt0_r.center().y), Align2::LEFT_CENTER, "Auto sorting", semi(11.0), if on0 { t.primary } else { t.dim });
+        if resp0.clicked() { self.by_category = true; }
+
+        // All files to one directory capsule button
+        let opt1_w = 164.0;
+        let opt1_r = Rect::from_min_size(Pos2::new(opt0_r.max.x + 8.0, row_y - 13.0), Vec2::new(opt1_w, 26.0));
+        let resp1 = ui.interact(opt1_r, egui::Id::new("links-opt-dir"), Sense::click());
+        let on1 = !self.by_category;
+        p.rect(opt1_r, 13.0, if on1 { t.primary.gamma_multiply(0.12) } else { t.surface }, Stroke::new(1.2, if on1 { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
+        p.circle_filled(Pos2::new(opt1_r.min.x + 13.0, opt1_r.center().y), 4.0, if on1 { t.primary } else { t.card_bd });
+        if on1 { p.circle_filled(Pos2::new(opt1_r.min.x + 13.0, opt1_r.center().y), 2.0, Color32::WHITE); }
+        p.text(Pos2::new(opt1_r.min.x + 24.0, opt1_r.center().y), Align2::LEFT_CENTER, "All files to one directory", semi(11.0), if on1 { t.primary } else { t.dim });
+        if resp1.clicked() { self.by_category = false; }
+
+        // Path box + Browse button
+        let path_x = opt1_r.max.x + 10.0;
+        let avail_space = crate::dm::available_disk_space(&self.one_dir);
+        let avail_str = format!("Available: {avail_space}");
+        let avail_w = crate::shaped::width(&p, &avail_str, &semi(11.0)) + 12.0;
+        let path_w = (area.max.x - path_x - avail_w - 8.0).clamp(110.0, 310.0);
+        let path = Rect::from_min_size(Pos2::new(path_x, row_y - 14.0), Vec2::new(path_w, 28.0));
         p.rect(path, 6.0, t.bg, Stroke::new(1.0, t.card_bd), egui::StrokeKind::Inside);
-        let browse = Rect::from_min_size(Pos2::new(path.max.x - 70.0, path.min.y + 4.0), Vec2::new(66.0, 22.0));
+        let browse = Rect::from_min_size(Pos2::new(path.max.x - 64.0, path.min.y + 3.0), Vec2::new(60.0, 22.0));
+
         if self.by_category {
-            // What "category folders" means, spelled out.
-            let shown = format!("{}\\<type>", self.prefs.save_dir.trim_end_matches(['\\', '/']));
+            let shown = format!("{}\\<category>", self.prefs.save_dir.trim_end_matches(['\\', '/']));
             let s = crate::app::truncate_to_width(&p, &shown, reg(11.0), t.dim, path.width() - 20.0);
-            p.text(Pos2::new(path.min.x + 9.0, path.center().y), Align2::LEFT_CENTER, s, reg(11.0), t.dim.gamma_multiply(0.7));
+            p.text(Pos2::new(path.min.x + 8.0, path.center().y), Align2::LEFT_CENTER, s, reg(11.0), t.dim.gamma_multiply(0.7));
         } else {
             ui.put(
                 Rect::from_min_max(Pos2::new(path.min.x + 6.0, path.min.y + 4.0), Pos2::new(browse.min.x - 4.0, path.max.y - 4.0)),
@@ -819,50 +822,32 @@ impl LinksApp {
             );
             let resp = ui.interact(browse, egui::Id::new("links-browse"), Sense::click());
             p.rect(browse, 4.0, if resp.hovered() { t.surface_lt } else { t.surface }, Stroke::new(1.0, t.card_bd), egui::StrokeKind::Inside);
-            p.text(Pos2::new(browse.min.x + 8.0, browse.center().y), Align2::LEFT_CENTER, MI_FOLDER, icon(12.0), t.dim);
-            p.text(Pos2::new(browse.min.x + 24.0, browse.center().y), Align2::LEFT_CENTER, "Browse", reg(10.5), t.txt);
+            p.text(Pos2::new(browse.min.x + 6.0, browse.center().y), Align2::LEFT_CENTER, MI_FOLDER, icon(12.0), t.dim);
+            p.text(Pos2::new(browse.min.x + 22.0, browse.center().y), Align2::LEFT_CENTER, "Browse", reg(10.5), t.txt);
             if resp.clicked() {
                 if let Some(d) = rfd::FileDialog::new().set_directory(&self.one_dir).pick_folder() {
                     self.one_dir = d.to_string_lossy().to_string();
                 }
             }
         }
-        // Actions, right-aligned on the bottom line.
-        let mut right = area.max.x;
-        let buttons: [(&str, String, bool, bool, &str); 3] = [
-            ("dl", dl_label, true, n > 0, "Queue the checked files and start them"),
-            ("queue", "Add to queue".into(), false, n > 0, "Queue the checked files without starting them"),
-            ("cancel", "Cancel".into(), false, true, "Close without downloading"),
-        ];
-        for (id, label, primary, enabled, tip) in buttons {
-            let glyph = match id { "dl" => Some(MI_DOWNLOAD), "queue" => Some(MI_QUEUE), _ => None };
-            let w = crate::shaped::width(&p, &label, &semi(12.0)) + if glyph.is_some() { 48.0 } else { 32.0 };
-            let r = Rect::from_min_size(Pos2::new(right - w, area.max.y - 34.0), Vec2::new(w, 32.0));
-            right = r.min.x - 8.0;
-            let resp = ui.interact(r, egui::Id::new(("links-btn", id)), if enabled { Sense::click() } else { Sense::hover() });
-            let (fill, bd, fg) = if primary {
-                (if resp.hovered() && enabled { crate::dm::DM_ACC.gamma_multiply(0.85) } else { t.primary }, t.primary, Color32::WHITE)
-            } else {
-                (if resp.hovered() && enabled { t.surface_lt } else { t.surface }, t.card_bd, t.txt)
-            };
-            let a = if enabled { 1.0 } else { 0.45 };
-            p.rect(r, 6.0, fill.gamma_multiply(a), Stroke::new(1.0, bd.gamma_multiply(a)), egui::StrokeKind::Inside);
-            let mut x = r.min.x + 16.0;
-            if let Some(g) = glyph {
-                p.text(Pos2::new(x + 7.0, r.center().y), Align2::CENTER_CENTER, g, icon(15.0), fg.gamma_multiply(a));
-                x += 20.0;
-            }
-            p.text(Pos2::new(x, r.center().y), Align2::LEFT_CENTER, label, semi(12.0), fg.gamma_multiply(a));
-            if resp.on_hover_text(tip).clicked() {
-                match id {
-                    "dl" => self.commit(true),
-                    "queue" => self.commit(false),
-                    _ => self.done = true,
-                }
-            }
-        }
+
+        // Available disk space
+        p.text(Pos2::new(path.max.x + 10.0, row_y), Align2::LEFT_CENTER, &avail_str, semi(11.0), t.dim);
+
+        // Bottom row: Action pill buttons [Cancel ✕] and [Download ⬇]
+        let cancel_r = Rect::from_min_size(Pos2::new(area.max.x - 224.0, area.max.y - 30.0), Vec2::new(98.0, 28.0));
+        let resp_c = ui.interact(cancel_r, egui::Id::new("links-btn-cancel"), Sense::click());
+        btn_pill(&p, cancel_r, resp_c.hovered(), "Cancel", t.surface, t.card_bd, t.txt, Some(DmIcon::Close));
+        if resp_c.clicked() { self.done = true; }
+
+        let dl_label = if n > 0 { format!("Download ({n})") } else { "Download".to_string() };
+        let dl_r = Rect::from_min_size(Pos2::new(area.max.x - 116.0, area.max.y - 30.0), Vec2::new(116.0, 28.0));
+        let resp_dl = ui.interact(dl_r, egui::Id::new("links-btn-dl"), if n > 0 { Sense::click() } else { Sense::hover() });
+        btn_spring_breeze(&p, dl_r, resp_dl.hovered() && n > 0, &dl_label, Some(DmIcon::ArrowDown));
+        if resp_dl.clicked() && n > 0 { self.commit(true); }
+
         if !self.notice.is_empty() {
-            p.text(Pos2::new(right, area.max.y - 18.0), Align2::RIGHT_CENTER, &self.notice, reg(11.0), t.warning);
+            p.text(Pos2::new(area.min.x, area.max.y - 14.0), Align2::LEFT_CENTER, &self.notice, reg(11.0), t.warning);
         }
     }
 }
@@ -886,53 +871,48 @@ fn paint_check(p: &egui::Painter, r: Rect, on: bool, mixed: bool, hover: bool) {
 const CB_W: f32 = 40.0;
 const HDR_H: f32 = 32.0;
 const ROW_H: f32 = 40.0;
-/// Column titles and what clicking them sorts by. "Download from" (last)
-/// takes whatever room the others leave.
+/// Column titles and what clicking them sorts by matching playlist.PNG:
+/// File Type, File Name, Download From, Size.
 const COLS: [(&str, SortBy); 4] = [
-    ("File name", SortBy::Name),
-    ("Type", SortBy::Type),
+    ("File Type", SortBy::Type),
+    ("File Name", SortBy::Name),
+    ("Download From", SortBy::From),
     ("Size", SortBy::Size),
-    ("Download from", SortBy::From),
 ];
 const COL_MIN: f32 = 60.0;
-/// Stored widths of the three sized columns (name, type, size).
-const COLS_DEFAULT: [f32; 3] = [340.0, 130.0, 96.0];
+/// Stored widths of the three sized columns (type, name, size).
+const COLS_DEFAULT: [f32; 3] = [100.0, 320.0, 96.0];
 
 /// All four widths for a table `avail` wide: the stored three, and the rest
 /// for "Download from" (never under 140).
 fn col_widths(stored: &[f32; 3], avail: f32) -> [f32; 4] {
-    let [n, t, s] = *stored;
-    // A narrow window takes the room from the name column first, so
-    // "Download from" stays readable instead of running off the edge.
-    let over = (n + t + s + 140.0 - avail).max(0.0);
+    let [t, n, s] = *stored;
+    let over = (t + n + s + 140.0 - avail).max(0.0);
     let n = (n - over).max(160.0);
-    let flex = (avail - (n + t + s)).max(140.0);
-    [n, t, s, flex]
+    let flex = (avail - (t + n + s)).max(140.0);
+    [t, n, flex, s]
 }
 
-/// Drag the divider after column `i` by `dx`: it follows the pointer, so the
-/// column on its left grows by what the one on its right loses; the flexible
-/// "Download from" column absorbs the change when it is one of the two.
 #[cfg(test)]
 #[test]
 fn narrow_windows_shrink_the_name_column() {
-    let w = col_widths(&[340.0, 130.0, 96.0], 620.0);
+    let w = col_widths(&[100.0, 320.0, 96.0], 620.0);
     assert!(w.iter().sum::<f32>() <= 620.0 + 0.5, "{w:?}");
-    assert!(w[3] >= 140.0 && w[0] >= 160.0);
-    // Wide: unchanged, the rest goes to "Download from".
-    assert_eq!(col_widths(&[340.0, 130.0, 96.0], 1000.0), [340.0, 130.0, 96.0, 434.0]);
+    assert!(w[2] >= 140.0 && w[1] >= 160.0);
+    assert_eq!(col_widths(&[100.0, 320.0, 96.0], 1000.0), [100.0, 320.0, 484.0, 96.0]);
 }
 
 fn drag_divider(stored: &[f32; 3], i: usize, dx: f32) -> [f32; 3] {
     let mut out = *stored;
-    if i + 1 >= 3 {
-        // Size | Download from: Size grows, the flexible column gives way.
-        out[i] = (out[i] + dx).clamp(COL_MIN, 900.0);
-        return out;
+    if i == 0 {
+        let dx = dx.clamp(COL_MIN - out[0], out[1] - COL_MIN);
+        out[0] += dx;
+        out[1] -= dx;
+    } else if i == 1 {
+        out[1] = (out[1] + dx).clamp(COL_MIN, 900.0);
+    } else if i >= 2 {
+        out[2] = (out[2] - dx).clamp(COL_MIN, 900.0);
     }
-    let dx = dx.clamp(COL_MIN - out[i], out[i + 1] - COL_MIN);
-    out[i] += dx;
-    out[i + 1] -= dx;
     out
 }
 
@@ -1074,7 +1054,7 @@ pub fn run() -> eframe::Result<()> {
 }
 
 const LINKS_W: f32 = 860.0;
-const LINKS_H: f32 = 540.0;
+const LINKS_H: f32 = 560.0;
 
 /// The window's opening size: the design size, but never more than about
 /// half of the screen's free area (on a small or zoomed screen the full

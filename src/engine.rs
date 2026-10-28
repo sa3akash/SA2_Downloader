@@ -1290,7 +1290,7 @@ pub async fn probe(
     opts: &EngineOpts,
     url: &str,
 ) -> (Option<u64>, bool, Option<String>, Option<String>) {
-    let dbg = std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok();
+    let dbg = std::env::var("sa2_download_DEBUG").is_ok();
     // A form (POST) download only exists as that POST: a GET/HEAD probe
     // would ask for something else (often the form page itself).
     if opts.browser.as_ref().is_some_and(|b| b.is_post()) {
@@ -1621,7 +1621,7 @@ pub async fn resolve_media(
         return None;
     }
     let hit = resolve_generic(&html, page_url);
-    if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+    if std::env::var("sa2_download_DEBUG").is_ok() {
         match &hit {
             Some((u, _)) => dbg_resolve("generic", u),
             None => eprintln!("[dbg] resolve: none"),
@@ -1631,7 +1631,7 @@ pub async fn resolve_media(
 }
 
 fn dbg_resolve(via: &str, url: &str) {
-    if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+    if std::env::var("sa2_download_DEBUG").is_ok() {
         let host = url::Url::parse(url)
             .map(|u| u.host_str().unwrap_or("?").to_string())
             .unwrap_or_else(|_| "?".to_string());
@@ -4121,7 +4121,7 @@ async fn fallback_chain(
     if shared.cancelled.load(Ordering::SeqCst) || err.to_string() == "cancelled" {
         return Err(err);
     }
-    let dbg = std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok();
+    let dbg = std::env::var("sa2_download_DEBUG").is_ok();
     let actual = mutex_guard(&shared.resolved_name).clone().map(|n| dest.with_file_name(n)).unwrap_or_else(|| dest.clone());
     let yt_page = if is_youtube_page(url) {
         Some(url.to_string())
@@ -4584,14 +4584,14 @@ async fn download_inner(
                 match download_with_ytdlp(&exe, &url, &dest, connections, &opts, &shared).await {
                     Ok(()) => return Ok(()),
                     Err(e) => {
-                        if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+                        if std::env::var("sa2_download_DEBUG").is_ok() {
                             eprintln!("[dbg] yt-dlp path skipped: {e:#}");
                         }
                     }
                 }
             }
             Err(e) => {
-                if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+                if std::env::var("sa2_download_DEBUG").is_ok() {
                     eprintln!("[dbg] yt-dlp unavailable: {e:#}");
                 }
             }
@@ -4623,7 +4623,7 @@ async fn download_inner(
                         shared.set_note(format!(
                             "captured file kept as-is: merging the page failed ({e:#}) - it may have no sound"
                         ));
-                        if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+                        if std::env::var("sa2_download_DEBUG").is_ok() {
                             eprintln!("[dbg] social page path skipped: {e:#}");
                         }
                     }
@@ -4633,7 +4633,7 @@ async fn download_inner(
                 shared.set_note(format!(
                     "captured file kept as-is: no yt-dlp for the audio merge ({e:#}) - it may have no sound"
                 ));
-                if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+                if std::env::var("sa2_download_DEBUG").is_ok() {
                     eprintln!("[dbg] social page path: yt-dlp unavailable: {e:#}");
                 }
             }
@@ -4672,7 +4672,7 @@ async fn download_inner(
                 // ffmpeg on completion instead of a small progressive file.
                 // Drop our dest claim first: download_adaptive takes its own.
                 if let Some(pair) = hit.pair_url.filter(|p| p.starts_with("http")) {
-                    if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+                    if std::env::var("sa2_download_DEBUG").is_ok() {
                         eprintln!("[dbg] pair video={}", url);
                         eprintln!("[dbg] pair audio={}", pair);
                     }
@@ -5876,7 +5876,7 @@ fn ffmpeg_local_path() -> Option<std::path::PathBuf> {
     let base = {
         std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?)
     };
-    Some(base.join("download_craft").join("bin").join(FFMPEG_BIN))
+    Some(base.join("sa2_download").join("bin").join(FFMPEG_BIN))
     }
 }
 
@@ -6044,7 +6044,7 @@ async fn latest_release_tag(client: &reqwest::Client, repo: &str) -> Option<Stri
     let v: serde_json::Value = client
         .get(format!("https://api.github.com/repos/{repo}/releases/latest"))
         // GitHub's API rejects requests without a User-Agent.
-        .header(reqwest::header::USER_AGENT, format!("download_craft/{}", crate::model::APP_VERSION))
+        .header(reqwest::header::USER_AGENT, format!("sa2_download/{}", crate::model::APP_VERSION))
         .header(reqwest::header::ACCEPT, "application/vnd.github+json")
         .timeout(std::time::Duration::from_secs(15))
         .send()
@@ -6169,7 +6169,7 @@ async fn write_cookie_jar(cookie: &str, domain: &str) -> Result<Option<CookieJar
     for _ in 0..100 {
         let tag = NEXT.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "download_craft_cookies_{}_{tag}.txt",
+            "sa2_download_cookies_{}_{tag}.txt",
             std::process::id()
         ));
         let mut options = std::fs::OpenOptions::new();
@@ -6538,7 +6538,7 @@ fn phase_for_line(line: &str) -> Option<&'static str> {
 }
 
 /// Folder name for a helper's in-progress pieces, inside the save folder.
-const PARTS_DIR: &str = ".download_craft_parts";
+const PARTS_DIR: &str = ".sa2_download_parts";
 
 /// `(home, parts)` folders for a yt-dlp run saving to `dest`.
 fn ytdlp_dirs(dest: &std::path::Path) -> (PathBuf, PathBuf) {
@@ -8387,7 +8387,7 @@ async fn single_stream_once(
             }
         }
     };
-    if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+    if std::env::var("sa2_download_DEBUG").is_ok() {
         eprintln!(
             "[dbg] media status={} len={:?} range={:?} ctype={:?}",
             resp.status(),
@@ -8762,7 +8762,7 @@ async fn chunked_once(
     let resp = resp
         .error_for_status()
         .map_err(|e| http_status_err(url, e))?;
-    if std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok() {
+    if std::env::var("sa2_download_DEBUG").is_ok() {
         eprintln!(
             "[dbg] chunk range={offset}-{end} status={} len={:?}",
             resp.status(),
@@ -8993,7 +8993,7 @@ async fn run_dce(
     log: &str,
 ) -> Result<downloadcraft_engine::Outcome> {
     use downloadcraft_engine as dce;
-    let dbg = std::env::var("DOWNLOAD_CRAFT_DEBUG").is_ok();
+    let dbg = std::env::var("sa2_download_DEBUG").is_ok();
     let key = log.to_string();
     dl = dl.on_event(Arc::new(move |e: &dce::Event| {
         if dbg {
@@ -10094,7 +10094,7 @@ mod tests {
         lim.consume(10).await; // unlimited under override: returns fast
         // Empty checksum request is a no-op.
         let dir = std::env::temp_dir();
-        let p = dir.join("download_craft_checksum_test.bin");
+        let p = dir.join("sa2_download_checksum_test.bin");
         std::fs::write(&p, b"abc").unwrap();
         verify_checksum(&p, "").await.unwrap();
         // Known SHA-256 of "abc".
@@ -10760,7 +10760,7 @@ mod tests {
     #[test]
     fn quality_selection() {
         assert_eq!(chrome_major("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"), Some(126));
-        assert_eq!(chrome_major("download_craft/0.7.0"), None);
+        assert_eq!(chrome_major("sa2_download/0.7.0"), None);
         assert_eq!(chrome_major(""), None);
         assert_eq!(quality_cap("1080p"), Some(1080));
         assert_eq!(quality_cap("1080p60"), Some(1080));

@@ -665,12 +665,12 @@ pub fn is_download_url(s: &str) -> bool {
 
 /// Public product name shown everywhere in the UI.
 pub const APP_NAME: &str = "SA2 Downloader";
-/// Config/storage slug: `%APPDATA%/download_craft` (v0.5+).
-pub const APP_SLUG: &str = "download_craft";
+/// Config/storage slug: `%APPDATA%/sa2_download` (v0.5+).
+pub const APP_SLUG: &str = "sa2_download";
 /// Previous slug, kept only for one-time migration of existing installs.
 const LEGACY_SLUG: &str = "idm_rust";
 
-/// App config directory, e.g. `%APPDATA%/download_craft`.
+/// App config directory, e.g. `%APPDATA%/sa2_download`.
 pub fn config_dir() -> Option<std::path::PathBuf> {
     dirs::config_dir().map(|p| p.join(APP_SLUG))
 }

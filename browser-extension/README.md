@@ -49,7 +49,7 @@ and the promise-style API calls go through `api` (`browser` when it exists,
    **Load Temporary Add-on…** and pick the `.xpi` (or the staged folder's
    `manifest.json`). The add-on appears as *Send to Download Craft* with the
    ID `send-to-download-craft@example` — the same ID the app allows in
-   `%APPDATA%\download_craft\native-host\firefox.json`.
+   `%APPDATA%\sa2_download\native-host\firefox.json`.
 3. Then do step 2 below (**Install firefox** in Settings).
 
 A temporary add-on disappears when Firefox closes: that is Firefox's signing

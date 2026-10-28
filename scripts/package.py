@@ -12,18 +12,18 @@ a=p.parse_args()
 repo=pathlib.Path(__file__).resolve().parents[1]
 version=(repo/'VERSION').read_text().strip()
 osname=a.platform or {'Windows':'windows','Darwin':'macos','Linux':'linux'}[platform.system()]
-binary=a.binary or repo/'target/release'/('download_craft.exe' if osname=='windows' else 'download_craft')
+binary=a.binary or repo/'target/release'/('sa2_download.exe' if osname=='windows' else 'sa2_download')
 a.output.mkdir(parents=True,exist_ok=True)
 with tempfile.TemporaryDirectory() as temp:
     root=pathlib.Path(temp)/f'DownloadCraft-{version}-{osname}-{a.arch}'
     root.mkdir()
     if osname=='macos':
         contents=root/'Download Craft.app/Contents'
-        dest=contents/'MacOS/download_craft'
+        dest=contents/'MacOS/sa2_download'
         dest.parent.mkdir(parents=True)
         with (contents/'Info.plist').open('wb') as f:
             plistlib.dump({'CFBundleName':'Download Craft','CFBundleDisplayName':'Download Craft',
-                'CFBundleIdentifier':'com.downloadcraft.app','CFBundleExecutable':'download_craft',
+                'CFBundleIdentifier':'com.downloadcraft.app','CFBundleExecutable':'sa2_download',
                 'CFBundlePackageType':'APPL','CFBundleVersion':version.rsplit('.',1)[0]+version.rsplit('.',1)[1] if version.count('.')==3 else version,'CFBundleShortVersionString':version,
                 'LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True},f)
     else:

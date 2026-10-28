@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! Download Craft: GUI + CLI + native host + standalone dialogs.
 //! Release builds run without a console window; all diagnostics go to
-//! %APPDATA%/download_craft/crash.log and the in-app log/queues panels.
+//! %APPDATA%/sa2_download/crash.log and the in-app log/queues panels.
 
 mod aes128;
 mod archive;
@@ -40,7 +40,7 @@ use app::CraftApp;
 use clap::Parser;
 use std::sync::Arc;
 
-/// Persist panics to %APPDATA%/download_craft/crash.log so a crash can be
+/// Persist panics to %APPDATA%/sa2_download/crash.log so a crash can be
 /// diagnosed after the fact (the message also goes to the console).
 fn install_panic_hook() {
     let prev = std::panic::take_hook();

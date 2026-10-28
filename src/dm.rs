@@ -23,12 +23,29 @@ pub const DM_W: f32 = 562.0;
 /// Card height with the advanced panel closed — the concept's exact size.
 pub const DM_H: f32 = 253.0;
 
-pub const DM_ACC: egui::Color32 = egui::Color32::from_rgb(0x3b, 0x82, 0xf6);
-pub const DM_ACC2: egui::Color32 = egui::Color32::from_rgb(0x8b, 0x5c, 0xf6);
-pub const DM_OK: egui::Color32 = egui::Color32::from_rgb(0x22, 0xc5, 0x5e);
-/// "Connecting..." amber (#eab308).
-pub const DM_YEL: egui::Color32 = egui::Color32::from_rgb(0xea, 0xb3, 0x08);
-pub const DM_RAD: f32 = 6.0;
+// ----- Brand Palette (Spring Breeze & Calming Sea design system) -----
+pub const COLOR_APPLE_GREEN: egui::Color32 = egui::Color32::from_rgb(0x60, 0xCD, 0x38); // #60CD38
+pub const COLOR_BLEU_DE_FRANCE: egui::Color32 = egui::Color32::from_rgb(0x2D, 0x96, 0xF6); // #2D96F6
+pub const COLOR_LIGHT_GRAY: egui::Color32 = egui::Color32::from_rgb(0xF2, 0xF2, 0xF2); // #F2F2F2
+pub const COLOR_QUILL_GREY: egui::Color32 = egui::Color32::from_rgb(0xA8, 0xA8, 0xA8); // #A8A8A8
+
+pub const COLOR_LIGHTNING_YELLOW: egui::Color32 = egui::Color32::from_rgb(0xFF, 0xC2, 0x25); // #FFC225
+pub const COLOR_DARK_ORCHID: egui::Color32 = egui::Color32::from_rgb(0x95, 0x42, 0xD6); // #9542D6
+pub const COLOR_VAMPIRE_GREY: egui::Color32 = egui::Color32::from_rgb(0x4D, 0x4D, 0x4D); // #4D4D4D
+pub const COLOR_CHARCOAL: egui::Color32 = egui::Color32::from_rgb(0x33, 0x33, 0x33); // #333333
+
+// Gradients
+pub const SPRING_BREEZE_START: egui::Color32 = egui::Color32::from_rgb(0x4C, 0xE8, 0x88);
+pub const SPRING_BREEZE_END: egui::Color32 = egui::Color32::from_rgb(0x60, 0xCD, 0x38);
+pub const CALMING_SEA_START: egui::Color32 = egui::Color32::from_rgb(0x56, 0xCC, 0xF2);
+pub const CALMING_SEA_END: egui::Color32 = egui::Color32::from_rgb(0x2D, 0x96, 0xF6);
+
+pub const DM_ACC: egui::Color32 = COLOR_BLEU_DE_FRANCE;
+pub const DM_ACC2: egui::Color32 = COLOR_DARK_ORCHID;
+pub const DM_OK: egui::Color32 = COLOR_APPLE_GREEN;
+/// "Connecting..." amber (#FFC225).
+pub const DM_YEL: egui::Color32 = COLOR_LIGHTNING_YELLOW;
+pub const DM_RAD: f32 = 8.0;
 /// Field box height including its 1px stroke (the concept's 36px + 2px).
 pub const DM_BOX_H: f32 = 38.0;
 
@@ -127,15 +144,33 @@ pub fn dm_field(
     rect
 }
 
-/// Concept mark: outlined accent circle with a blue download arrow (18px).
+/// Brand mark: faceted 3D green triangle arrow logo (Spring Breeze green faceted play/download arrow).
 pub fn dm_mark(p: &egui::Painter, r: egui::Rect) {
-    let s = r.width() / 24.0;
+    let s = r.width().min(r.height()) / 24.0;
     let m = |x: f32, y: f32| egui::pos2(r.min.x + x * s, r.min.y + y * s);
-    let st = egui::Stroke::new(2.0 * s, DM_ACC);
-    p.circle_stroke(m(12.0, 12.0), 9.0 * s, st);
-    p.line_segment([m(12.0, 8.0), m(12.0, 15.0)], st);
-    p.line_segment([m(8.5, 11.5), m(12.0, 15.0)], st);
-    p.line_segment([m(12.0, 15.0), m(15.5, 11.5)], st);
+    let p_left = m(3.5, 3.5);
+    let p_bottom = m(3.5, 20.5);
+    let p_right = m(21.0, 12.0);
+    let p_center = m(9.5, 12.0);
+
+    // Top facet (bright apple green)
+    p.add(egui::Shape::convex_polygon(
+        vec![p_left, p_right, p_center],
+        COLOR_APPLE_GREEN,
+        egui::Stroke::NONE,
+    ));
+    // Bottom facet (deep forest green shadow)
+    p.add(egui::Shape::convex_polygon(
+        vec![p_center, p_right, p_bottom],
+        egui::Color32::from_rgb(0x23, 0x5E, 0x10),
+        egui::Stroke::NONE,
+    ));
+    // Left facet (medium green)
+    p.add(egui::Shape::convex_polygon(
+        vec![p_left, p_center, p_bottom],
+        egui::Color32::from_rgb(0x3E, 0x96, 0x1E),
+        egui::Stroke::NONE,
+    ));
 }
 
 /// The concept's own stroke icons, traced from its inline SVG (24x24 viewBox).
@@ -168,6 +203,46 @@ pub enum DmIcon {
     ChevronUp,
     /// Sheet with a folded corner (open the finished file).
     Doc,
+    /// Down arrow for download action.
+    ArrowDown,
+    /// Edit pencil icon.
+    Pencil,
+    /// Stop square icon.
+    Stop,
+    /// External open icon (↗).
+    OpenExt,
+    /// Cloud icon (for Add URL button).
+    Cloud,
+    /// Trash icon (for Delete).
+    Trash,
+    /// Gear icon (for Options / Settings).
+    Gear,
+    /// Calendar icon (for Scheduler).
+    Calendar,
+    /// Share curved arrow icon.
+    Share,
+    /// Clock with stop/pause (for Stop All).
+    ClockStop,
+    /// Disk drives / storage icon (for Disk Space card).
+    Disk,
+    /// Speedometer / gauge icon (for Speed Test status bar).
+    SpeedGauge,
+    /// Music note icon.
+    Music,
+    /// Archive / zip folder icon.
+    Archive,
+    /// Video camera icon.
+    Video,
+    /// App window icon.
+    AppWindow,
+    /// Android robot / APK icon.
+    Apk,
+    /// Image picture icon.
+    Image,
+    /// Checkmark icon.
+    Check,
+    /// Plus icon.
+    Plus,
 }
 
 /// Polyline arc, degrees, screen space (0 = right, 90 = down).
@@ -353,6 +428,182 @@ pub fn dm_icon(p: &egui::Painter, r: egui::Rect, icon: DmIcon, color: egui::Colo
                 vec![m(14.0, 3.0), m(14.0, 8.0), m(19.0, 8.0)],
                 st,
             ));
+        }
+        DmIcon::ArrowDown => {
+            line((12.0, 5.0), (12.0, 18.0));
+            line((7.5, 13.5), (12.0, 18.0));
+            line((16.5, 13.5), (12.0, 18.0));
+        }
+        DmIcon::Pencil => {
+            p.add(egui::Shape::line(
+                vec![m(18.0, 4.0), m(20.0, 6.0), m(8.0, 18.0), m(5.0, 19.0), m(6.0, 16.0), m(18.0, 4.0)],
+                st,
+            ));
+            line((15.0, 7.0), (17.0, 9.0));
+        }
+        DmIcon::Stop => {
+            p.rect_filled(
+                egui::Rect::from_min_size(m(6.0, 6.0), egui::vec2(12.0 * s, 12.0 * s)),
+                egui::CornerRadius::same(1),
+                color,
+            );
+        }
+        DmIcon::OpenExt => {
+            line((7.0, 17.0), (17.0, 7.0));
+            line((11.0, 7.0), (17.0, 7.0));
+            line((17.0, 7.0), (17.0, 13.0));
+        }
+        DmIcon::Cloud => {
+            // Cloud body
+            line((6.5, 17.0), (17.5, 17.0));
+            dm_arc(p, m(7.5, 14.5), 2.5 * s, 90.0, 270.0, st);
+            dm_arc(p, m(11.5, 11.5), 3.8 * s, 180.0, 0.0, st);
+            dm_arc(p, m(16.5, 14.5), 2.5 * s, -90.0, 90.0, st);
+        }
+        DmIcon::Trash => {
+            line((5.0, 7.0), (19.0, 7.0));
+            line((9.0, 5.0), (15.0, 5.0));
+            p.add(egui::Shape::line(
+                vec![m(7.0, 7.0), m(8.0, 19.0), m(16.0, 19.0), m(17.0, 7.0)],
+                st,
+            ));
+            line((10.0, 10.0), (10.0, 16.0));
+            line((14.0, 10.0), (14.0, 16.0));
+        }
+        DmIcon::Gear => {
+            p.circle_stroke(m(12.0, 12.0), 4.0 * s, st);
+            for i in 0..8 {
+                let a = (i as f32 * 45.0).to_radians();
+                let r1 = 7.0 * s;
+                let r2 = 9.0 * s;
+                let p1 = egui::pos2(r.center().x + r1 * a.cos(), r.center().y + r1 * a.sin());
+                let p2 = egui::pos2(r.center().x + r2 * a.cos(), r.center().y + r2 * a.sin());
+                p.line_segment([p1, p2], st);
+            }
+        }
+        DmIcon::Calendar => {
+            line((8.0, 4.0), (8.0, 7.0));
+            line((16.0, 4.0), (16.0, 7.0));
+            p.rect_stroke(
+                egui::Rect::from_min_size(m(5.0, 6.0), egui::vec2(14.0 * s, 14.0 * s)),
+                egui::CornerRadius::same(2),
+                st,
+                egui::StrokeKind::Inside,
+            );
+            line((5.0, 10.0), (19.0, 10.0));
+        }
+        DmIcon::Share => {
+            p.add(egui::Shape::line(
+                vec![m(13.0, 6.0), m(19.0, 6.0), m(19.0, 12.0)],
+                st,
+            ));
+            p.add(egui::Shape::line(
+                vec![m(6.0, 18.0), m(11.0, 14.0), m(18.5, 6.5)],
+                st,
+            ));
+        }
+        DmIcon::ClockStop => {
+            p.circle_stroke(m(12.0, 12.0), 8.0 * s, st);
+            line((12.0, 7.5), (12.0, 12.0));
+            line((12.0, 12.0), (15.5, 12.0));
+        }
+        DmIcon::Disk => {
+            p.rect_stroke(
+                egui::Rect::from_min_size(m(5.0, 5.0), egui::vec2(14.0 * s, 6.0 * s)),
+                egui::CornerRadius::same(2),
+                st,
+                egui::StrokeKind::Inside,
+            );
+            p.circle_filled(m(16.5, 8.0), 1.0 * s, color);
+            p.rect_stroke(
+                egui::Rect::from_min_size(m(5.0, 13.0), egui::vec2(14.0 * s, 6.0 * s)),
+                egui::CornerRadius::same(2),
+                st,
+                egui::StrokeKind::Inside,
+            );
+            p.circle_filled(m(16.5, 16.0), 1.0 * s, color);
+        }
+        DmIcon::SpeedGauge => {
+            dm_arc(p, m(12.0, 13.0), 7.5 * s, 190.0, -10.0, st);
+            line((12.0, 13.0), (16.0, 9.5));
+            p.circle_filled(m(12.0, 13.0), 1.5 * s, color);
+        }
+        DmIcon::Music => {
+            line((8.0, 15.0), (8.0, 7.0));
+            line((16.0, 12.0), (16.0, 5.0));
+            line((8.0, 7.0), (16.0, 5.0));
+            p.circle_filled(m(6.5, 15.0), 2.2 * s, color);
+            p.circle_filled(m(14.5, 12.0), 2.2 * s, color);
+        }
+        DmIcon::Archive => {
+            p.rect_stroke(
+                egui::Rect::from_min_size(m(5.0, 6.0), egui::vec2(14.0 * s, 13.0 * s)),
+                egui::CornerRadius::same(2),
+                st,
+                egui::StrokeKind::Inside,
+            );
+            line((5.0, 10.0), (19.0, 10.0));
+            line((12.0, 6.0), (12.0, 14.0));
+            p.rect_filled(
+                egui::Rect::from_min_size(m(10.5, 13.5), egui::vec2(3.0 * s, 3.5 * s)),
+                egui::CornerRadius::same(1),
+                color,
+            );
+        }
+        DmIcon::Video => {
+            p.rect_stroke(
+                egui::Rect::from_min_size(m(4.0, 7.0), egui::vec2(11.0 * s, 10.0 * s)),
+                egui::CornerRadius::same(2),
+                st,
+                egui::StrokeKind::Inside,
+            );
+            p.add(egui::Shape::convex_polygon(
+                vec![m(15.0, 10.0), m(20.0, 7.0), m(20.0, 17.0), m(15.0, 14.0)],
+                color,
+                egui::Stroke::NONE,
+            ));
+        }
+        DmIcon::AppWindow => {
+            p.rect_stroke(
+                egui::Rect::from_min_size(m(4.0, 5.0), egui::vec2(16.0 * s, 14.0 * s)),
+                egui::CornerRadius::same(2),
+                st,
+                egui::StrokeKind::Inside,
+            );
+            line((4.0, 9.0), (20.0, 9.0));
+            p.circle_filled(m(7.0, 7.0), 0.8 * s, color);
+            p.circle_filled(m(9.5, 7.0), 0.8 * s, color);
+            p.circle_filled(m(12.0, 7.0), 0.8 * s, color);
+        }
+        DmIcon::Apk => {
+            // Android robot head
+            dm_arc(p, m(12.0, 13.0), 5.5 * s, 180.0, 0.0, st);
+            line((6.5, 13.0), (17.5, 13.0));
+            line((8.0, 7.5), (9.5, 9.5));
+            line((16.0, 7.5), (14.5, 9.5));
+            p.circle_filled(m(9.5, 11.0), 0.8 * s, color);
+            p.circle_filled(m(14.5, 11.0), 0.8 * s, color);
+        }
+        DmIcon::Image => {
+            p.rect_stroke(
+                egui::Rect::from_min_size(m(4.0, 5.0), egui::vec2(16.0 * s, 14.0 * s)),
+                egui::CornerRadius::same(2),
+                st,
+                egui::StrokeKind::Inside,
+            );
+            p.circle_filled(m(8.5, 8.5), 1.5 * s, color);
+            p.add(egui::Shape::line(
+                vec![m(5.0, 16.0), m(10.0, 11.0), m(13.0, 14.0), m(15.0, 12.0), m(19.0, 16.0)],
+                st,
+            ));
+        }
+        DmIcon::Check => {
+            line((5.0, 12.0), (10.0, 17.0));
+            line((10.0, 17.0), (19.0, 7.0));
+        }
+        DmIcon::Plus => {
+            line((12.0, 5.0), (12.0, 19.0));
+            line((5.0, 12.0), (19.0, 12.0));
         }
     }
 }
@@ -664,4 +915,272 @@ pub fn elide_mid(
         keep -= 1;
     }
     "…".to_string()
+}
+
+/// File preview card with type-specific color and icon matching Icon System style guide.
+pub fn dm_file_thumbnail(p: &egui::Painter, r: egui::Rect, filename: &str) {
+    let ext = std::path::Path::new(filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("MP4")
+        .to_uppercase();
+
+    let (c1, c2, kind) = match ext.as_str() {
+        "MP3" | "WAV" | "FLAC" | "M4A" | "AAC" | "OGG" => (
+            egui::Color32::from_rgb(0xEF, 0x44, 0x44),
+            egui::Color32::from_rgb(0xF8, 0x71, 0x71),
+            "audio",
+        ),
+        "ZIP" | "RAR" | "7Z" | "TAR" | "GZ" => (
+            egui::Color32::from_rgb(0xD9, 0x77, 0x06),
+            egui::Color32::from_rgb(0xFB, 0xBF, 0x24),
+            "archive",
+        ),
+        "TXT" | "PDF" | "DOC" | "DOCX" => (
+            egui::Color32::from_rgb(0x64, 0x74, 0x8B),
+            egui::Color32::from_rgb(0x94, 0xA3, 0xB8),
+            "doc",
+        ),
+        "EXE" | "MSI" | "BAT" => (
+            egui::Color32::from_rgb(0x8B, 0x5C, 0xF6),
+            egui::Color32::from_rgb(0xA7, 0x8B, 0xFA),
+            "program",
+        ),
+        "PNG" | "JPG" | "JPEG" | "GIF" | "WEBP" => (
+            egui::Color32::from_rgb(0x06, 0xB6, 0xD4),
+            egui::Color32::from_rgb(0x38, 0xBD, 0xF8),
+            "image",
+        ),
+        "APK" | "XAPK" => (
+            COLOR_APPLE_GREEN,
+            SPRING_BREEZE_START,
+            "apk",
+        ),
+        _ => (
+            egui::Color32::from_rgb(0x2D, 0x96, 0xF6),
+            egui::Color32::from_rgb(0x60, 0xA5, 0xFA),
+            "video",
+        ),
+    };
+
+    // Background card with gradient
+    dm_gradient(p, r, 6.0, c1, c2);
+
+    // Center icon
+    let c = r.center();
+    let isz = (r.height() * 0.44).max(12.0);
+    let ic_r = egui::Rect::from_center_size(c, egui::Vec2::splat(isz));
+    match kind {
+        "audio" => dm_icon(p, ic_r, DmIcon::Music, egui::Color32::WHITE, 2.0),
+        "archive" => dm_icon(p, ic_r, DmIcon::Archive, egui::Color32::WHITE, 2.0),
+        "doc" => dm_icon(p, ic_r, DmIcon::Doc, egui::Color32::WHITE, 2.0),
+        "program" => dm_icon(p, ic_r, DmIcon::AppWindow, egui::Color32::WHITE, 2.0),
+        "image" => dm_icon(p, ic_r, DmIcon::Image, egui::Color32::WHITE, 2.0),
+        "apk" => dm_icon(p, ic_r, DmIcon::Apk, egui::Color32::WHITE, 2.0),
+        _ => {
+            let s = (r.height() * 0.22).max(6.0);
+            p.add(egui::Shape::convex_polygon(
+                vec![
+                    egui::pos2(c.x - s * 0.6, c.y - s),
+                    egui::pos2(c.x + s * 0.9, c.y),
+                    egui::pos2(c.x - s * 0.6, c.y + s),
+                ],
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 230),
+                egui::Stroke::NONE,
+            ));
+        }
+    }
+
+    // Corner badge: dark charcoal pill with format label
+    let badge_txt = if ext.len() > 4 { &ext[..4] } else { &ext };
+    let font = semi(8.5);
+    let galley = p.layout_no_wrap(badge_txt.to_string(), font, egui::Color32::WHITE);
+    let bw = galley.size().x + 6.0;
+    let bh = 13.0;
+    let badge_rect = egui::Rect::from_min_size(
+        egui::pos2(r.max.x - bw - 2.0, r.max.y - bh - 2.0),
+        egui::vec2(bw, bh),
+    );
+    p.rect_filled(badge_rect, 3.0, COLOR_CHARCOAL);
+    p.galley(
+        egui::pos2(
+            badge_rect.center().x - galley.size().x * 0.5,
+            badge_rect.center().y - galley.size().y * 0.5,
+        ),
+        galley,
+        egui::Color32::WHITE,
+    );
+}
+
+/// Draw radial arc gauge for Disk Space card, matching theme ui refrence.PNG.
+pub fn dm_gauge(
+    p: &egui::Painter,
+    center: egui::Pos2,
+    radius: f32,
+    pct: f32, // 0.0 to 1.0
+    track_color: egui::Color32,
+    start_color: egui::Color32,
+    end_color: egui::Color32,
+) {
+    let thickness = 6.0;
+    let a0 = 200.0;
+    let a1 = -20.0;
+    // Background track arc
+    dm_arc(p, center, radius, a0, a1, egui::Stroke::new(thickness, track_color));
+    // Value arc
+    if pct > 0.01 {
+        let span = pct.clamp(0.0, 1.0);
+        let n = 28;
+        let active_n = ((n as f32 * span).ceil() as usize).max(2);
+        let mut pts = Vec::with_capacity(active_n);
+        for i in 0..active_n {
+            let frac = i as f32 / n as f32;
+            let deg = a0 + (a1 - a0) * frac;
+            let rad = deg.to_radians();
+            pts.push(egui::pos2(center.x + radius * rad.cos(), center.y + radius * rad.sin()));
+        }
+        p.add(egui::Shape::line(
+            pts,
+            egui::Stroke::new(thickness, end_color),
+        ));
+    }
+}
+
+/// Query disk space statistics: (free_bytes, total_bytes, used_percent).
+#[cfg(windows)]
+pub fn get_disk_space_stats(path: &str) -> (u64, u64, f64) {
+    use std::os::windows::ffi::OsStrExt;
+    let wide: Vec<u16> = std::ffi::OsStr::new(path).encode_wide().chain(Some(0)).collect();
+    let mut free_bytes: u64 = 0;
+    let mut total_bytes: u64 = 0;
+    let mut total_free: u64 = 0;
+    let ok = unsafe {
+        windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
+            wide.as_ptr(),
+            &mut free_bytes as *mut _ as *mut _,
+            &mut total_bytes as *mut _ as *mut _,
+            &mut total_free as *mut _ as *mut _,
+        )
+    };
+    if ok != 0 && total_bytes > 0 {
+        let used = total_bytes.saturating_sub(total_free);
+        let pct = (used as f64 / total_bytes as f64 * 100.0).clamp(0.0, 100.0);
+        (free_bytes, total_bytes, pct)
+    } else {
+        (0, 0, 0.0)
+    }
+}
+
+#[cfg(not(windows))]
+pub fn get_disk_space_stats(_path: &str) -> (u64, u64, f64) {
+    (0, 0, 0.0)
+}
+
+/// Pill button with custom fill, border, text and optional icon.
+pub fn btn_pill(
+    p: &egui::Painter,
+    r: egui::Rect,
+    hov: bool,
+    label: &str,
+    bg: egui::Color32,
+    border: egui::Color32,
+    fg: egui::Color32,
+    icon: Option<DmIcon>,
+) {
+    let rad = (r.height() * 0.5).min(14.0);
+    p.rect_filled(r, rad, if hov { bg.gamma_multiply(1.15) } else { bg });
+    if border != egui::Color32::TRANSPARENT {
+        p.rect_stroke(r, rad, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+    }
+    let iw = if icon.is_some() { 15.0 } else { 0.0 };
+    let font = semi(12.0);
+    let galley = p.layout_no_wrap(label.to_string(), font, fg);
+    let total_w = iw + galley.size().x;
+    let x0 = r.center().x - total_w * 0.5;
+    if let Some(ic) = icon {
+        dm_icon(
+            p,
+            egui::Rect::from_center_size(egui::pos2(x0 + 6.0, r.center().y), egui::Vec2::splat(12.0)),
+            ic,
+            fg,
+            2.0,
+        );
+    }
+    p.galley(
+        egui::pos2(x0 + iw, r.center().y - galley.size().y * 0.5),
+        galley,
+        fg,
+    );
+}
+
+/// Spring Breeze primary gradient pill button with Apple Green gradient and white text.
+pub fn btn_spring_breeze(
+    p: &egui::Painter,
+    r: egui::Rect,
+    hov: bool,
+    label: &str,
+    icon: Option<DmIcon>,
+) {
+    let rad = (r.height() * 0.5).min(14.0);
+    dm_gradient(p, r, rad, SPRING_BREEZE_START, SPRING_BREEZE_END);
+    if hov {
+        p.rect_filled(r, rad, egui::Color32::from_white_alpha(35));
+    }
+    let iw = if icon.is_some() { 16.0 } else { 0.0 };
+    let font = semi(12.5);
+    let galley = p.layout_no_wrap(label.to_string(), font, egui::Color32::WHITE);
+    let total_w = iw + galley.size().x;
+    let x0 = r.center().x - total_w * 0.5;
+    if let Some(ic) = icon {
+        dm_icon(
+            p,
+            egui::Rect::from_center_size(egui::pos2(x0 + 7.0, r.center().y), egui::Vec2::splat(12.0)),
+            ic,
+            egui::Color32::WHITE,
+            2.2,
+        );
+    }
+    p.galley(
+        egui::pos2(x0 + iw, r.center().y - galley.size().y * 0.5),
+        galley,
+        egui::Color32::WHITE,
+    );
+}
+
+/// Query free disk space for a directory path.
+#[cfg(windows)]
+pub fn available_disk_space(path: &str) -> Option<u64> {
+    use std::os::windows::ffi::OsStrExt;
+    let wide: Vec<u16> = std::ffi::OsStr::new(path).encode_wide().chain(Some(0)).collect();
+    let mut free_bytes_available: u64 = 0;
+    let mut total_bytes: u64 = 0;
+    let mut total_free_bytes: u64 = 0;
+    let ok = unsafe {
+        windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
+            wide.as_ptr(),
+            &mut free_bytes_available as *mut _ as *mut _,
+            &mut total_bytes as *mut _ as *mut _,
+            &mut total_free_bytes as *mut _ as *mut _,
+        )
+    };
+    if ok != 0 {
+        Some(free_bytes_available)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(windows))]
+pub fn available_disk_space(_path: &str) -> Option<u64> {
+    None
+}
+
+/// Format disk space cleanly (e.g. "830.12GB", matching Image 4).
+pub fn format_disk_space(bytes: u64) -> String {
+    let gb = bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+    if gb >= 1000.0 {
+        format!("{:.2}TB", gb / 1024.0)
+    } else {
+        format!("{:.2}GB", gb)
+    }
 }

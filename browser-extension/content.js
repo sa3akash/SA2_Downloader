@@ -7,7 +7,7 @@
   // Must match manifest version + background.js EXT_VER. The background
   // rejects messages from any other version with a "reload this tab"
   // error, so a stale script can never fail mysteriously.
-  const EXT_VER = "0.9.10";
+  const EXT_VER = "1.1.0";
   // Promise-style calls (the `await api.*` one below) go through this handle
   // so one file serves both engines: Firefox exposes the promise-returning
   // `browser` namespace, Chrome only has `chrome` (promise-capable under MV3).
@@ -1744,6 +1744,28 @@
     return svg;
   }
 
+  function facetedPlayIcon(size = 17) {
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", String(size));
+    svg.setAttribute("height", String(size));
+    svg.setAttribute("fill", "none");
+    svg.style.flex = "none";
+    svg.style.display = "block";
+    const p1 = document.createElementNS(NS, "polygon");
+    p1.setAttribute("points", "4,3 21,12 11,13");
+    p1.setAttribute("fill", "#60CD38");
+    const p2 = document.createElementNS(NS, "polygon");
+    p2.setAttribute("points", "4,3 11,13 4,21");
+    p2.setAttribute("fill", "#42A825");
+    const p3 = document.createElementNS(NS, "polygon");
+    p3.setAttribute("points", "4,21 11,13 21,12");
+    p3.setAttribute("fill", "#2E7D1C");
+    svg.append(p1, p2, p3);
+    return svg;
+  }
+
   // One isolated toolbar: the primary action and dismiss button never overlap.
   // Shadow DOM keeps player/site button and SVG rules out of these controls.
   // Colors come from the panel theme (the app's Light/Dark/System choice), and
@@ -1756,16 +1778,16 @@
     const light = T.mode === "light";
     const set = (k, v) => bar.style.setProperty(k, v);
     set("--bg", T.card);
-    set("--glass", light ? "rgba(255,255,255,.92)" : "rgba(14,16,24,.86)");
-    set("--acc", light ? "#6d5df5" : "#7c6cf6");
+    set("--glass", light ? "rgba(255,255,255,.96)" : "rgba(38,40,48,.92)");
+    set("--acc", "#60cd38");
     set("--fg", T.text);
-    set("--line", T.border);
+    set("--line", "#60cd38");
     set("--hover", T.hover);
     set("--dim", T.dim);
-    set("--ok", light ? "#168047" : "#4ade80");
-    set("--shadow", light ? "0 4px 14px rgba(15,23,42,.18)" : "0 6px 20px rgba(0,0,0,.45)");
-    set("--x-bg", light ? "#ffe9ec" : "rgba(239,68,68,.18)");
-    set("--x-fg", light ? "#a91d2b" : "#fca5a5");
+    set("--ok", "#60cd38");
+    set("--shadow", light ? "0 4px 16px rgba(96,205,56,.25), 0 2px 8px rgba(0,0,0,.08)" : "0 6px 20px rgba(0,0,0,.5)");
+    set("--x-bg", light ? "#f0f2f5" : "rgba(255,255,255,.1)");
+    set("--x-fg", T.muted);
     host.style.colorScheme = light ? "light" : "dark";
   }
   // The bar's natural width, measured once it is in the page.
@@ -1785,14 +1807,13 @@
     const style = document.createElement("style");
     style.textContent = `
       * { box-sizing:border-box; }
-      .bar { display:inline-flex;align-items:center;gap:3px;width:max-content;max-width:100%;height:34px;
-        padding:0 5px;overflow:hidden;border:1px solid var(--line);border-radius:17px;background:var(--glass);
-        box-shadow:var(--shadow);font:12px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;
-        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-        /* See-through until pointed at: the video stays visible. */
-        opacity:.36;transition:opacity .15s ease,box-shadow .2s ease,transform .15s ease; }
+      .bar { display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;height:34px;
+        padding:0 8px 0 10px;overflow:hidden;border:1.5px solid var(--line);border-radius:17px;background:var(--glass);
+        box-shadow:var(--shadow);font:13px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;
+        backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+        opacity:.92;transition:opacity .15s ease,box-shadow .2s ease,transform .15s ease,border-color .2s ease; }
       :host(:hover) .bar, .bar:focus-within, :host([data-dc-awake]) .bar { opacity:1; }
-      :host(:hover) .bar { box-shadow:0 8px 25px rgba(0,0,0,.35),0 0 12px rgba(59,130,246,.3); }
+      :host(:hover) .bar { box-shadow:0 6px 22px rgba(96,205,56,.35), 0 2px 8px rgba(0,0,0,.15); border-color:var(--line); }
       /* Compact (Shorts): just the round arrow; pointing at it opens the
          whole bar. */
       :host([data-dc-compact]:not(:hover)) .bar:not(:focus-within) .label { display:none; }
@@ -1801,34 +1822,31 @@
       /* Shorts: hidden while the feed scrolls, back for the next Short. */
       :host([data-dc-scrolling]) .bar { opacity:0 !important; pointer-events:none; transition:opacity .1s ease; }
       button { all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;cursor:pointer;
-        color:var(--fg);background:transparent;font:600 12.5px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif; }
-      /* Pointing anywhere at the bar lights the whole bar (one control);
-         only × keeps a hover of its own. */
-      :host(:hover) .bar { box-shadow:var(--shadow), inset 0 0 0 999px var(--hover); }
+        color:var(--fg);background:transparent;font:600 13px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif; }
       button:focus-visible { outline:2px solid var(--acc);outline-offset:-2px; }
       .grip { flex:0 0 0;width:0;opacity:0;height:26px;border-radius:13px;cursor:grab;color:var(--dim);touch-action:none;
         transition:width .15s ease,opacity .15s ease; }
-      :host(:hover) .grip, .bar:focus-within .grip { flex-basis:16px;width:16px;opacity:1; }
+      :host(:hover) .grip, .bar:focus-within .grip { flex-basis:14px;width:14px;opacity:1;margin-right:2px; }
       .grip:active { cursor:grabbing; }
-      .download { touch-action:none;flex:0 0 auto;gap:7px;height:28px;padding:0 12px 0 5px;border-radius:14px; }
-      .dot { width:20px;height:20px;border-radius:10px;background:linear-gradient(135deg,var(--acc),#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 2px 6px rgba(59,130,246,.4); }
-      .label { white-space:nowrap;font-weight:700;letter-spacing:.2px; }
-      .close { flex:0 0 26px;width:26px;height:26px;border-radius:13px;color:var(--dim); }
-      .more { flex:0 0 22px;width:22px;height:26px;border-radius:13px;color:var(--dim); }
+      .download { touch-action:none;flex:0 0 auto;gap:7px;height:28px;padding:0 4px;border-radius:14px; }
+      .icon-mark { display:flex;align-items:center;justify-content:center;flex:none; }
+      .label { white-space:nowrap;font-weight:600;letter-spacing:.2px;color:var(--fg); }
+      .close { flex:0 0 24px;width:24px;height:24px;border-radius:12px;color:var(--dim);margin-left:2px;opacity:.7;transition:opacity .15s,color .15s; }
+      .close:hover { opacity:1;color:var(--x-fg);background:var(--x-bg); }
+      .more { flex:0 0 20px;width:20px;height:24px;border-radius:12px;color:var(--dim); }
       :host([data-dc-compact]:not(:hover)) .bar:not(:focus-within) .more { display:none; }
-      .close:hover { color:var(--x-fg);background:var(--x-bg); }
       [hidden] { display:none !important; }
-      svg { display:block;flex:none;width:14px;height:14px;pointer-events:none; }
+      svg { display:block;flex:none;pointer-events:none; }
     `;
     const bar = document.createElement("div");bar.className="bar";
     const main = document.createElement("button");main.type="button";main.className="download";
     main.title=title;main.setAttribute("aria-label","Download this video");
-    const dot=document.createElement("span");dot.className="dot";
-    dot.appendChild(svgIcon(11,ICON_DOWN,2.8));
-    main.appendChild(dot);
+    const iconSpan=document.createElement("span");iconSpan.className="icon-mark";
+    iconSpan.appendChild(facetedPlayIcon(17));
+    main.appendChild(iconSpan);
     const label=document.createElement("span");label.className="label";label.textContent=dcT("barDownload","Download");
     main.appendChild(label);
-    const close=document.createElement("button");close.type="button";close.className="close";close.hidden=true;
+    const close=document.createElement("button");close.type="button";close.className="close";close.hidden=false;
     close.setAttribute("data-dc-dismiss","1");
     close.setAttribute("aria-label","Hide download bar for this video");
     close.title="Hide for this video — restore from the extension toolbar";
@@ -2043,60 +2061,101 @@
     return b;
   }
 
-  // One quality cell: container + resolution on the left, size on the right.
+  // One quality cell: two-toned capsule matching Image 3:
+  // dark format badge [WEBM] / [MP4] on left, resolution (1440p) on right.
   function dcQualityItem(o) {
     const T = dcPanelTokens();
     const el = document.createElement("div");
     el.setAttribute("data-dc-p", "item");
-    el.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:6px;box-sizing:border-box;"
-      + "border:1px solid " + T.border + ";border-radius:6px;background:" + T.card + ";cursor:pointer;padding:6px 8px;";
+    el.style.cssText = "display:flex;align-items:center;gap:8px;box-sizing:border-box;"
+      + "border:1px solid " + T.border + ";border-radius:9px;background:" + T.card + ";cursor:pointer;padding:6px 10px;"
+      + "transition:all .15s ease;";
     if (o.tip) el.title = o.tip;
-    const col = document.createElement("div");
-    col.style.cssText = "display:flex;flex-direction:column;gap:1px;min-width:0;";
-    const topRow = document.createElement("div");
-    topRow.style.cssText = "display:flex;align-items:center;gap:4px;min-width:0;";
-    const fmt = dcText(o.format || "", "text", "font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;");
-    topRow.appendChild(fmt);
-    const txt = `${o.format || ""} ${o.res || ""} ${o.tip || ""}`;
-    let badge = null;
-    if (txt.includes("4320") || /8k/i.test(txt)) {
-      badge = dcText("8K", null, "font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;line-height:1;");
-    } else if (txt.includes("2160") || /4k/i.test(txt)) {
-      badge = dcText("4K", null, "font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;line-height:1;");
-    } else if (txt.includes("1440") || /2k/i.test(txt)) {
-      badge = dcText("2K", null, "font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;line-height:1;");
-    } else if (txt.includes("1080") || /fhd/i.test(txt)) {
-      badge = dcText("FHD", null, "font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;line-height:1;");
-    }
-    if (badge) topRow.appendChild(badge);
-    const res = dcText(o.res || "", "muted", "font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;");
-    col.appendChild(topRow);
-    col.appendChild(res);
-    const size = dcText(o.size || "—", "dim", "flex:0 0 auto;font-size:10px;text-align:right;white-space:nowrap;");
-    el.appendChild(col);
-    el.appendChild(size);
-    el.onmouseenter = () => { if (!el.getAttribute("data-dc-sel")) el.style.background = dcPanelTokens().hover; };
-    el.onmouseleave = () => { if (!el.getAttribute("data-dc-sel")) el.style.background = dcPanelTokens().card; };
-    return { el, fmtEl: fmt, resEl: res, sizeEl: size, setSize: (t) => { size.textContent = t; } };
+
+    // Format container badge e.g. [WEBM], [MKV], [MP4]
+    const rawFmt = String(o.format || "MP4").trim();
+    const tag = (rawFmt.split(/[\s+]/)[0] || "MP4").toUpperCase();
+    const badge = document.createElement("span");
+    badge.setAttribute("data-dc-p", "badge-pill");
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;padding:3px 7px;border-radius:5px;"
+      + "background:#4d4d4d;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;flex:none;line-height:1.1;";
+    badge.textContent = tag;
+    el.appendChild(badge);
+
+    // Resolution label: e.g. 1440p, 1080p, 720p
+    const resTxt = o.res || (o.h ? `${o.h}p` : "");
+    const resEl = document.createElement("span");
+    resEl.setAttribute("data-dc-p", "res-txt");
+    resEl.style.cssText = "font-size:12px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;";
+    resEl.textContent = resTxt;
+    el.appendChild(resEl);
+
+    // Optional size tag
+    const size = document.createElement("span");
+    size.setAttribute("data-dc-p", "size-txt");
+    size.style.cssText = "font-size:10px;color:" + T.dim + ";white-space:nowrap;flex:none;margin-left:auto;";
+    size.textContent = o.size || "";
+    if (o.size) el.appendChild(size);
+
+    el.onmouseenter = () => {
+      if (!el.getAttribute("data-dc-sel")) {
+        el.style.background = dcPanelTokens().hover;
+        el.style.borderColor = dcPanelTokens().accent;
+      }
+    };
+    el.onmouseleave = () => {
+      if (!el.getAttribute("data-dc-sel")) {
+        el.style.background = dcPanelTokens().card;
+        el.style.borderColor = dcPanelTokens().border;
+      }
+    };
+    return {
+      el,
+      fmtEl: badge,
+      resEl,
+      sizeEl: size,
+      setSize: (t) => {
+        size.textContent = t;
+        if (t && !size.parentElement) el.appendChild(size);
+      },
+    };
   }
 
-  // "Other Files" chip (subtitles, audio-only tracks).
+  // "Other Files" chip (subtitles, audio-only tracks) matching Image 3:
+  // dark format badge [VTT] on left, label (EN-US) on right.
   function dcFileChip(f) {
     const T = dcPanelTokens();
     const el = document.createElement("div");
     el.setAttribute("data-dc-p", "chip");
-    el.style.cssText = "display:inline-flex;align-items:center;gap:5px;box-sizing:border-box;padding:4px 8px;"
-      + "border:1px solid " + T.border + ";border-radius:5px;background:" + T.card + ";cursor:pointer;"
-      + "font-size:10px;font-weight:500;";
+    el.style.cssText = "display:flex;align-items:center;gap:8px;box-sizing:border-box;padding:6px 10px;"
+      + "border:1px solid " + T.border + ";border-radius:9px;background:" + T.card + ";cursor:pointer;"
+      + "transition:all .15s ease;";
     if (f.tip) el.title = f.tip;
-    el.appendChild(dcText(f.label || "file", null, "white-space:nowrap;"));
+
+    // Detect format tag & clean name
+    const raw = String(f.label || "file").replace(/^[📄♪\s]+/g, "");
+    const parts = raw.split(/\s+/);
+    const tag = (parts[0] || "FILE").toUpperCase();
+    const desc = parts.slice(1).join(" ") || tag;
+
+    const badge = document.createElement("span");
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;padding:3px 7px;border-radius:5px;"
+      + "background:#4d4d4d;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;flex:none;line-height:1.1;";
+    badge.textContent = tag;
+    el.appendChild(badge);
+
+    const descEl = document.createElement("span");
+    descEl.style.cssText = "font-size:11.5px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;";
+    descEl.textContent = desc;
+    el.appendChild(descEl);
+
     el.onclick = (ev) => {
       if (ev && ev.stopPropagation) ev.stopPropagation();
       hidePanels();
       if (f.send) f.send();
     };
-    el.onmouseenter = () => { el.style.borderColor = dcPanelTokens().accent; };
-    el.onmouseleave = () => { el.style.borderColor = dcPanelTokens().border; };
+    el.onmouseenter = () => { el.style.borderColor = dcPanelTokens().accent; el.style.background = dcPanelTokens().hover; };
+    el.onmouseleave = () => { el.style.borderColor = dcPanelTokens().border; el.style.background = dcPanelTokens().card; };
     return { el };
   }
 
@@ -2114,11 +2173,12 @@
     const panel = document.createElement("div");
     panel.setAttribute("data-dc-panel", "1");
     panel.style.cssText = [
-      "display:none", "position:relative", "width:300px", "max-width:96vw",
-      "box-sizing:border-box", "padding:0", "margin:0", "text-align:left",
-      "border:1px solid " + T.border, "border-radius:12px",
+      "display:none", "position:relative", "width:320px", "max-width:96vw",
+      "box-sizing:border-box", "padding:12px", "margin:0", "text-align:left",
+      "border:1px solid " + T.border, "border-radius:18px",
       "background:" + T.bg, "color:" + T.text, "box-shadow:" + T.shadow,
       "font:12px/1.35 system-ui,'Segoe UI',sans-serif", "z-index:2147483647",
+      "backdrop-filter:blur(20px)", "-webkit-backdrop-filter:blur(20px)",
     ].join(";");
     // Clicks inside the panel never reach the page (YouTube's own handlers
     // would pause/close the player, and the document closer would fire).
@@ -2127,47 +2187,20 @@
     const arrow = document.createElement("div");
     arrow.setAttribute("data-dc-p", "arrow");
     arrow.setAttribute("data-dc-arrow", "top");
-    arrow.style.cssText = "position:absolute;top:-7px;right:11px;left:auto;width:14px;height:14px;"
+    arrow.style.cssText = "position:absolute;top:-7px;right:16px;left:auto;width:14px;height:14px;"
       + "background:" + T.bg + ";border:1px solid transparent;border-left-color:" + T.border
       + ";border-top-color:" + T.border + ";border-radius:2px 0 0 0;transform:rotate(45deg);pointer-events:none;";
     panel.appendChild(arrow);
 
     const inner = document.createElement("div");
-    inner.style.cssText = "display:flex;flex-direction:column;border-radius:11px;overflow:hidden;";
+    inner.style.cssText = "display:flex;flex-direction:column;border-radius:14px;overflow:hidden;";
 
-    // --- "Send video link to app" row
-    const sendRow = document.createElement("div");
-    sendRow.setAttribute("data-dc-p", "sendrow");
-    sendRow.style.cssText = "display:flex;align-items:center;gap:8px;box-sizing:border-box;margin:4px 8px 0;padding:10px 12px;border-radius:6px;";
-    const sendIcon = svgIcon(14, ICON_SEND, 2);
-    sendIcon.setAttribute("data-dc-p", "icon");
-    const sendTxt = document.createElement("div");
-    sendTxt.style.cssText = "flex:1;min-width:0;";
-    sendTxt.appendChild(dcText(s.sendLabel || dcT("panelSendLink", "Send video link to app"), "text", "font-size:11px;"));
-    sendTxt.appendChild(dcText(s.hint || "", "muted", "font-size:9px;margin-top:1px;line-height:1.35;"));
-    sendRow.appendChild(sendIcon);
-    sendRow.appendChild(sendTxt);
-    sendRow.appendChild(panelThemeToggle(panel));
-    sendRow.onmouseenter = () => { sendRow.style.background = (panel._dcT || dcPanelTokens()).hover; };
-    sendRow.onmouseleave = () => { sendRow.style.background = "transparent"; };
-    if (s.onSendLink) {
-      sendRow.style.cursor = "pointer";
-      sendRow.onclick = (ev) => {
-        if (ev && ev.stopPropagation) ev.stopPropagation();
-        hidePanels();
-        s.onSendLink();
-      };
-    }
-    inner.appendChild(sendRow);
-
-    // --- video info (thumb + title + resolution / size / container)
-    const info = document.createElement("div");
-    info.style.cssText = "display:flex;gap:10px;align-items:center;box-sizing:border-box;padding:10px 12px;";
-    const thumb = document.createElement("div");
-    thumb.setAttribute("data-dc-p", "thumb");
-    thumb.style.cssText = "position:relative;flex:0 0 80px;width:80px;height:48px;border-radius:6px;overflow:hidden;"
-      + "display:flex;align-items:center;justify-content:center;background:" + T.thumbBg + ";color:#fff;";
-    const play = svgIcon(14, ICON_PLAY, 0);
+    // --- Video banner preview (Top Thumbnail) matching Image 3
+    const thumbWrap = document.createElement("div");
+    thumbWrap.setAttribute("data-dc-p", "thumb");
+    thumbWrap.style.cssText = "position:relative;width:100%;height:136px;border-radius:12px;overflow:hidden;"
+      + "display:flex;align-items:center;justify-content:center;background:" + T.thumbBg + ";color:#fff;margin-bottom:8px;";
+    const play = svgIcon(18, ICON_PLAY, 0);
     play.style.opacity = ".85";
     if (s.thumb && /^https?:\/\//i.test(s.thumb)) {
       const im = document.createElement("img");
@@ -2176,51 +2209,39 @@
       im.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
       im.onload = () => { play.style.display = "none"; };
       im.onerror = () => { im.remove(); };
-      thumb.appendChild(im);
+      thumbWrap.appendChild(im);
     }
-    thumb.appendChild(play);
+    thumbWrap.appendChild(play);
     if (s.dur) {
-      thumb.appendChild(dcText(s.dur, null,
-        "position:absolute;bottom:2px;right:4px;font-size:7px;color:#fff;background:rgba(0,0,0,.7);padding:1px 3px;border-radius:2px;line-height:1;"));
+      thumbWrap.appendChild(dcText(s.dur, null,
+        "position:absolute;bottom:4px;right:6px;font-size:9px;font-weight:600;color:#fff;background:rgba(0,0,0,.75);padding:2px 5px;border-radius:4px;line-height:1;"));
     }
-    const det = document.createElement("div");
-    det.style.cssText = "flex:1;min-width:0;";
-    const titleEl = dcText(s.title, "text", "font-size:12px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;");
+    inner.appendChild(thumbWrap);
+
+    // Title
+    const titleEl = dcText(s.title || "Video", "text", "font-size:13.5px;font-weight:700;margin:0 2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;");
     titleEl.title = s.title || "";
-    const meta = document.createElement("div");
-    meta.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;";
-    const resEl = dcText(s.res || "", "accent", "font-size:10px;font-weight:500;");
-    const sizeEl = dcText(s.size ? "• " + s.size : "", "muted", "font-size:10px;");
-    const fmtEl = dcText(s.format ? String(s.format).toUpperCase() : "", "chipmini",
-      "font-size:9px;padding:1px 5px;border-radius:3px;");
-    meta.appendChild(resEl);
-    meta.appendChild(sizeEl);
-    meta.appendChild(fmtEl);
-    det.appendChild(titleEl);
-    det.appendChild(meta);
-    info.appendChild(thumb);
-    info.appendChild(det);
-    inner.appendChild(info);
+    inner.appendChild(titleEl);
 
     // --- scrollable middle: quality grid + other files
     const scroller = document.createElement("div");
-    scroller.style.cssText = "max-height:min(58vh,420px);overflow-y:auto;overflow-x:hidden;";
+    scroller.style.cssText = "max-height:min(58vh,420px);overflow-y:auto;overflow-x:hidden;padding:0 2px;";
     const mkDivider = () => {
       const d = document.createElement("div");
       d.setAttribute("data-dc-p", "divider");
-      d.style.cssText = "height:1px;margin:0 12px;background:" + T.border + ";";
+      d.style.cssText = "height:1px;margin:4px 0 8px;background:" + T.border + ";";
       return d;
     };
     const gridDivider = mkDivider();
     const gridSec = document.createElement("div");
-    gridSec.style.cssText = "padding:8px 12px;";
+    gridSec.style.cssText = "padding:2px 0 6px;";
     const gridHead = document.createElement("div");
     gridHead.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
     const badge = dcText("", "badge", "font-size:9px;padding:2px 6px;border-radius:8px;");
-    gridHead.appendChild(dcText(dcT("panelVideoFiles", "Video Files"), "muted", "font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;"));
+    gridHead.appendChild(dcText(dcT("panelVideoFiles", "Video Files"), "muted", "font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;"));
     gridHead.appendChild(badge);
     const grid = document.createElement("div");
-    grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;";
+    grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:6px;";
     gridSec.appendChild(gridHead);
     gridSec.appendChild(grid);
     scroller.appendChild(gridDivider);
@@ -2228,46 +2249,47 @@
 
     const chipsDivider = mkDivider();
     const chipsSec = document.createElement("div");
-    chipsSec.style.cssText = "padding:8px 12px;";
+    chipsSec.style.cssText = "padding:2px 0 6px;";
     const chipsHead = document.createElement("div");
     chipsHead.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
-    chipsHead.appendChild(dcText(dcT("panelOtherFiles", "Other Files"), "muted", "font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;"));
+    chipsHead.appendChild(dcText(dcT("panelOtherFiles", "Other Files"), "muted", "font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;"));
     const chipsWrap = document.createElement("div");
-    chipsWrap.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+    chipsWrap.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:6px;";
     chipsSec.appendChild(chipsHead);
     chipsSec.appendChild(chipsWrap);
     scroller.appendChild(chipsDivider);
     scroller.appendChild(chipsSec);
     inner.appendChild(scroller);
 
-    // --- action row: Download / Cancel / X
+    // --- action row: Download All / Cancel
     const actions = document.createElement("div");
     actions.setAttribute("data-dc-p", "borders");
-    actions.style.cssText = "display:flex;gap:6px;box-sizing:border-box;padding:8px 12px;border-top:1px solid " + T.border + ";";
-    const mkBtn = (label, role, on, icon) => {
+    actions.style.cssText = "display:flex;gap:10px;box-sizing:border-box;padding:10px 2px 2px;margin-top:6px;border-top:1px solid " + T.border + ";";
+    const mkBtn = (label, role, on, iconSvg) => {
       const b = document.createElement("button");
       b.type = "button";
       b.setAttribute("data-dc-p", role);
-      b.style.cssText = "display:flex;align-items:center;justify-content:center;gap:4px;flex:1;box-sizing:border-box;"
-        + "padding:7px 12px;margin:0;border-radius:5px;border:1px solid;cursor:pointer;"
-        + "font:500 11px/1.2 system-ui,'Segoe UI',sans-serif;";
+      b.style.cssText = "display:flex;align-items:center;justify-content:center;gap:6px;flex:1;box-sizing:border-box;"
+        + "padding:8px 14px;margin:0;border-radius:20px;border:1px solid " + T.border + ";cursor:pointer;"
+        + "font:600 12px/1.2 system-ui,'Segoe UI',sans-serif;transition:all .15s ease;";
       if (label) b.appendChild(dcText(label, null, "white-space:nowrap;"));
-      if (icon) b.appendChild(svgIcon(10, icon, 2.5));
+      if (iconSvg) b.appendChild(iconSvg);
       b.onclick = (ev) => {
         if (ev && ev.stopPropagation) ev.stopPropagation();
         if (on) on();
       };
+      b.onmouseenter = () => { b.style.borderColor = dcPanelTokens().accent; b.style.background = dcPanelTokens().hover; };
+      b.onmouseleave = () => { b.style.borderColor = dcPanelTokens().border; b.style.background = dcPanelTokens().card; };
       return b;
     };
-    const primary = mkBtn(s.primaryLabel || dcT("panelDownload", "Download"), "btnp", () => {
+    const primary = mkBtn(s.primaryLabel || dcT("panelDownloadAll", "Download All"), "btnp", () => {
       hidePanels();
       if (s.onPrimary) s.onPrimary();
-    }, ICON_DOWN);
+    }, svgIcon(11, ICON_DOWN, 2.5));
     const cancel = mkBtn(dcT("panelCancel", "Cancel"), "btn", () => {
       hidePanels();
       if (s.onClose) s.onClose();
-    }, null);
-    // Cancel closes the menu; a second × beside it did the same.
+    }, svgIcon(10, ICON_CLOSE, 2.2));
     actions.appendChild(primary);
     actions.appendChild(cancel);
     inner.appendChild(actions);

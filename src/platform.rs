@@ -244,7 +244,7 @@ pub fn install_native_host(browser: &str) -> Result<String, String> {
     let exe = launch_path().map_err(|e| e.to_string())?;
     let launcher = crate::model::config_dir()
         .ok_or("No config directory")?
-        .join("native-host/download_craft_host.sh");
+        .join("native-host/sa2_download_host.sh");
     std::fs::create_dir_all(launcher.parent().unwrap()).map_err(|e| e.to_string())?;
     let quote = |s: &str| format!("'{}'", s.replace('\'', "'\\''"));
     let tools = dirs::home_dir()
@@ -258,14 +258,14 @@ pub fn install_native_host(browser: &str) -> Result<String, String> {
         std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o700))
             .map_err(|e| e.to_string())?;
     }
-    let mut manifest = serde_json::json!({"name":"com.download_craft","description":"Download Craft native host","path":launcher,"type":"stdio"});
+    let mut manifest = serde_json::json!({"name":"com.sa2_download","description":"Download Craft native host","path":launcher,"type":"stdio"});
     if browser == "firefox" {
         manifest["allowed_extensions"] = serde_json::json!(["send-to-download-craft@example"]);
     } else {
         manifest["allowed_origins"] =
             serde_json::json!([format!("chrome-extension://{}/", crate::app::EXTENSION_ID)]);
     }
-    let path = dir.join("com.download_craft.json");
+    let path = dir.join("com.sa2_download.json");
     std::fs::write(
         &path,
         serde_json::to_vec_pretty(&manifest).map_err(|e| e.to_string())?,

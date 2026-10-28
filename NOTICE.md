@@ -37,10 +37,10 @@ Redistribution of this font requires keeping this attribution.
 ## Design inspiration
 
 The layout and usability of this app were inspired by modern desktop
-download managers (including AB Download Manager and FluxDown). Inspiration
-means ideas only: every line of code here was written independently for
-this project, and no source files from those projects were copied,
-adapted, or embedded.
+download managers (including the IDM V7.0 Redesign Style Guide, AB Download Manager,
+and FluxDown). Inspiration means visual direction and usability ideas only: every line of
+code here was written independently for this project, and no source files from those
+projects were copied, adapted, or embedded.
 
 ## Rust crates
 

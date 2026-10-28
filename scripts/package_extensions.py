@@ -25,7 +25,11 @@ def stage_extensions(repo, destination):
     with zipfile.ZipFile(xpi,'w',zipfile.ZIP_DEFLATED) as z:
         for f in sorted(firefox.rglob('*')):
             if f.is_file():z.write(f,f.relative_to(firefox))
-    return chrome,firefox,xpi
+    chrome_zip=destination/f'DownloadCraft-Chrome-{version}.zip'
+    with zipfile.ZipFile(chrome_zip,'w',zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(chrome.rglob('*')):
+            if f.is_file():z.write(f,f.relative_to(chrome.parent))
+    return chrome,firefox,xpi,chrome_zip
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()

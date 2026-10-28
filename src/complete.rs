@@ -1,7 +1,7 @@
 //! IDM-style standalone "Download complete" dialog.
 //!
 //! The main app pops this up when a download finishes:
-//! `download_craft.exe --complete <id>`. The surface is the card drawn in
+//! `sa2_download.exe --complete <id>`. The surface is the card drawn in
 //! `complete_window.html` (measured in Chrome): frameless and transparent, so
 //! that card *is* the window — its own title bar, the file summary, the
 //! Address / "The file saved as" fields, the four actions and the

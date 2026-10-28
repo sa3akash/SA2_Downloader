@@ -14,7 +14,11 @@ use std::sync::{Mutex, OnceLock};
 
 /// Languages that ship inside the program; a file with the same code in a
 /// `lang` folder adds to and overrides them.
-const BUILTIN: &[(&str, &str)] = &[("bn", include_str!("../lang/bn.json"))];
+const BUILTIN: &[(&str, &str)] = &[
+    ("bn", include_str!("../lang/bn.json")),
+    ("ur", include_str!("../lang/ur.json")),
+    ("ar", include_str!("../lang/ar.json")),
+];
 
 struct Lang {
     code: String,
@@ -25,6 +29,13 @@ struct Lang {
 fn state() -> &'static Mutex<Lang> {
     static S: OnceLock<Mutex<Lang>> = OnceLock::new();
     S.get_or_init(|| Mutex::new(load(&crate::model::ui_pref_str("language", "en"))))
+}
+
+/// Change active language at runtime across the whole app.
+pub fn set_language(code: &str) {
+    if let Ok(mut l) = state().lock() {
+        *l = load(code);
+    }
 }
 
 /// Folders that can hold language files, the config folder's first.
@@ -149,6 +160,8 @@ mod tests {
         // The built-in Bengali file parses and names itself.
         assert_eq!(load_from("bn", &[]).map.get("Settings").copied(), Some("সেটিংস"));
         assert!(available().iter().any(|(c, n)| c == "bn" && n == "বাংলা"));
+        assert!(available().iter().any(|(c, n)| c == "ur" && n == "اردو"));
+        assert!(available().iter().any(|(c, n)| c == "ar" && n == "العربية"));
         let _ = std::fs::remove_dir_all(&base);
     }
 }

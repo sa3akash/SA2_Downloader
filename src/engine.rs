@@ -5534,7 +5534,8 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
-    cmd.arg("--flat-playlist").arg("-J").arg("--no-warnings");
+    cmd.arg("--flat-playlist").arg("-J").arg("--no-warnings").arg("--ignore-errors");
+    cmd.arg("--socket-timeout").arg("15");
     if let Some((name, path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
     }
@@ -5546,8 +5547,11 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
     } else {
         None
     };
+    let b_cookie = crate::model::ui_pref_str("browser_cookies", "");
     if let Some(j) = &jar {
         cmd.arg("--cookies").arg(&j.0);
+    } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
+        cmd.arg("--cookies-from-browser").arg(b_cookie.trim());
     }
     cmd.arg(url).stdin(std::process::Stdio::null());
     let out = tokio::time::timeout(std::time::Duration::from_secs(120), cmd.output())
@@ -6697,11 +6701,13 @@ async fn download_with_ytdlp(
     let is_pl = opts.is_playlist || is_pure_playlist_url(url);
     if is_pl {
         cmd.arg("--yes-playlist");
+        cmd.arg("--ignore-errors");
+        cmd.arg("--skip-unavailable-fragments");
     } else {
         cmd.arg("--no-playlist");
     }
     cmd.arg("--no-warnings")
-        .arg("--abort-on-unavailable-fragments")
+        .arg("--continue")
         .arg("--no-simulate")
         .arg("--print")
         .arg("before_dl:dcinfo@{\"duration\":%(duration)j,\"acodec\":%(acodec)j}")
@@ -6713,11 +6719,13 @@ async fn download_with_ytdlp(
         .arg("--progress-template")
         .arg(ytdlp_progress_template())
         .arg("--retries")
-        .arg(opts.max_retries.max(1).to_string())
+        .arg(opts.max_retries.max(50).to_string())
+        .arg("--fragment-retries")
+        .arg("50")
         .arg("--socket-timeout")
-        .arg(opts.timeout_secs.max(5).to_string())
+        .arg(opts.timeout_secs.max(15).to_string())
         .arg("--concurrent-fragments")
-        .arg(connections.clamp(1, 8).to_string())
+        .arg(connections.clamp(1, 16).to_string())
         .arg("-f")
         .arg(if wants_audio_only(&opts.quality_pref) {
             "ba[ext=m4a]/ba/b".to_string()
@@ -6766,8 +6774,11 @@ async fn download_with_ytdlp(
     if let Some((name,path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}",path.display()));
     }
+    let b_cookie = crate::model::ui_pref_str("browser_cookies", "");
     if let Some(jar) = &jar {
         cmd.arg("--cookies").arg(&jar.0);
+    } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
+        cmd.arg("--cookies-from-browser").arg(b_cookie.trim());
     } else if !opts.ytdlp_visitor_data.is_empty() && is_youtube_page(url) {
         // Retry after a bot check: the page's own visitor id (yt-dlp wants the
         // web page skipped with it, and no cookies).
@@ -6786,6 +6797,13 @@ async fn download_with_ytdlp(
     }
     if let Some(p) = opts.effective_proxy(url) {
         cmd.arg("--proxy").arg(p);
+    }
+    if let Some(_aria) = aria2_on_path() {
+        if !is_pl && !is_playlist_url(url) {
+            let max_c = connections.clamp(1, 16);
+            cmd.arg("--downloader").arg("aria2c");
+            cmd.arg("--downloader-args").arg(format!("aria2c:-j{max_c} -x{max_c} -s{max_c} -k1M"));
+        }
     }
     if opts.overwrite_existing {
         cmd.arg("--force-overwrites");

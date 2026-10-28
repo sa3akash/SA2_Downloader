@@ -18,13 +18,13 @@ Multi-connection parallel downloads, dynamic segmentation work-stealing, YouTube
 &nbsp;
 [![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/hungry-detective/SA2Downloader/releases/download/v1.1.0/SA2Downloader-1.1.0-macos-Universal.zip)
 &nbsp;
-[![Download for Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/hungry-detective/SA2Downloader/releases/tag/v1.1.0)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/tag/v1.1.0)
 
-[![Chrome / Edge extension](https://img.shields.io/badge/Extension-Chrome%20%2F%20Edge-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/hungry-detective/SA2Downloader/releases/download/v1.1.0/SA2Downloader-Chrome-1.1.0.zip)
+[![Chrome / Edge extension](https://img.shields.io/badge/Extension-Chrome%20%2F%20Edge-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.0/SA2Downloader-Chrome-1.1.0.zip)
 &nbsp;
-[![Firefox extension](https://img.shields.io/badge/Extension-Firefox-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](https://github.com/hungry-detective/SA2Downloader/releases/download/v1.1.0/SA2Downloader-Firefox-1.1.0.xpi)
+[![Firefox extension](https://img.shields.io/badge/Extension-Firefox-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.0/SA2Downloader-Firefox-1.1.0.xpi)
 
-<sub>Windows 10/11 · macOS 12+ (Apple Silicon & Intel) · Linux x86-64 (DEB, RPM, AppImage) · <a href="https://github.com/hungry-detective/SA2Downloader/releases">all releases</a></sub>
+<sub>Windows 10/11 · macOS 12+ (Apple Silicon & Intel) · Linux x86-64 (DEB, RPM, AppImage) · <a href="https://github.com/sa3akash/SA2_Downloader/releases">all releases</a></sub>
 
 <br><br>
 
@@ -41,8 +41,6 @@ Multi-connection parallel downloads, dynamic segmentation work-stealing, YouTube
 - **Refined Download List & Toolbar**: 44px rows with 2-line file information, format thumbnail cards, Spring Breeze progress bars, [+ Add Url] pill with cloud badge, and live Speed Test status bar.
 - **Redesigned Playlist Downloader**: multi-file batch window with format pills, auto-sorting, and disk availability indicator.
 - **Automated GitHub Releases**: CI builds across Windows, macOS, and Linux automatically publish release packages and extensions directly to GitHub Releases.
-
-Full notes: [Release 1.1.0](https://github.com/hungry-detective/SA2Downloader/releases/tag/v1.1.0).
 
 ---
 

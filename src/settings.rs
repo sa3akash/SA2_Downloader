@@ -105,6 +105,8 @@ struct Settings {
     browser_fallback: bool,
     /// YouTube engine order: "auto", "native" or "ytdlp".
     youtube_engine: String,
+    /// Browser used for cookies when fetching yt-dlp media ("none", "chrome", "edge", "firefox", etc.).
+    browser_cookies: String,
     /// Saved site logins (kept in logins.json, passwords protected).
     logins: Vec<crate::model::SiteLogin>,
     // Updates
@@ -163,6 +165,7 @@ impl Default for Settings {
             notify_done: true,
             browser_fallback: true,
             youtube_engine: "auto".to_string(),
+            browser_cookies: "none".to_string(),
             logins: Vec::new(),
             update_check_on: true,
         }
@@ -195,6 +198,7 @@ fn load() -> Settings {
     str_in("antivirus_cmd", &mut s.antivirus_cmd);
     str_in("finish_action", &mut s.finish_action);
     str_in("rename_template", &mut s.rename_template);
+    str_in("browser_cookies", &mut s.browser_cookies);
     if let Some(p) = g("ffmpeg_custom_path").and_then(|v|v.as_str()) { s.ffmpeg_custom_path=p.to_string(); }
     if let Some(b) = g("close_to_tray").and_then(|x| x.as_bool()) {
         s.close_to_tray = cfg!(windows) && b;
@@ -421,6 +425,7 @@ fn save(s: &Settings) -> bool {
     set(obj, "notify_done", s.notify_done.into());
     set(obj, "browser_fallback", s.browser_fallback.into());
     set(obj, "youtube_engine", s.youtube_engine.clone().into());
+    set(obj, "browser_cookies", s.browser_cookies.clone().into());
     set(obj, "update_check_on", s.update_check_on.into());
     set(obj, "folder_rules", serde_json::to_value(&s.folder_rules).unwrap_or_default());
     set(
@@ -2458,11 +2463,13 @@ impl SettingsApp {
                 .selected_text(shown)
                 .show_ui(ui, |ui| {
                     for (code, name) in &langs {
-                        ui.selectable_value(lang, code.clone(), name);
+                        if ui.selectable_value(lang, code.clone(), name).clicked() {
+                            crate::i18n::set_language(lang);
+                        }
                     }
                 });
             ui.add_space(4.0);
-            hint(ui, "Takes effect the next time SA2 Downloader starts. To add a language, put <code>.json in the lang folder next to the program; missing texts are listed in lang/<code>.missing.json in the settings folder.");
+            hint(ui, "Changes apply immediately across the entire app. Missing texts are listed in lang/<code>.missing.json in the settings folder.");
         });
 
         // ---- Window behaviour ----
@@ -2768,6 +2775,17 @@ impl SettingsApp {
                 let w = c.available_width();
                 input_box(&mut c, "sub_langs_in", &mut s.subtitle_langs, w, true, false, "en.*");
             }
+            ui.add_space(8.0);
+            let cookie_browsers = ["none", "chrome", "edge", "firefox", "brave", "opera", "vivaldi"];
+            let cur_b = if s.browser_cookies.is_empty() { "none" } else { s.browser_cookies.as_str() };
+            field_row(ui, "b_cookie_lbl", "Browser Cookies", None, Some("Extract login cookies from your browser to bypass bot verification (429 Too Many Requests)"));
+            egui::ComboBox::from_id_salt("b_cookies_combo")
+                .selected_text(cur_b)
+                .show_ui(ui, |ui| {
+                    for b in &cookie_browsers {
+                        ui.selectable_value(&mut s.browser_cookies, b.to_string(), *b);
+                    }
+                });
             ui.add_space(8.0);
             if segmented(ui, "yt_engine", &["Auto", "App first", "yt-dlp first"], &mut pick) {
                 s.youtube_engine = match pick.as_str() {

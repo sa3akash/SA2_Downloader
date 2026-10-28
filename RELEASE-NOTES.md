@@ -1,6 +1,6 @@
-# Download SA2 1.1.0 — New Modern IDM 7.0 UI, Theme System & Automated Release Builds
+# Download SA2 1.1.3 — New Modern IDM 7.0 UI, Theme System & Automated Release Builds
 
-## What's new in 1.1.0
+## What's new in 1.1.3
 
 ### Modern IDM V7.0 Redesign & Official Color Theme
 - **Official Brand Color System**:

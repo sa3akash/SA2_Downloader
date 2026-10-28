@@ -644,7 +644,14 @@ impl eframe::App for ProgressApp {
         // The card follows the concept's own rules: one 25px row per part,
         // everything else fixed. A monitor-sized cap keeps a 32-connection
         // list usable — the table scrolls instead of leaving the screen.
-        let parts = self.snap.parts.len().max(self.snap.fragments.map_or(0, |_| 1));
+        let item_conns = self.item.as_ref().map(|it| it.connections.clamp(1, 8)).unwrap_or(1);
+        let parts = if !self.snap.parts.is_empty() {
+            self.snap.parts.len()
+        } else if self.snap.fragments.is_some() {
+            1
+        } else {
+            item_conns
+        };
         let want_h = match &self.item {
             None => PG_DEAD_H,
             Some(_) if self.parts_open => match self.tab {
@@ -1354,7 +1361,7 @@ impl ProgressApp {
 
         // ---- Row 4: Action Buttons [Hide Details] [Pause ||] [Cancel X] ----
         let btn_y = stats_y + 24.0;
-        let details_lbl = if self.parts_open { "Hide Details" } else { "Show Details" };
+        let details_lbl = if self.parts_open { crate::i18n::t("Hide Details") } else { crate::i18n::t("Show Details") };
         let det_r = at(o, PAD_X, btn_y, 110.0, 32.0);
         let pause_r = at(o, PAD_X + 160.0, btn_y, 120.0, 32.0);
         let cancel_r = at(o, IN_R - 100.0, btn_y, 100.0, 32.0);
@@ -1370,14 +1377,14 @@ impl ProgressApp {
             &p,
             pause_r,
             pause_b.hovered(),
-            if paused { "Resume  ▶" } else { "Pause  ||" },
+            if paused { crate::i18n::t("Resume") } else { crate::i18n::t("Pause") },
             pl().dm_card,
             COLOR_APPLE_GREEN,
             pl().dm_txt,
             None,
         );
 
-        btn_pill(&p, cancel_r, cancel_b.hovered(), "Cancel  ✕", pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
+        btn_pill(&p, cancel_r, cancel_b.hovered(), crate::i18n::t("Cancel"), pl().dm_card, pl().dm_box_bd, pl().dm_dim, Some(DmIcon::Close));
 
         if det_b.hovered() || pause_b.hovered() || cancel_b.hovered() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
@@ -1415,7 +1422,29 @@ impl ProgressApp {
         }
 
         let parts_list: Vec<(u64, u64, u64)> = if self.snap.parts.is_empty() {
-            vec![(0, item.total_bytes.unwrap_or(item.downloaded_bytes), item.downloaded_bytes)]
+            let conns = item.connections.clamp(1, 8);
+            if conns > 1 && (downloading || item.downloaded_bytes > 0) {
+                let total = item.total_bytes.unwrap_or(item.downloaded_bytes.max(1));
+                let seg_len = (total / conns as u64).max(1);
+                let done = item.downloaded_bytes;
+                (0..conns)
+                    .map(|idx| {
+                        let s = idx as u64 * seg_len;
+                        let e = if idx == conns - 1 { total } else { (s + seg_len).saturating_sub(1) };
+                        let part_len = e.saturating_sub(s) + 1;
+                        let d = if done >= s + part_len {
+                            part_len
+                        } else if done > s {
+                            done - s
+                        } else {
+                            0
+                        };
+                        (s, e, d)
+                    })
+                    .collect()
+            } else {
+                vec![(0, item.total_bytes.unwrap_or(item.downloaded_bytes), item.downloaded_bytes)]
+            }
         } else {
             self.snap.parts.clone()
         };
@@ -1441,10 +1470,10 @@ impl ProgressApp {
 
         // Header
         let hdr_y = o.y + table_y + 8.0;
-        p.text(egui::pos2(o.x + PAD_X + 16.0, hdr_y), egui::Align2::LEFT_TOP, "#", reg(10.5), pl().dm_head);
-        p.text(egui::pos2(o.x + PAD_X + 48.0, hdr_y), egui::Align2::LEFT_TOP, "Downloaded", reg(10.5), pl().dm_head);
-        p.text(egui::pos2(o.x + PAD_X + 150.0, hdr_y), egui::Align2::LEFT_TOP, "Status", reg(10.5), pl().dm_head);
-        p.text(egui::pos2(o.x + IN_R - 110.0, hdr_y), egui::Align2::LEFT_TOP, "Progress", reg(10.5), pl().dm_head);
+        p.text(egui::pos2(o.x + PAD_X + 16.0, hdr_y), egui::Align2::LEFT_TOP, crate::i18n::t("#"), reg(10.5), pl().dm_head);
+        p.text(egui::pos2(o.x + PAD_X + 48.0, hdr_y), egui::Align2::LEFT_TOP, crate::i18n::t("Downloaded"), reg(10.5), pl().dm_head);
+        p.text(egui::pos2(o.x + PAD_X + 150.0, hdr_y), egui::Align2::LEFT_TOP, crate::i18n::t("Status"), reg(10.5), pl().dm_head);
+        p.text(egui::pos2(o.x + IN_R - 110.0, hdr_y), egui::Align2::LEFT_TOP, crate::i18n::t("Progress"), reg(10.5), pl().dm_head);
 
         p.line_segment(
             [
@@ -1464,13 +1493,13 @@ impl ProgressApp {
                 0.0
             };
             let status = if len > 0 && *d >= len {
-                "Finished"
+                crate::i18n::t("Finished")
             } else if downloading && f > 0.0 {
-                "Receiving data..."
+                crate::i18n::t("Receiving data...")
             } else if downloading {
-                "Connecting..."
+                crate::i18n::t("Connecting...")
             } else {
-                "Waiting"
+                crate::i18n::t("Waiting")
             };
 
             p.text(egui::pos2(o.x + PAD_X + 16.0, y), egui::Align2::LEFT_TOP, (i + 1).to_string(), reg(10.5), pl().dm_lbl);

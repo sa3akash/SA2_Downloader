@@ -7574,6 +7574,9 @@ impl eframe::App for sa2App {
                     }
                 }
             }
+            if self.probing || self.add_loading_playlist {
+                ctx.request_repaint();
+            }
             let psize = self.probe_size;
             let pbusy = self.probing;
             let mut open = self.show_add;

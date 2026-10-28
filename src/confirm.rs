@@ -1040,7 +1040,7 @@ impl eframe::App for ConfirmApp {
                 }
             }
         }
-        if self.probing {
+        if self.probing || self.loading_playlist {
             ctx.request_repaint();
         }
         // Grow the window when the gear panel (or a notice) needs room, so the
@@ -1094,7 +1094,7 @@ impl eframe::App for ConfirmApp {
             p.text(
                 egui::pos2(o.x + 43.0, o.y + 20.0),
                 egui::Align2::LEFT_CENTER,
-                "New Download Task",
+                crate::i18n::t("New Download Task"),
                 semi(13.5),
                 pl().dm_txt,
             );
@@ -1194,7 +1194,7 @@ impl eframe::App for ConfirmApp {
             p.text(
                 egui::pos2(o.x + DM_X, o.y + r2_y + 18.0),
                 egui::Align2::LEFT_CENTER,
-                "URL",
+                crate::i18n::t("URL"),
                 semi(12.0),
                 pl().dm_txt,
             );
@@ -1233,7 +1233,7 @@ impl eframe::App for ConfirmApp {
             p.text(
                 egui::pos2(o.x + DM_X, o.y + r3_lbl_y),
                 egui::Align2::LEFT_TOP,
-                "Category",
+                crate::i18n::t("Category"),
                 reg(10.5),
                 pl().dm_dim,
             );
@@ -1251,7 +1251,7 @@ impl eframe::App for ConfirmApp {
             p.text(
                 egui::pos2(o.x + save_x, o.y + r3_lbl_y),
                 egui::Align2::LEFT_TOP,
-                "Save To",
+                crate::i18n::t("Save To"),
                 reg(10.5),
                 pl().dm_dim,
             );
@@ -1500,9 +1500,9 @@ impl eframe::App for ConfirmApp {
             let cancel_b = ui.interact(cancel_r, egui::Id::new("popup-cancel"), egui::Sense::click());
             let dl_b = ui.interact(dl_r, egui::Id::new("popup-dl"), egui::Sense::click());
 
-            btn_pill(&p, later_r, later_b.hovered(), "Download Later", pl().dm_line, pl().dm_box_bd, pl().dm_txt, None);
-            btn_pill(&p, cancel_r, cancel_b.hovered(), "Cancel", pl().dm_line, pl().dm_box_bd, egui::Color32::from_rgb(0xFF, 0x78, 0x75), Some(DmIcon::Close));
-            btn_spring_breeze(&p, dl_r, dl_b.hovered(), "Download", Some(DmIcon::ArrowDown));
+            btn_pill(&p, later_r, later_b.hovered(), crate::i18n::t("Download Later"), pl().dm_line, pl().dm_box_bd, pl().dm_txt, None);
+            btn_pill(&p, cancel_r, cancel_b.hovered(), crate::i18n::t("Cancel"), pl().dm_line, pl().dm_box_bd, egui::Color32::from_rgb(0xFF, 0x78, 0x75), Some(DmIcon::Close));
+            btn_spring_breeze(&p, dl_r, dl_b.hovered(), crate::i18n::t("Download"), Some(DmIcon::ArrowDown));
 
             if later_b.hovered() || dl_b.hovered() || cancel_b.hovered() {
                 ctx.set_cursor_icon(egui::CursorIcon::PointingHand);

@@ -1008,6 +1008,7 @@ impl eframe::App for ConfirmApp {
                     }
                 }
                 if !info.formats.is_empty() {
+                    self.probing = false;
                     if self.probe_size.is_none() || self.probe_size == Some(0) {
                         if let Some(first_sz) = info.formats.first().and_then(|f| f.size) {
                             self.probe_size = Some(first_sz);
@@ -1450,6 +1451,7 @@ impl eframe::App for ConfirmApp {
                 };
 
                 if let Some(pick) = combo(ui, q_rect, "quality_combo", &cur_q_disp, &q_opts, &mut self.quality_open) {
+                    self.probing = false;
                     if let Some(rf) = self.real_formats.iter().find(|f| f.label == pick) {
                         self.quality_pref = rf.quality_val.clone();
                         if let Some(sz) = rf.size {
@@ -1477,6 +1479,13 @@ impl eframe::App for ConfirmApp {
                             "Audio only (MP3)" => {
                                 self.quality_pref = "audio".to_string();
                                 self.category = "Music".to_string();
+                                if !self.filename.ends_with(".mp3") {
+                                    let stem = std::path::Path::new(&self.filename)
+                                        .file_stem()
+                                        .and_then(|s| s.to_str())
+                                        .unwrap_or(&self.filename);
+                                    self.filename = format!("{stem}.mp3");
+                                }
                             }
                             other => self.quality_pref = other.to_string(),
                         }

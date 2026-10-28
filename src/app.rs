@@ -107,37 +107,37 @@ pub struct Palette {
 
 pub const DARK_PAL: Palette = Palette {
     bg: egui::Color32::from_rgb(0x1E, 0x1F, 0x24),
-    surface: egui::Color32::from_rgb(0x26, 0x28, 0x30),
-    surface_lt: egui::Color32::from_rgb(0x34, 0x36, 0x42),
-    header_bg: egui::Color32::from_rgb(0x18, 0x19, 0x1F),
-    central_bg: egui::Color32::from_rgb(0x1E, 0x1F, 0x24),
-    card_bd: egui::Color32::from_rgb(0x40, 0x43, 0x50),
+    surface: egui::Color32::from_rgb(0x22, 0x24, 0x2C),
+    surface_lt: egui::Color32::from_rgb(0x32, 0x35, 0x43),
+    header_bg: egui::Color32::from_rgb(0x15, 0x16, 0x1C),
+    central_bg: egui::Color32::from_rgb(0x1B, 0x1C, 0x23),
+    card_bd: egui::Color32::from_rgb(0x3E, 0x43, 0x54),
     primary: egui::Color32::from_rgb(0x60, 0xCD, 0x38), // #60CD38 Apple Green
     secondary: egui::Color32::from_rgb(0x2D, 0x96, 0xF6), // #2D96F6 Bleu De France
-    txt: egui::Color32::from_rgb(0xF2, 0xF2, 0xF2), // #F2F2F2 Light Gray
-    dim: egui::Color32::from_rgb(0xA8, 0xA8, 0xA8), // #A8A8A8 Quill Grey
+    txt: egui::Color32::from_rgb(0xF5, 0xF6, 0xFA), // Crisp Light Text
+    dim: egui::Color32::from_rgb(0xA6, 0xAC, 0xBE), // Readable Muted
     success: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
     warning: egui::Color32::from_rgb(0xFF, 0xC2, 0x25), // #FFC225 Lightning Yellow
     error: egui::Color32::from_rgb(255, 77, 79),
-    sel_bg: egui::Color32::from_rgba_premultiplied(96, 205, 56, 38),
+    sel_bg: egui::Color32::from_rgba_premultiplied(96, 205, 56, 45),
     sel_bd: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
-    hover_bg: egui::Color32::from_rgba_premultiplied(255, 255, 255, 18),
-    modal_bg: egui::Color32::from_rgb(0x2A, 0x2C, 0x35),
-    modal_bd: egui::Color32::from_rgb(0x4D, 0x4D, 0x4D), // #4D4D4D Vampire Grey
-    scrim: egui::Color32::from_rgba_premultiplied(0, 0, 0, 160),
-    bar_bd: egui::Color32::from_rgba_premultiplied(20, 20, 21, 25),
-    track: egui::Color32::from_rgb(0x38, 0x3A, 0x45),
+    hover_bg: egui::Color32::from_rgba_premultiplied(255, 255, 255, 32),
+    modal_bg: egui::Color32::from_rgb(0x24, 0x26, 0x30),
+    modal_bd: egui::Color32::from_rgb(0x4E, 0x54, 0x68),
+    scrim: egui::Color32::from_rgba_premultiplied(0, 0, 0, 180),
+    bar_bd: egui::Color32::from_rgba_premultiplied(20, 20, 21, 35),
+    track: egui::Color32::from_rgb(0x33, 0x36, 0x44),
     notice: egui::Color32::from_rgb(255, 150, 120),
-    dm_card: egui::Color32::from_rgb(0x24, 0x26, 0x2F),
-    dm_line: egui::Color32::from_rgb(0x33, 0x36, 0x42),
-    dm_box_bd: egui::Color32::from_rgb(0x4D, 0x4D, 0x4D), // Vampire Grey
-    dm_txt: egui::Color32::from_rgb(0xF2, 0xF2, 0xF2),
-    dm_dim: egui::Color32::from_rgb(0xA8, 0xA8, 0xA8),
-    dm_hover: egui::Color32::from_rgb(0x33, 0x36, 0x44),
-    dm_hover2: egui::Color32::from_rgb(0x3E, 0x42, 0x54),
-    dm_trough: egui::Color32::from_rgb(0x18, 0x19, 0x20),
-    dm_lbl: egui::Color32::from_rgb(0xA8, 0xA8, 0xA8),
-    dm_head: egui::Color32::from_rgb(0x8A, 0x90, 0x9F),
+    dm_card: egui::Color32::from_rgb(0x22, 0x24, 0x2D),
+    dm_line: egui::Color32::from_rgb(0x35, 0x39, 0x48),
+    dm_box_bd: egui::Color32::from_rgb(0x4C, 0x52, 0x66),
+    dm_txt: egui::Color32::from_rgb(0xF5, 0xF6, 0xFA),
+    dm_dim: egui::Color32::from_rgb(0xA6, 0xAC, 0xBE),
+    dm_hover: egui::Color32::from_rgb(0x38, 0x3C, 0x4C),
+    dm_hover2: egui::Color32::from_rgb(0x4A, 0x50, 0x66),
+    dm_trough: egui::Color32::from_rgb(0x16, 0x17, 0x1E),
+    dm_lbl: egui::Color32::from_rgb(0xA6, 0xAC, 0xBE),
+    dm_head: egui::Color32::from_rgb(0x8C, 0x94, 0xA8),
     dm_warn: egui::Color32::from_rgb(0xFF, 0x6B, 0x6B),
     cg_bg: egui::Color32::from_rgb(0x1b, 0x1b, 0x1b),
     cg_bd: egui::Color32::from_rgb(0x3a, 0x3a, 0x3a),
@@ -6826,13 +6826,13 @@ impl eframe::App for sa2App {
                                     &cur,
                                     "All",
                                     MI_APPS_DOTS,
-                                    "All Downloads",
+                                    crate::i18n::t("All Downloads"),
                                     Some(n_all),
                                     false,
                                     None,
                                 );
                                 ui.add_space(4.0);
-                                let hdr = side_section(ui, &self.man, "Categories", self.cats_open);
+                                let hdr = side_section(ui, &self.man, crate::i18n::t("Categories"), self.cats_open);
                                 self.hits.push((HitKind::SideToggle(0), hdr));
                                 if self.cats_open {
                                     for (key, icon, label, col) in cats {
@@ -6852,7 +6852,7 @@ impl eframe::App for sa2App {
                                     }
                                 }
                                 ui.add_space(4.0);
-                                let hdr = side_section(ui, &self.man, "Status", self.status_open);
+                                let hdr = side_section(ui, &self.man, crate::i18n::t("Status"), self.status_open);
                                 self.hits.push((HitKind::SideToggle(1), hdr));
                                 if self.status_open {
                                     for (key, icon, label, n, dot, col) in statuses {
@@ -6874,7 +6874,7 @@ impl eframe::App for sa2App {
                                         &self.man,
                                         cur == "Unfinished" || cur == "Incomplete",
                                         MI_SCHEDULE,
-                                        "Unfinished",
+                                        crate::i18n::t("Unfinished"),
                                         Some(n_incomplete),
                                         false,
                                         "Unfinished",
@@ -6903,7 +6903,7 @@ impl eframe::App for sa2App {
                         p.text(
                             egui::pos2(card_rect.min.x + 26.0, head_y),
                             egui::Align2::LEFT_CENTER,
-                            "Disk Space",
+                            crate::i18n::t("Disk Space"),
                             crate::fonts::semi(12.0),
                             pl().txt,
                         );
@@ -6944,7 +6944,7 @@ impl eframe::App for sa2App {
                             egui::vec2(card_rect.width() - 12.0, 26.0),
                         );
                         let resp = ui.interact(btn_r, egui::Id::new("sidebar_disk_cleaner"), egui::Sense::click());
-                        btn_spring_breeze(p, btn_r, resp.hovered(), "Disk Cleaner", None);
+                        btn_spring_breeze(p, btn_r, resp.hovered(), crate::i18n::t("Disk Cleaner"), None);
                         if resp.on_hover_text("Open downloads folder in Explorer").clicked() {
                             open_path(std::path::Path::new(&self.add_dir), false);
                         }
@@ -7549,6 +7549,7 @@ impl eframe::App for sa2App {
                         }
                     }
                     if !info.formats.is_empty() {
+                        self.probing = false;
                         if self.probe_size.is_none() || self.probe_size == Some(0) {
                             if let Some(first_sz) = info.formats.first().and_then(|f| f.size) {
                                 self.probe_size = Some(first_sz);
@@ -8030,6 +8031,7 @@ impl eframe::App for sa2App {
                         };
 
                         if let Some(pick) = crate::confirm::combo(ui, q_rect, "add_quality_combo", &cur_q_disp, &q_opts, &mut self.add_quality_open) {
+                            self.probing = false;
                             if let Some(rf) = self.add_real_formats.iter().find(|f| f.label == pick) {
                                 self.add_quality = rf.quality_val.clone();
                                 if let Some(sz) = rf.size {
@@ -8057,6 +8059,13 @@ impl eframe::App for sa2App {
                                     "Audio only (MP3)" => {
                                         self.add_quality = "audio".to_string();
                                         self.add_category = "Music".to_string();
+                                        if !self.add_file.ends_with(".mp3") {
+                                            let stem = std::path::Path::new(&self.add_file)
+                                                .file_stem()
+                                                .and_then(|s| s.to_str())
+                                                .unwrap_or(&self.add_file);
+                                            self.add_file = format!("{stem}.mp3");
+                                        }
                                     }
                                     other => self.add_quality = other.to_string(),
                                 }

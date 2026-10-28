@@ -1082,26 +1082,35 @@ pub fn btn_pill(
     icon: Option<DmIcon>,
 ) {
     let rad = r.height() * 0.5;
-    p.rect_filled(r, rad, if hov { bg.gamma_multiply(1.15) } else { bg });
-    if border != egui::Color32::TRANSPARENT {
-        p.rect_stroke(r, rad, egui::Stroke::new(1.0_f32, border), egui::StrokeKind::Inside);
+    let (fill, bd, text_col) = if hov {
+        (
+            pl().dm_hover,
+            if border != egui::Color32::TRANSPARENT { pl().dm_hover2 } else { egui::Color32::TRANSPARENT },
+            egui::Color32::WHITE,
+        )
+    } else {
+        (bg, border, fg)
+    };
+    p.rect_filled(r, rad, fill);
+    if bd != egui::Color32::TRANSPARENT {
+        p.rect_stroke(r, rad, egui::Stroke::new(1.0_f32, bd), egui::StrokeKind::Inside);
     }
     let iw = if icon.is_some() { 16.0 } else { 0.0 };
     let font = semi(12.0);
-    let galley = p.layout_no_wrap(label.to_string(), font, fg);
+    let galley = p.layout_no_wrap(label.to_string(), font, text_col);
     let total_w = iw + galley.size().x;
     let x0 = r.center().x - total_w * 0.5;
     p.galley(
         egui::pos2(x0, r.center().y - galley.size().y * 0.5),
         galley,
-        fg,
+        text_col,
     );
     if let Some(ic) = icon {
         dm_icon(
             p,
             egui::Rect::from_center_size(egui::pos2(x0 + total_w - 6.0, r.center().y), egui::Vec2::splat(12.0)),
             ic,
-            fg,
+            text_col,
             2.0,
         );
     }
@@ -1118,7 +1127,8 @@ pub fn btn_spring_breeze(
     let rad = r.height() * 0.5;
     dm_gradient(p, r, rad, SPRING_BREEZE_START, SPRING_BREEZE_END);
     if hov {
-        p.rect_filled(r, rad, egui::Color32::from_white_alpha(35));
+        p.rect_filled(r, rad, egui::Color32::from_white_alpha(45));
+        p.rect_stroke(r, rad, egui::Stroke::new(1.2_f32, egui::Color32::WHITE), egui::StrokeKind::Inside);
     }
     let iw = if icon.is_some() { 16.0 } else { 0.0 };
     let font = semi(12.5);

@@ -5534,8 +5534,16 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
-    cmd.arg("--flat-playlist").arg("-J").arg("--no-warnings").arg("--ignore-errors");
-    cmd.arg("--socket-timeout").arg("15");
+    cmd.arg("--flat-playlist")
+        .arg("--no-warnings")
+        .arg("--ignore-errors")
+        .arg("--socket-timeout").arg("15")
+        .arg("--print").arg("title:%(playlist_title)s")
+        .arg("--print").arg("item:%(url)s\t%(title)s");
+
+    if is_youtube_page(url) || is_googlevideo_url(url) {
+        cmd.arg("--extractor-args").arg("youtube:player_client=default,android,web;player_skip=configs");
+    }
     if let Some((name, path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
     }
@@ -5553,42 +5561,78 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
     } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
         cmd.arg("--cookies-from-browser").arg(b_cookie.trim());
     }
-    cmd.arg(url).stdin(std::process::Stdio::null());
-    let out = tokio::time::timeout(std::time::Duration::from_secs(120), cmd.output())
-        .await
-        .map_err(|_| anyhow!("listing the playlist took too long"))??;
-    if !out.status.success() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        return Err(anyhow!("yt-dlp could not list it: {}", err.lines().last().unwrap_or("unknown error")));
-    }
-    let v: serde_json::Value = serde_json::from_slice(&out.stdout)?;
-    let title = v.get("title").and_then(|t| t.as_str()).unwrap_or("Playlist").to_string();
+    cmd.arg(url)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| anyhow!("Failed to spawn yt-dlp: {e}"))?;
+    let stdout = child.stdout.take().ok_or_else(|| anyhow!("stdout unavailable"))?;
+    let stderr = child.stderr.take();
+
+    let mut lines = tokio::io::BufReader::new(stdout).lines();
+    let mut title = "Playlist".to_string();
     let mut list = Vec::new();
-    // Channels nest their tabs (Videos, Shorts) one level down.
-    let mut stack: Vec<&serde_json::Value> = vec![&v];
-    while let Some(node) = stack.pop() {
-        for e in node.get("entries").and_then(|e| e.as_array()).into_iter().flatten().rev() {
-            if e.get("entries").is_some() {
-                stack.push(e);
-                continue;
+    let mut seen = std::collections::HashSet::new();
+
+    // Stream entries as they arrive so the UI does not hang
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let line_fut = lines.next_line();
+        tokio::select! {
+            res = line_fut => {
+                match res {
+                    Ok(Some(line)) => {
+                        let l = line.trim();
+                        if let Some(t) = l.strip_prefix("title:") {
+                            let t = t.trim();
+                            if !t.is_empty() && t != "NA" && t != "null" {
+                                title = t.to_string();
+                            }
+                        } else if let Some(item_part) = l.strip_prefix("item:") {
+                            let mut parts = item_part.splitn(2, '\t');
+                            let u = parts.next().unwrap_or("").trim();
+                            let t = parts.next().unwrap_or(u).trim();
+                            let u_fixed = if !u.starts_with("http") && !u.is_empty() {
+                                format!("https://www.youtube.com/watch?v={u}")
+                            } else {
+                                u.to_string()
+                            };
+                            if !u_fixed.is_empty() && seen.insert(u_fixed.clone()) {
+                                list.push((u_fixed, if t.is_empty() { "Video".to_string() } else { t.to_string() }));
+                            }
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(_) => break,
+                }
             }
-            let id = e.get("id").and_then(|x| x.as_str()).unwrap_or("");
-            let link = e
-                .get("url")
-                .and_then(|x| x.as_str())
-                .filter(|u| u.starts_with("http"))
-                .map(str::to_string)
-                .or_else(|| (!id.is_empty()).then(|| format!("https://www.youtube.com/watch?v={id}")));
-            if let Some(link) = link {
-                let t = e.get("title").and_then(|x| x.as_str()).unwrap_or(id).to_string();
-                list.push((link, t));
+            _ = tokio::time::sleep_until(deadline) => {
+                // If we've got items after timeout, proceed with what we have
+                if !list.is_empty() {
+                    break;
+                }
             }
         }
     }
+
+    let _ = child.kill().await;
+    let _ = child.wait().await;
+
     if list.is_empty() {
-        if let Some(t) = v.get("title").and_then(|t| t.as_str()) {
-            list.push((url.to_string(), t.to_string()));
+        if let Some(err) = stderr {
+            let mut err_lines = tokio::io::BufReader::new(err).lines();
+            let mut last_err = String::new();
+            while let Ok(Some(l)) = err_lines.next_line().await {
+                if !l.trim().is_empty() {
+                    last_err = l;
+                }
+            }
+            if !last_err.is_empty() {
+                return Err(anyhow!("yt-dlp could not list playlist: {last_err}"));
+            }
         }
+        list.push((url.to_string(), title.clone()));
     }
     list.truncate(5000);
     Ok((title, list))
@@ -6710,7 +6754,9 @@ async fn download_with_ytdlp(
         .arg("--continue")
         .arg("--no-simulate")
         .arg("--print")
-        .arg("before_dl:dcinfo@{\"duration\":%(duration)j,\"acodec\":%(acodec)j}")
+        .arg("before_dl:dcdur:%(duration)s")
+        .arg("--print")
+        .arg("before_dl:dcacodec:%(acodec)s")
         .arg("--print").arg("after_move:dcfile@%(filepath)j")
         .arg("--newline")
         // `--print` implies quiet mode, which hides progress: without this
@@ -6762,11 +6808,17 @@ async fn download_with_ytdlp(
     }
     if let Some(ff) = &merge_ffmpeg {
         cmd.arg("--ffmpeg-location").arg(ff);
-        cmd.arg("--merge-output-format").arg("mp4");
-        // Audio only: an MP3 (best VBR); without ffmpeg the m4a as served.
         if wants_audio_only(&opts.quality_pref) {
             cmd.arg("-x").arg("--audio-format").arg("mp3").arg("--audio-quality").arg("0");
+        } else {
+            cmd.arg("--merge-output-format").arg("mp4");
         }
+    } else if wants_audio_only(&opts.quality_pref) {
+        cmd.arg("-x");
+    }
+    // YouTube player client fallback to bypass bot check walls & SABR blocks
+    if is_youtube_page(url) || is_googlevideo_url(url) {
+        cmd.arg("--extractor-args").arg("youtube:player_client=default,android,web;player_skip=configs");
     }
     // Without a JS runtime yt-dlp cannot solve YouTube's player challenges:
     // extraction fails on many videos and it reports only "The page needs to
@@ -6848,6 +6900,21 @@ async fn download_with_ytdlp(
         while let Ok(Some(line)) = lines.next_line().await {
             if let Some(json)=line.strip_prefix("dcfile@") {
                 final_path=serde_json::from_str::<String>(json).ok().map(PathBuf::from);
+                continue;
+            }
+            if let Some(dur_str) = line.strip_prefix("dcdur:") {
+                if let Ok(d) = dur_str.trim().parse::<f64>() {
+                    if d.is_finite() && d > 0.0 && d < 86400.0 * 365.0 {
+                        let _ = progress.expected_duration.compare_exchange(0, d.round().max(1.0) as u64, Ordering::SeqCst, Ordering::SeqCst);
+                    }
+                }
+                continue;
+            }
+            if let Some(acodec) = line.strip_prefix("dcacodec:") {
+                let a = acodec.trim();
+                if !matches!(a, "none" | "NA" | "unknown" | "" | "null") {
+                    progress.expects_audio.store(true, Ordering::SeqCst);
+                }
                 continue;
             }
             if let Some(json) = line.strip_prefix("dcinfo@") {
@@ -6940,6 +7007,10 @@ async fn download_with_ytdlp(
         } else {
             format!("yt-dlp exited with {status}: {}", err_tail.trim())
         };
+        let low_msg = msg.to_ascii_lowercase();
+        if low_msg.contains("not a bot") || low_msg.contains("sign in to confirm") {
+            msg.push_str(" — YouTube requires verification. Enable 'Browser Cookies' under Settings ▸ Plugins ▸ YouTube (e.g. Chrome, Edge or Firefox) to bypass this check.");
+        }
         // Without ffmpeg the selector is restricted to a single muxed file, and
         // many videos no longer publish one above 360p at all - yt-dlp then
         // says only "Requested format is not available", which reads like a

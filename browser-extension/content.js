@@ -2130,8 +2130,9 @@
     badge.textContent = tag;
     el.appendChild(badge);
 
-    // Resolution label: e.g. 7680×4320 (8K), 1920×1080
-    const resTxt = o.res || (o.h ? `${o.h}p` : "");
+    // Resolution label: clean formatting without redundant parentheses when badge already says so
+    let resTxt = o.res || (o.h ? `${o.h}p` : "");
+    resTxt = resTxt.replace(/\s*\((?:8K|4K|2K|HD)\)/i, "").trim();
     const resEl = document.createElement("span");
     resEl.setAttribute("data-dc-p", "res-txt");
     resEl.style.cssText = "font-size:11px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;";
@@ -2157,6 +2158,8 @@
         el.style.borderColor = dcPanelTokens().border;
       }
     };
+    el.onmousedown = () => { el.style.transform = "scale(0.97)"; };
+    el.onmouseup = () => { el.style.transform = ""; };
     return {
       el,
       fmtEl: badge,
@@ -2221,7 +2224,7 @@
     const panel = document.createElement("div");
     panel.setAttribute("data-dc-panel", "1");
     panel.style.cssText = [
-      "display:none", "position:relative", "width:440px", "max-width:96vw",
+      "display:none", "position:relative", "width:490px", "max-width:96vw",
       "box-sizing:border-box", "padding:12px", "margin:0", "text-align:left",
       "border:1px solid " + T.border, "border-radius:18px",
       "background:" + T.bg, "color:" + T.text, "box-shadow:" + T.shadow,

@@ -1009,6 +1009,18 @@ fn save_cols(cols: &[f32; 3]) {
 }
 
 pub fn is_video_page_url(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    if lower.contains("youtu.be/")
+        || lower.contains("youtube.com/watch")
+        || lower.contains("youtube.com/shorts")
+        || lower.contains("youtube.com/embed")
+        || lower.contains("youtube.com/v/")
+        || (lower.contains("youtube.com") && (lower.contains("?v=") || lower.contains("&v=")))
+        || lower.starts_with("/watch?v=")
+        || lower.contains("watch?v=")
+    {
+        return true;
+    }
     let Ok(u) = reqwest::Url::parse(url) else { return false };
     let host = u.host_str().unwrap_or("").to_ascii_lowercase();
     let path = u.path().to_ascii_lowercase();
@@ -1124,6 +1136,7 @@ pub fn run() -> eframe::Result<()> {
             .build()
             .expect("tokio runtime"),
     );
+    let has_non_pages = rows.iter().any(|r| r.kind != Kind::Page);
     let mut app = LinksApp {
         page_url: batch.page_url,
         title: batch.title,
@@ -1131,7 +1144,7 @@ pub fn run() -> eframe::Result<()> {
         rows,
         filter: String::new(),
         chip: None,
-        hide_pages: true,
+        hide_pages: has_non_pages,
         sort: None,
         anchor: None,
         by_category: true,

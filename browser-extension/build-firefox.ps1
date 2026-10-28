@@ -20,7 +20,7 @@ if (-not $Out) {
   $Out = Join-Path (Split-Path -Parent $here) "SA2Downloader-Firefox-$ver.xpi"
 }
 
-$stage = Join-Path $env:TEMP "download-craft-firefox-stage"
+$stage = Join-Path $env:TEMP "download-sa2-firefox-stage"
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Path (Join-Path $stage "icons") -Force | Out-Null
 

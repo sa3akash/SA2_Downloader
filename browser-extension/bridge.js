@@ -28,7 +28,7 @@ var DCBridge = (() => {
 
   function emit(type, msg) {
     for (const fn of handlers[type] || []) {
-      try { fn(msg); } catch (e) { console.error("[download-craft] bridge handler", e); }
+      try { fn(msg); } catch (e) { console.error("[download-sa2] bridge handler", e); }
     }
   }
 

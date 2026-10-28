@@ -52,7 +52,7 @@ fn writable(dir: &Path) -> bool {
 
 /// Where downloads and unpacking happen.
 fn work_dir() -> PathBuf {
-    std::env::temp_dir().join("download-craft-update")
+    std::env::temp_dir().join("download-sa2-update")
 }
 
 /// Download `asset` and check it. `progress` gets 0.0..=1.0.

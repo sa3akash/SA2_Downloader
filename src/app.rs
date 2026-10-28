@@ -2086,7 +2086,7 @@ enum ZipMsg {
     Done(String),
 }
 
-pub struct CraftApp {
+pub struct sa2App {
     rt: Arc<tokio::runtime::Runtime>,
     downloads: Vec<DownloadItem>,
     tasks: HashMap<u64, ActiveTask>,
@@ -2310,7 +2310,7 @@ pub struct CraftApp {
     status_open: bool,
 }
 
-impl CraftApp {
+impl sa2App {
     pub fn new(rt: Arc<tokio::runtime::Runtime>) -> Self {
         let dl_dir = dirs::download_dir()
             .map(|p| p.to_string_lossy().to_string())
@@ -5738,7 +5738,7 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
             "description": "Download SA2 native host",
             "path": bat.to_string_lossy(),
             "type": "stdio",
-            "allowed_extensions": ["send-to-download-craft@example"]
+            "allowed_extensions": ["send-to-download-sa2@example"]
         }),
         _ => serde_json::json!({
             "name": HOST_NAME,
@@ -5997,7 +5997,7 @@ const SPEED_W: f32 = 74.0;
 const ETA_W: f32 = 74.0;
 const DATE_W: f32 = 104.0;
 
-impl eframe::App for CraftApp {
+impl eframe::App for sa2App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Script fonts load the first time a name needs them (see fonts).
         for d in &self.downloads {
@@ -9275,7 +9275,7 @@ impl eframe::App for CraftApp {
     }
 }
 
-impl CraftApp {
+impl sa2App {
     /// Menubar dropdown items for `render_popup`. (label, MenuItem act.)
     /// The Theme menu marks the active theme (19 system, 20 dark, 22 light).
     fn drop_rows(&self, menu: u8) -> Vec<(String, Option<HitKind>)> {

@@ -36,7 +36,7 @@ mod tray;
 mod platform;
 mod helpers;
 
-use app::CraftApp;
+use app::sa2App;
 use clap::Parser;
 use std::sync::Arc;
 
@@ -159,7 +159,7 @@ fn main() -> eframe::Result<()> {
             crate::app::setup_fonts(cc);
             app::apply_theme(&cc.egui_ctx, &app::stored_theme());
 
-            Ok(Box::new(CraftApp::new(rt.clone())))
+            Ok(Box::new(sa2App::new(rt.clone())))
         }),
     )
 }

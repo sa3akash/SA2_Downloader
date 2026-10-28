@@ -23,7 +23,7 @@ idle while there is work left.
 | File changed on the server | Old and new bytes stitched together | Size/ETag/Last-Modified checked; starts over cleanly |
 
 Measured on a home connection (100 MB, 8 connections, byte-identical results) against Download
-Craft 0.9.8's fixed-split engine:
+sa2 0.9.8's fixed-split engine:
 
 | Server | Fixed split | This engine |
 |---|---|---|

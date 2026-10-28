@@ -261,7 +261,7 @@ pub fn install_native_host(browser: &str) -> Result<String, String> {
     }
     let mut manifest = serde_json::json!({"name":"com.sa2_downloader","description":"Download SA2 native host","path":launcher,"type":"stdio"});
     if browser == "firefox" {
-        manifest["allowed_extensions"] = serde_json::json!(["send-to-download-craft@example"]);
+        manifest["allowed_extensions"] = serde_json::json!(["send-to-download-sa2@example"]);
     } else {
         manifest["allowed_origins"] =
             serde_json::json!([format!("chrome-extension://{}/", crate::app::EXTENSION_ID)]);

@@ -753,7 +753,7 @@ pub fn run() -> eframe::Result<()> {
     let mut cookie = get("--cookie").unwrap_or_default();
     let pair_url = get("--pair-url").filter(|s| s.starts_with("http")).unwrap_or_default();
     let pair_mime = get("--pair-mime").unwrap_or_default();
-    let quality_pref = get("--quality").filter(|s| !s.trim().is_empty()).unwrap_or_default();
+    let mut quality_pref = get("--quality").filter(|s| !s.trim().is_empty()).unwrap_or_default();
     // Browser-measured size (menu HEAD/Range): trust it, skip probing.
     let known_size: Option<u64> = get("--size")
         .and_then(|s| s.parse::<u64>().ok())
@@ -767,7 +767,7 @@ pub fn run() -> eframe::Result<()> {
         .unwrap_or(0);
     let is_playlist_cli = args.iter().any(|s| s == "--is-playlist");
     let is_pure_pl = engine::is_pure_playlist_url(&url);
-    let is_playlist = is_playlist_cli || is_pure_pl;
+    let mut is_playlist = is_playlist_cli || is_pure_pl;
 
     // Claim the inbox entry first so the main window won't prompt too.
     let mut headers = std::collections::BTreeMap::new();
@@ -778,6 +778,14 @@ pub fn run() -> eframe::Result<()> {
         // process command line where other local users can inspect them.
         if cookie.is_empty() {cookie=item.cookie.unwrap_or_default();}
         headers = item.headers.unwrap_or_default();
+        if item.is_playlist {
+            is_playlist = true;
+        }
+        if quality_pref.is_empty() {
+            if let Some(q) = item.quality {
+                quality_pref = q;
+            }
+        }
     }
 
     let prefs = load_prefs();

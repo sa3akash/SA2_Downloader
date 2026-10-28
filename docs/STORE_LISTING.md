@@ -72,7 +72,7 @@ Productivity (Chrome / Edge / Opera); Download Management (Firefox).
 - Opera users can also install the Chrome Web Store version through "Install Chrome Extensions".
 
 ### Firefox (AMO)
-- Build with `build-firefox.ps1` and upload the result. The add-on ID comes from `manifest-firefox.json` (`browser_specific_settings.gecko.id`) and must match `allowed_extensions` in the Firefox host manifest (`install_native_host` in `src/app.rs`). It is `send-to-download-craft@example` today. Change both to an address you own (for example `send-to-download-craft@<your domain>`) before the first upload, because AMO fixes the ID for good.
+- Build with `build-firefox.ps1` and upload the result. The add-on ID comes from `manifest-firefox.json` (`browser_specific_settings.gecko.id`) and must match `allowed_extensions` in the Firefox host manifest (`install_native_host` in `src/app.rs`). It is `send-to-download-sa2@example` today. Change both to an address you own (for example `send-to-download-sa2@<your domain>`) before the first upload, because AMO fixes the ID for good.
 - AMO asks for the source of minified code. None of the code is minified, so upload as is.
 
 ## Review notes (for the reviewer field)

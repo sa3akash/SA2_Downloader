@@ -34,7 +34,7 @@ try {
 // Live connection to the app (persistent port, pushes, request context).
 try {
   if (typeof importScripts === "function") importScripts("bridge.js");
-} catch (e) { console.error("[download-craft] bridge.js failed to load", e); }
+} catch (e) { console.error("[download-sa2] bridge.js failed to load", e); }
 // Talk to the app: the live port when there is one, else a one-shot host.
 function hostSend(msg) {
   if (typeof DCBridge !== "undefined") return DCBridge.send(msg);
@@ -319,7 +319,7 @@ async function sendToHost(url, filename, extra) {
     // Console-visible: this is the first thing to look at when clicks seem to
     // do nothing (browser console: "No such native application", etc.).
     lastHostError = (e && e.message) || String(e);
-    console.error("[download-craft] native host '" + HOST + "' failed:", lastHostError);
+    console.error("[download-sa2] native host '" + HOST + "' failed:", lastHostError);
     return false;
   }
 }
@@ -798,14 +798,14 @@ async function sendToHostPing() {
     }
     if (!hostOk) lastHostError = "ping answered, but no pong (old host version?)";
     console.log(
-      "[download-craft] native host '" + HOST + "': " +
+      "[download-sa2] native host '" + HOST + "': " +
       (hostOk ? "connected" : "unexpected reply: " + lastHostError)
     );
   } catch (e) {
     hostOk = false;
     lastHostError = (e && e.message) || String(e);
     console.error(
-      "[download-craft] native host '" + HOST + "' unreachable:", lastHostError
+      "[download-sa2] native host '" + HOST + "' unreachable:", lastHostError
     );
     // Say how to fix it (at most once a day). The extension keeps working
     // on its own meanwhile: "Download in browser" needs no app.
@@ -847,7 +847,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   // removeAll first: re-installs otherwise fail with duplicate-id.
   api.contextMenus.removeAll().then(() => {
     chrome.contextMenus.create({
-      id: "send-to-download-craft",
+      id: "send-to-download-sa2",
       title: msg("menuDownload", "Download with SA2 Downloader"),
       contexts: ["link", "audio"],
     });
@@ -1141,7 +1141,7 @@ function captureBrowserDownload(item) {
   if (previous) { Object.assign(previous.item, item); return previous.promise; }
   const state = { item: { ...item }, promise: null };
   state.promise = performBrowserCapture(state.item).catch(e => {
-    console.error("[download-craft] capture failed", e);
+    console.error("[download-sa2] capture failed", e);
   });
   browserCaptures.set(item.id, state);
   if (browserCaptures.size > 200) browserCaptures.delete(browserCaptures.keys().next().value);

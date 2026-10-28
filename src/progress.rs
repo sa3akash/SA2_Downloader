@@ -1256,7 +1256,7 @@ impl ProgressApp {
             pause_r,
             pause_b.hovered(),
             if paused { "Resume ▶" } else { "Pause ||" },
-            egui::Color32::WHITE,
+            pl().dm_card,
             COLOR_APPLE_GREEN,
             COLOR_APPLE_GREEN,
             None,

@@ -43,12 +43,12 @@ and the promise-style API calls go through `api` (`browser` when it exists,
    That writes `SA2Downloader-Firefox-<version>.xpi` in the repository root.
    Validate it with Mozilla's own linter if you like:
 
-       npx web-ext lint --source-dir "%TEMP%\download-craft-firefox-stage"
+       npx web-ext lint --source-dir "%TEMP%\download-sa2-firefox-stage"
 
 2. In Firefox open `about:debugging#/runtime/this-firefox`, press
    **Load Temporary Add-on…** and pick the `.xpi` (or the staged folder's
    `manifest.json`). The add-on appears as *Send to Download SA2* with the
-   ID `send-to-download-craft@example` — the same ID the app allows in
+   ID `send-to-download-sa2@example` — the same ID the app allows in
    `%APPDATA%\sa2_downloader\native-host\firefox.json`.
 3. Then do step 2 below (**Install firefox** in Settings).
 

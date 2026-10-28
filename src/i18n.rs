@@ -35,8 +35,12 @@ static NEED_FONT_SYNC: std::sync::atomic::AtomicBool = std::sync::atomic::Atomic
 
 /// Change active language at runtime across the whole app.
 pub fn set_language(code: &str) {
+    let clean = code.trim().to_ascii_lowercase();
     if let Ok(mut l) = state().lock() {
-        *l = load(code);
+        if l.code == clean {
+            return;
+        }
+        *l = load(&clean);
         NEED_FONT_SYNC.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }

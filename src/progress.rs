@@ -565,7 +565,7 @@ pub fn run() -> eframe::Result<()> {
         limit_input,
         limit_known: None,
         finish_sel,
-        win_h: 0.0,
+        win_h: 448.0,
         parts_open: true,
         scroll: 0.0,
         handoff: false,
@@ -581,7 +581,7 @@ pub fn run() -> eframe::Result<()> {
 
     let mut viewport = egui::ViewportBuilder::default()
         .with_title(title)
-        .with_inner_size([PG_W, PG_MIN_H])
+        .with_inner_size([PG_W, 448.0])
         .with_resizable(false)
         .with_decorations(false)
         .with_transparent(true)
@@ -670,8 +670,9 @@ impl eframe::App for ProgressApp {
             self.win_h = want_h;
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(PG_W, want_h)));
         }
-        if !self.initial_centered && crate::model::center_window(ctx, egui::vec2(PG_W, want_h)) {
+        if !self.initial_centered {
             self.initial_centered = true;
+            let _ = crate::model::center_window(ctx, egui::vec2(PG_W, want_h));
         }
 
         let item = self.item.clone();

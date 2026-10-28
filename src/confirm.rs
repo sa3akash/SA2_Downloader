@@ -953,8 +953,9 @@ impl eframe::App for ConfirmApp {
         }
         // Middle of the work area (taskbar excluded), once the monitor
         // geometry is known; Windows would otherwise cascade the window.
-        if !self.centered && crate::model::center_window(ctx, egui::vec2(DM_W, DM_H)) {
+        if !self.centered {
             self.centered = true;
+            let _ = crate::model::center_window(ctx, egui::vec2(DM_W, DM_H));
         }
         // Collect probe result.
         if let Some(rx) = self.probe_rx.as_ref() {
@@ -1110,6 +1111,7 @@ impl eframe::App for ConfirmApp {
                 )
                 .drag_started()
             {
+                self.centered = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
             }
             let ctl = |x: f32| {

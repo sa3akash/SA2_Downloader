@@ -1197,6 +1197,30 @@ pub(crate) fn social_video_page(raw: &str) -> bool {
     }
 }
 
+/// Check if a URL belongs to a known media/video streaming site (BongoBD, JustWatch,
+/// Vimeo, Dailymotion, Twitch, Rumble, etc.) or uses standard video path patterns.
+pub(crate) fn is_universal_video_site(raw: &str) -> bool {
+    let Ok(u) = url::Url::parse(raw) else { return false };
+    if !matches!(u.scheme(), "http" | "https") { return false; }
+    let host = u.host_str().unwrap_or("").to_ascii_lowercase();
+    let host = host.strip_prefix("www.").or_else(|| host.strip_prefix("m.")).unwrap_or(&host);
+    let known_domains = [
+        "bongobd.com", "justwatch.com", "vimeo.com", "player.vimeo.com",
+        "rumble.com", "odysee.com", "vk.com", "ok.ru", "bitchute.com",
+        "archive.org", "hotstar.com", "zee5.com", "sonyliv.com",
+        "jiocinema.com", "peertube.", "bandcamp.com", "mixcloud.com",
+    ];
+    if known_domains.iter().any(|d| host.contains(d)) {
+        return true;
+    }
+    let path = u.path().to_ascii_lowercase();
+    let video_keywords = ["/video/", "/watch/", "/movie/", "/series/", "/episode/", "/stream/", "/play/", "/clip/"];
+    if video_keywords.iter().any(|kw| path.contains(kw)) && !has_direct_ext(raw) {
+        return true;
+    }
+    false
+}
+
 /// The extension's "Audio only" choice: yt-dlp fetches the best audio.
 pub(crate) fn wants_audio_only(pref: &str) -> bool {
     let p = pref.trim().to_ascii_lowercase();
@@ -4182,7 +4206,7 @@ async fn fallback_chain(
         // the page's own visitor id when there are no cookies to send.
         let visitor = opts.browser.as_ref().map(|b| b.visitor_data.clone()).unwrap_or_default();
         let bot = format!("{err:#}").to_ascii_lowercase();
-        if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") {
+        if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") || bot.contains("exit code: 1") || bot.contains("failed") {
             if let Ok(exe) = ensure_ytdlp(&client).await {
                 if !visitor.is_empty() && opts.cookie.trim().is_empty() {
                     let mut o2 = opts.clone();
@@ -4395,6 +4419,8 @@ async fn download_inner(
         None if social_video_page(&url) => Some(url.clone()),
         None if social_video_page(&opts.referer) => Some(opts.referer.clone()),
         None if is_playlist_url_or_query(&url) => Some(url.clone()),
+        None if is_universal_video_site(&url) => Some(url.clone()),
+        None if is_universal_video_site(&opts.referer) => Some(opts.referer.clone()),
         None => fragment_page(&normalize_media_url(&url), &opts.referer)?,
     };
     if let Some(page) = resolve_page {
@@ -5561,6 +5587,7 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd.arg("--flat-playlist")
+        .arg("--lazy-playlist")
         .arg("--no-warnings")
         .arg("--ignore-errors")
         .arg("--socket-timeout").arg("15")
@@ -5568,7 +5595,7 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
         .arg("--print").arg("item:%(url)s\t%(title)s");
 
     if is_youtube_page(url) || is_googlevideo_url(url) {
-        cmd.arg("--extractor-args").arg("youtube:player_client=default,android,web;player_skip=configs");
+        cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
     }
     if let Some((name, path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
@@ -6846,7 +6873,7 @@ async fn download_with_ytdlp(
     }
     // YouTube player client fallback to bypass bot check walls & SABR blocks
     if is_youtube_page(url) || is_googlevideo_url(url) {
-        cmd.arg("--extractor-args").arg("youtube:player_client=default,android,web;player_skip=configs");
+        cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
     }
     // Without a JS runtime yt-dlp cannot solve YouTube's player challenges:
     // extraction fails on many videos and it reports only "The page needs to
@@ -7009,13 +7036,18 @@ async fn download_with_ytdlp(
     });
     let err_task = tokio::spawn(async move {
         let mut kept: std::collections::VecDeque<String> = std::collections::VecDeque::new();
-        if let Some(err) = stderr {
-            let mut lines = tokio::io::BufReader::new(err).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                if kept.len() == 8 {
-                    kept.pop_front();
+        if let Some(mut err) = stderr {
+            let mut buf = Vec::new();
+            let _ = tokio::io::AsyncReadExt::read_to_end(&mut err, &mut buf).await;
+            let text = String::from_utf8_lossy(&buf);
+            for line in text.lines() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    if kept.len() == 8 {
+                        kept.pop_front();
+                    }
+                    kept.push_back(trimmed.to_string());
                 }
-                kept.push_back(line);
             }
         }
         kept.into_iter().collect::<Vec<_>>().join(" | ")

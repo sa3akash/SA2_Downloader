@@ -1473,6 +1473,7 @@
         if (host.parentNode !== parent) parent.appendChild(host);
         host.style.position = "fixed"; host.style.left = drag.left + "px"; host.style.top = drag.top + "px";
         host.style.right = "auto"; host.style.bottom = "auto";
+        host.__dcUserDragged = true;
       }
       drag.moved = true; ev.preventDefault(); ev.stopPropagation(); update(drag.left + dx, drag.top + dy);
     };
@@ -2612,7 +2613,16 @@
   // rebuilds. A different video gets its own control; page reload resets it.
   const dismissedVideos = new Set();
   function dismissalKey(video, id) {
-    return DCRank.videoDismissKey(location.href, video && (video.currentSrc || video.src), id);
+    if (id) return `youtube:${id}`;
+    if (!video) return location.href;
+    const directSrc = video.currentSrc || video.src || (video.querySelector && video.querySelector("source")?.src) || (video.getAttribute && (video.getAttribute("data-src") || video.getAttribute("src"))) || "";
+    if (directSrc) return `${location.origin}${location.pathname}|${directSrc}`;
+    const parentLink = video.closest ? video.closest("a[href]")?.href : "";
+    if (parentLink) return `${location.origin}|link:${parentLink}`;
+    const cardId = video.closest ? (video.closest("[id]")?.id || video.closest("[data-id]")?.getAttribute("data-id") || video.closest("[data-testid]")?.getAttribute("data-testid")) : "";
+    if (cardId) return `${location.origin}${location.pathname}|card:${cardId}`;
+    if (!video.__dcUid) video.__dcUid = "vid_" + Math.random().toString(36).slice(2, 9);
+    return `${location.origin}${location.pathname}|${video.__dcUid}`;
   }
   function syncDismissControls() {
     // Remove the separate X buttons left by an older injected extension.
@@ -2637,7 +2647,7 @@
       const shown = r.width >= 120 && r.height >= 70 && visW > 0 && visH >= Math.min(r.height * 0.35, 200)
         && (!fbActive || video === fbActive);
       host.style.display = shown ? "block" : "none";
-      if (activeBarDrag === host || (host.id === "dc-yt-btn" && applySavedBarPosition(host))) return;
+      if (activeBarDrag === host || host.__dcUserDragged || (host.id === "dc-yt-btn" && applySavedBarPosition(host))) return;
       host.style.position = "fixed"; host.style.right = "auto"; host.style.bottom = "auto";
       host.style.width = "max-content"; host.style.maxWidth = Math.max(0, r.width - 16) + "px";
       host.style.left = Math.max(8, Math.min(vw - width - 8, r.right - width - 8)) + "px";

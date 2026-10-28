@@ -7017,26 +7017,15 @@ impl eframe::App for sa2App {
                     let primary_w: f32 = tools[..primary_count].iter().map(|t| 10.0 + 16.0 + 7.0 + label_w(t.2) + 12.0 + TOOL_GAP).sum();
                     let secondary_full: f32 = tools[primary_count..].iter().map(|t| 10.0 + 16.0 + 7.0 + label_w(t.2) + 12.0 + TOOL_GAP).sum();
                     let secondary_icons_only = add_w + TOOL_GAP + sep_w + primary_w + secondary_full > room;
-                    let mut fit = tools.len();
-                    if secondary_icons_only {
-                        let sec_icons_w = (tools.len() - primary_count) as f32 * (TOOL_H + TOOL_GAP);
-                        if add_w + TOOL_GAP + sep_w + primary_w + sec_icons_w > room {
-                            let extra = (room - (add_w + TOOL_GAP + sep_w + primary_w)).max(0.0);
-                            let sec_fit = (extra / (TOOL_H + TOOL_GAP)).floor() as usize;
-                            fit = (primary_count + sec_fit).min(tools.len());
-                        }
-                    }
                     let r = add_url_button(ui, &self.man, self.clipboard_url.is_some());
                     self.hits.push((HitKind::Tool(ToolId::AddUrl), r));
                     let mut i = 0;
-                    for (id, icon, label, enabled, tip) in tools.into_iter().take(fit) {
+                    for (id, icon, label, enabled, tip) in tools.into_iter() {
                         if i == 3 {
                             let (sep, _) = ui.allocate_exact_size(egui::vec2(13.0, TOOL_H), egui::Sense::hover());
                             ui.painter().vline(sep.center().x, (sep.min.y + 6.0)..=(sep.max.y - 6.0), egui::Stroke::new(1.0_f32, pl().card_bd));
                         }
-                        // Primary action buttons (Resume, Stop, Stop All, Delete) ALWAYS show their title!
-                        // Secondary tools collapse to icon-only when horizontal room is tight.
-                        let (label, tip) = if i >= primary_count && secondary_icons_only { ("", label) } else { (label, tip) };
+                        // Always show action title and calculate matching width so titles never disappear
                         let r = tool_button(ui, &self.man, icon, label, enabled, tip);
                         self.hits.push((HitKind::Tool(id), r));
                         i += 1;

@@ -117,6 +117,19 @@
   "Hide web pages": "إخفاء صفحات الويب",
   "Browse": "استعراض",
   "Video Files": "ملفات الفيديو",
-  "Other Files": "ملفات أخرى"
+  "Other Files": "ملفات أخرى",
+  "Receiving fragments": "جاري استلام المقاطع",
+  "Fragments": "المقاطع",
+  "Total": "الإجمالي",
+  "Incomplete": "غير مكتمل",
+  "Search in the List": "البحث في القائمة",
+  "Select All": "تحديد الكل",
+  "downloading": "جاري التنزيل",
+  "in list": "في القائمة",
+  "Tasks": "المهام",
+  "Tools": "الأدوات",
+  "Theme": "المظهر",
+  "Help": "مساعدة",
+  "File": "ملف"
 }
 

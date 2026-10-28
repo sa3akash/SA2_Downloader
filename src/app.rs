@@ -2869,6 +2869,7 @@ impl sa2App {
                 "close_to_tray": self.close_to_tray,
                 "start_with_windows": self.start_with_windows,
                 "theme": self.theme,
+                "language": crate::i18n::current_language(),
                 "connections_default": self.connections_default,
                 "speed_limit_kbps": self.speed_limit_kbps,
                 "save_dir": self.add_dir,
@@ -3019,6 +3020,9 @@ impl sa2App {
                     }
                     if let Some(b) = g("start_with_windows").and_then(|x| x.as_bool()) {
                         self.start_with_windows = cfg!(windows) && b;
+                    }
+                    if let Some(s) = g("language").and_then(|x| x.as_str()) {
+                        crate::i18n::set_language(s);
                     }
                     if let Some(s) = g("theme").and_then(|x| x.as_str()) {
                         self.theme = s.to_string();
@@ -6426,7 +6430,8 @@ impl eframe::App for sa2App {
 
                 // ---- menus (`.menu-item`): the same dropdowns, now up here ----
                 for (m, label) in ["File", "Tasks", "Tools", "Theme", "Help"].iter().enumerate() {
-                    let g = p.layout_no_wrap(label.to_string(), crate::fonts::reg(11.0), pl().dim);
+                    let trans = crate::i18n::t(label);
+                    let g = p.layout_no_wrap(trans.to_string(), crate::fonts::reg(11.0), pl().dim);
                     let r = egui::Rect::from_min_size(
                         egui::pos2(x, cy - 12.0),
                         egui::vec2(g.size().x + 12.0, 24.0),
@@ -6634,7 +6639,7 @@ impl eframe::App for sa2App {
                         &mut fui,
                         "search",
                         &mut self.search,
-                        "Search in the List",
+                        crate::i18n::t("Search in the List"),
                         inner.width(),
                         crate::fonts::reg(10.5),
                     );
@@ -6707,7 +6712,7 @@ impl eframe::App for sa2App {
                     self.hits.push((HitKind::HdrCheck, cb_r));
 
                     ui.add_space(6.0);
-                    let sel_text = egui::RichText::new("Select All").size(11.0).color(if cb_hov { pl().txt } else { pl().dim });
+                    let sel_text = egui::RichText::new(crate::i18n::t("Select All")).size(11.0).color(if cb_hov { pl().txt } else { pl().dim });
                     let lbl_resp = ui.label(sel_text);
                     self.hits.push((HitKind::HdrCheck, lbl_resp.rect));
 
@@ -6715,7 +6720,7 @@ impl eframe::App for sa2App {
                     ui.painter().vline(ui.cursor().min.x, (ui.cursor().min.y + 2.0)..=(ui.cursor().max.y - 2.0), egui::Stroke::new(1.0_f32, pl().card_bd));
                     ui.add_space(14.0);
 
-                    let left = format!("{active} downloading · {total} in list");
+                    let left = format!("{active} {} · {total} {}", crate::i18n::t("downloading"), crate::i18n::t("in list"));
                     ui.label(egui::RichText::new(left).size(11.0).color(pl().dim));
 
                     // Right side: Speed Test / Live Speed meter
@@ -9641,7 +9646,8 @@ impl sa2App {
                 out.push((String::new(), None));
                 continue;
             }
-            let mut text = label.clone();
+            let trans = crate::i18n::t(&label);
+            let mut text = trans.to_string();
             if menu == 3 {
                 let key = match act {
                     19 => "system",

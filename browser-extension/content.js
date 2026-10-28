@@ -1359,7 +1359,7 @@
   let positionRevision = 0;
   let activeBarDrag = null;
   function validBarPosition(p) {
-    return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1;
+    return p && typeof p === "object" && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1;
   }
   function applySavedBarPosition(host) {
     // The saved spot is a fraction of the window: just right of the player
@@ -1368,13 +1368,13 @@
     if (!barPosition || document.fullscreenElement) return false;
     const parent = document.documentElement;
     if (host.parentNode !== parent) parent.appendChild(host);
-    const width = Math.max(0, Math.min(barWidth(host), window.innerWidth - 16));
-    // Sized by its content: a fixed width cut the bar off when the drag
-    // handle appeared on hover (or a compact bar opened).
+    const measuredW = host.offsetWidth || (host.getBoundingClientRect ? host.getBoundingClientRect().width : 0);
+    const width = Math.max(0, Math.min(measuredW || barWidth(host), window.innerWidth - 16));
     host.style.position = "fixed"; host.style.width = "max-content";
     host.style.right = "auto"; host.style.bottom = "auto";
-    host.style.left = (8 + barPosition.x * Math.max(0, window.innerWidth - width - 16)) + "px";
-    host.style.top = (8 + barPosition.y * Math.max(0, window.innerHeight - 44)) + "px";
+    const maxLeft = Math.max(0, window.innerWidth - width - 16);
+    host.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, 8 + barPosition.x * maxLeft)) + "px";
+    host.style.top = Math.max(8, Math.min(window.innerHeight - 44, 8 + barPosition.y * Math.max(0, window.innerHeight - 44))) + "px";
     return true;
   }
   function positionDraggedPanel(host, panel) {
@@ -1404,15 +1404,31 @@
     const arrow = panel.querySelector('[data-dc-p="arrow"]'); if (arrow) arrow.style.display = "none";
   }
   function rememberBarPosition() {
+    if (validBarPosition(barPosition)) {
+      try { localStorage.setItem("dc_bar_pos", JSON.stringify(barPosition)); } catch (_) {}
+    }
     try { chrome.runtime.sendMessage({ type: "setVideoBarPosition", position: barPosition }, () => { void chrome.runtime.lastError; }); } catch (e) { /* keep page-local drag usable */ }
   }
   function loadBarPosition() {
     const revision = positionRevision;
     try {
+      const saved = localStorage.getItem("dc_bar_pos");
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (validBarPosition(p)) {
+          barPosition = p;
+          syncDismissControls();
+        }
+      }
+    } catch (_) {}
+    try {
       chrome.runtime.sendMessage({ type: "getVideoBarPosition" }, res => {
         if (chrome.runtime.lastError || !alive() || revision !== positionRevision) return;
-        barPosition = validBarPosition(res && res.position) ? res.position : null;
-        syncDismissControls();
+        if (validBarPosition(res && res.position)) {
+          barPosition = res.position;
+          try { localStorage.setItem("dc_bar_pos", JSON.stringify(barPosition)); } catch (_) {}
+          syncDismissControls();
+        }
       });
     } catch (e) { /* default placement remains available */ }
   }
@@ -1422,16 +1438,16 @@
       if (suppressClick) { suppressClick = false; ev.preventDefault(); ev.stopImmediatePropagation(); }
     }, true);
     const update = (left, top) => {
-      const width = Math.min(barWidth(host), window.innerWidth - 16);
+      const measuredW = host.offsetWidth || (host.getBoundingClientRect ? host.getBoundingClientRect().width : 0);
+      const width = Math.min(measuredW || barWidth(host), window.innerWidth - 16);
       if (document.fullscreenElement) {
-        // Moves for this fullscreen session only; the saved spot is for
-        // the normal window (see applySavedBarPosition).
         host.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, left)) + "px";
         host.style.top = Math.max(8, Math.min(window.innerHeight - 36, top)) + "px";
         return;
       }
+      const maxLeft = Math.max(1, window.innerWidth - width - 16);
       barPosition = {
-        x: Math.max(0, Math.min(1, (left - 8) / Math.max(1, window.innerWidth - width - 16))),
+        x: Math.max(0, Math.min(1, (left - 8) / maxLeft)),
         y: Math.max(0, Math.min(1, (top - 8) / Math.max(1, window.innerHeight - 44)))
       };
       positionRevision++; applySavedBarPosition(host);
@@ -2610,7 +2626,7 @@
       const shown = r.width >= 120 && r.height >= 70 && visW > 0 && visH >= Math.min(r.height * 0.35, 200)
         && (!fbActive || video === fbActive);
       host.style.display = shown ? "block" : "none";
-      if (activeBarDrag === host || applySavedBarPosition(host)) return;
+      if (activeBarDrag === host || (host.id === "dc-yt-btn" && applySavedBarPosition(host))) return;
       host.style.position = "fixed"; host.style.right = "auto"; host.style.bottom = "auto";
       host.style.width = "max-content"; host.style.maxWidth = Math.max(0, r.width - 16) + "px";
       host.style.left = Math.max(8, Math.min(vw - width - 8, r.right - width - 8)) + "px";
@@ -3049,11 +3065,26 @@
   // falls back to network-sniffed candidates from the background worker or
   // the page URL (engine resolves og:video / VideoObject server-side).
   function mediaUrlOf(el) {
+    if (!el) return "";
     try {
       const u = el.currentSrc || el.src || "";
+      if (/^https?:\/\//i.test(u) && !/^blob:/i.test(u)) return u;
+      const sources = el.querySelectorAll ? el.querySelectorAll("source") : [];
+      for (const s of sources) {
+        const su = s.src || s.getAttribute("src") || (s.dataset && s.dataset.src) || "";
+        if (/^https?:\/\//i.test(su)) return su;
+      }
+      for (const attr of ["data-src", "data-video-src", "data-lazy-src", "data-preview", "data-stream"]) {
+        const val = el.getAttribute && el.getAttribute(attr);
+        if (val && /^https?:\/\//i.test(val)) return val;
+      }
+      // Check parent / card for direct video links or download button (e.g. Pexels, stock video sites)
+      const card = el.closest ? el.closest("article, [data-testid='media-card'], .MediaCard_card, [class*='card'], [class*='item'], div") : null;
+      if (card) {
+        const dl = card.querySelector("a[href*='/download/video/'], a[href*='videos.pexels.com'], a[href*='.mp4'], a[download]");
+        if (dl && dl.href && /^https?:\/\//i.test(dl.href)) return dl.href;
+      }
       if (/^https?:\/\//i.test(u)) return u;
-      const s = el.querySelector && el.querySelector("source[src]");
-      if (s && /^https?:\/\//i.test(s.src)) return s.src;
     } catch (e) { /* ignore */ }
     return "";
   }
@@ -3089,8 +3120,13 @@
       // dead after an extension reload) so only this generation's pills show.
       document.querySelectorAll("[data-dc-pill]").forEach((el) => {
         if (el.dataset.gen !== String(GEN)) el.remove();
+        else if (el.__dcVideo && !el.__dcVideo.isConnected) el.remove();
       });
-      const vids = pageVideos().slice(0, 10);
+      const vids = pageVideos().filter(v => {
+        if (!v || !v.getBoundingClientRect) return false;
+        const r = v.getBoundingClientRect();
+        return r.width >= 100 && r.height >= 60 && r.bottom >= -300 && r.top <= window.innerHeight + 300;
+      });
       for (const v of vids) {
         const key = dismissalKey(v, null);
         if (dismissedVideos.has(key)) continue;
@@ -3838,14 +3874,11 @@
       if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, .html5-video-player, #movie_player, #shorts-player, [data-dc-bar], [data-dc-panel], [data-dc-pill], shreddit-player, [data-dc-shadow-player]")))) {
         isVideoZone = true;
       } else {
-        // Test if cursor coordinates hover inside any visible video's viewport rect
-        for (const v of pageVideos().slice(0, 10)) {
-          const r = v.getBoundingClientRect ? v.getBoundingClientRect() : null;
-          if (r && r.width >= 120 && r.height >= 70 &&
-              ev.clientX >= r.left && ev.clientX <= r.right &&
-              ev.clientY >= r.top && ev.clientY <= r.bottom) {
+        const els = document.elementsFromPoint ? document.elementsFromPoint(ev.clientX, ev.clientY) : [];
+        for (const el of els) {
+          if (!el) continue;
+          if (el.tagName === "VIDEO" || (el.closest && el.closest("video, [data-dc-bar], [data-dc-panel], [data-dc-pill]")) || (el.querySelector && el.querySelector("video"))) {
             isVideoZone = true;
-            if (v.__dcBtn) wakeBar(v.__dcBtn);
             break;
           }
         }
@@ -3884,11 +3917,17 @@
       }
     }, { capture: true, passive: true });
 
+    let scrollDebounce = 0;
     window.addEventListener("scroll", () => {
       try {
         document.querySelectorAll("[data-dc-pill]").forEach((p) => {
           if (p.__dcVideo && typeof positionPillOnVideo === "function") positionPillOnVideo(p, p.__dcVideo);
         });
+        const now = Date.now();
+        if (now - scrollDebounce > 150) {
+          scrollDebounce = now;
+          ensureUniversalButtons();
+        }
       } catch (e) { }
     }, { passive: true });
   } catch (e) { /* ignore */ }

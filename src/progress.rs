@@ -420,9 +420,8 @@ struct ProgressApp {
     /// Tail of this download's log (Log tab), re-read once a second.
     log_lines: Vec<String>,
     log_at: Instant,
-    /// Set whenever the card's height changes; cleared once the window has been
-    /// re-centred, so a growing part list never drifts off the middle.
-    recenter: bool,
+    /// Centered once on initial display; never forces window back to center after user moves it.
+    initial_centered: bool,
     last_poll: Instant,
     item: Option<DownloadItem>,
     snap: Snap,
@@ -554,7 +553,7 @@ pub fn run() -> eframe::Result<()> {
         log_lines: Vec::new(),
         log_at: Instant::now().checked_sub(Duration::from_secs(5)).unwrap_or_else(Instant::now),
         id,
-        recenter: true,
+        initial_centered: false,
         last_poll: Instant::now() - Duration::from_secs(10),
         item: None,
         snap: Snap::default(),
@@ -617,7 +616,7 @@ impl eframe::App for ProgressApp {
         if let Some(it) = &self.item {
             crate::fonts::ensure_text(ctx, &it.filename);
         }
-        // Theme switches made in the main app while this window is open: the
+        // Theme and language switches made in the main app while this window is open: the
         // process only read ui.json at start-up, so poll the resolved key
         // (which also catches OS flips under "system").
         if self.theme_check.elapsed() >= Duration::from_secs(1) {
@@ -628,6 +627,8 @@ impl eframe::App for ProgressApp {
                 self.theme_seen = key;
                 crate::app::apply_theme(ctx, &theme);
             }
+            let lang = crate::model::ui_pref_str("language", "en");
+            crate::i18n::set_language(&lang);
         }
         // Fast enough that the speed readout visibly moves while a transfer
         // runs: the app republishes progress.json about ten times a second.
@@ -659,7 +660,13 @@ impl eframe::App for ProgressApp {
                 2 => 452.0,
                 3 => 430.0,
                 4 => 444.0,
-                _ => 226.0 + 32.0 + (parts.min(6).max(1) as f32 * 26.0) + 20.0,
+                _ => {
+                    if self.snap.fragments.is_some() && self.snap.parts.is_empty() {
+                        352.0
+                    } else {
+                        226.0 + (parts.min(6).max(1) as f32 * 28.0) + 72.0
+                    }
+                }
             },
             Some(_) => 196.0,
         };
@@ -670,13 +677,9 @@ impl eframe::App for ProgressApp {
         if (self.win_h - want_h).abs() > 0.5 {
             self.win_h = want_h;
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(PG_W, want_h)));
-            // The card grows as the part rows appear: re-centre on every size
-            // change so the whole window stays in the middle of the screen
-            // (taskbar excluded) instead of sliding behind it.
-            self.recenter = true;
         }
-        if self.recenter && crate::model::center_window(ctx, egui::vec2(PG_W, want_h)) {
-            self.recenter = false;
+        if !self.initial_centered && crate::model::center_window(ctx, egui::vec2(PG_W, want_h)) {
+            self.initial_centered = true;
         }
 
         let item = self.item.clone();
@@ -816,7 +819,6 @@ impl ProgressApp {
             );
             if b.clicked() {
                 self.tab = i as u8;
-                self.recenter = true;
             }
         }
     }
@@ -1458,7 +1460,7 @@ impl ProgressApp {
 
         let table_card = egui::Rect::from_min_size(
             egui::pos2(o.x + PAD_X, o.y + table_y),
-            egui::vec2(PROG_W, (n.min(6) as f32 * 26.0) + 32.0),
+            egui::vec2(PROG_W, (n.min(6) as f32 * 28.0) + 48.0),
         );
         p.rect(
             table_card,
@@ -1525,7 +1527,7 @@ impl ProgressApp {
     fn fragment_parts(&self, p: &egui::Painter, o: egui::Pos2, i: u64, n: u64, downloading: bool) {
         let table_card = egui::Rect::from_min_size(
             egui::pos2(o.x + PAD_X, o.y + 226.0),
-            egui::vec2(PROG_W, 80.0),
+            egui::vec2(PROG_W, 98.0),
         );
         p.rect(
             table_card,
@@ -1546,37 +1548,37 @@ impl ProgressApp {
         }
         let hdr_y = o.y + TBL_HDR_Y + 4.0;
         for (x, align, text) in [
-            (o.x + PAD_X, egui::Align2::LEFT_TOP, "#"),
-            (o.x + PAD_X + COL_NUM_W, egui::Align2::LEFT_TOP, "Status"),
-            (o.x + COL_DL_X + 90.0, egui::Align2::RIGHT_TOP, "Fragments"),
-            (o.x + COL_TOT_X + 80.0, egui::Align2::RIGHT_TOP, "Total"),
+            (o.x + PAD_X + 16.0, egui::Align2::LEFT_TOP, crate::i18n::t("#")),
+            (o.x + PAD_X + COL_NUM_W + 16.0, egui::Align2::LEFT_TOP, crate::i18n::t("Status")),
+            (o.x + COL_DL_X + 90.0, egui::Align2::RIGHT_TOP, crate::i18n::t("Fragments")),
+            (o.x + COL_TOT_X + 80.0, egui::Align2::RIGHT_TOP, crate::i18n::t("Total")),
         ] {
-            p.text(egui::pos2(x, hdr_y), align, text, reg(10.0), pl().dm_head);
+            p.text(egui::pos2(x, hdr_y), align, text, reg(10.5), pl().dm_head);
         }
         p.line_segment(
             [
-                egui::pos2(o.x + PAD_X, o.y + TBL_HDR_Y + TBL_HDR_H - 0.5),
-                egui::pos2(o.x + IN_R, o.y + TBL_HDR_Y + TBL_HDR_H - 0.5),
+                egui::pos2(o.x + PAD_X + 8.0, o.y + TBL_HDR_Y + TBL_HDR_H - 0.5),
+                egui::pos2(o.x + IN_R - 8.0, o.y + TBL_HDR_Y + TBL_HDR_H - 0.5),
             ],
             egui::Stroke::new(1.0_f32, pl().dm_line),
         );
         let y = o.y + TBL_Y;
         let (status, col) = if i >= n {
-            ("Finished", DM_OK)
+            (crate::i18n::t("Finished"), DM_OK)
         } else if downloading && i > 0 {
-            ("Receiving fragments", DM_OK)
+            (crate::i18n::t("Receiving fragments"), DM_OK)
         } else if downloading {
-            ("Connecting...", DM_YEL)
+            (crate::i18n::t("Connecting..."), DM_YEL)
         } else {
-            ("Incomplete", pl().dm_dim)
+            (crate::i18n::t("Incomplete"), pl().dm_dim)
         };
-        p.text(egui::pos2(o.x + PAD_X, y + TBL_PAD), egui::Align2::LEFT_TOP, "1", reg(10.0), pl().dm_lbl);
-        p.text(egui::pos2(o.x + PAD_X + COL_NUM_W, y + TBL_PAD), egui::Align2::LEFT_TOP, status, reg(10.0), col);
+        p.text(egui::pos2(o.x + PAD_X + 16.0, y + TBL_PAD), egui::Align2::LEFT_TOP, "1", reg(10.5), pl().dm_lbl);
+        p.text(egui::pos2(o.x + PAD_X + COL_NUM_W + 16.0, y + TBL_PAD), egui::Align2::LEFT_TOP, status, reg(10.5), col);
         p.text(
             egui::pos2(o.x + COL_DL_X + 90.0, y + TBL_PAD),
             egui::Align2::RIGHT_TOP,
             i.to_string(),
-            reg(10.0),
+            reg(10.5),
             pl().dm_dim,
         );
         p.text(

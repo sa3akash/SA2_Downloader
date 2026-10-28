@@ -38,6 +38,10 @@ pub fn set_language(code: &str) {
     }
 }
 
+pub fn current_language() -> String {
+    state().lock().map(|l| l.code.clone()).unwrap_or_else(|_| "en".to_string())
+}
+
 /// Folders that can hold language files, the config folder's first.
 fn lang_dirs() -> Vec<PathBuf> {
     let mut v = Vec::new();

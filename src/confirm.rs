@@ -540,7 +540,7 @@ impl ConfirmApp {
         let (tx, rx) = std::sync::mpsc::channel();
         self.probe_rx = Some(rx);
         self.probing = true;
-        self.probe_size = None;
+        self.probe_size = self.browser_size;
         let url = self.url.clone();
         let referer = self.referer.clone();
         // Quality choice feeds the page resolve so the dialog measures the

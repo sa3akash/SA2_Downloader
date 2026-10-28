@@ -2456,21 +2456,25 @@ impl SettingsApp {
         // ---- Language: one lang/<code>.json per language ----
         let mut open_lang = true;
         let langs = crate::i18n::available();
-        let lang = &mut self.s.language;
+        let mut changed_lang = false;
         card(ui, "Language", None, &mut open_lang, |ui| {
-            let shown = langs.iter().find(|(c, _)| c == lang).map(|(_, n)| n.clone()).unwrap_or_else(|| lang.clone());
+            let shown = langs.iter().find(|(c, _)| c == &self.s.language).map(|(_, n)| n.clone()).unwrap_or_else(|| self.s.language.clone());
             egui::ComboBox::from_id_salt("language")
                 .selected_text(shown)
                 .show_ui(ui, |ui| {
                     for (code, name) in &langs {
-                        if ui.selectable_value(lang, code.clone(), name).clicked() {
-                            crate::i18n::set_language(lang);
+                        if ui.selectable_value(&mut self.s.language, code.clone(), name).clicked() {
+                            crate::i18n::set_language(&self.s.language);
+                            changed_lang = true;
                         }
                     }
                 });
             ui.add_space(4.0);
             hint(ui, "Changes apply immediately across the entire app. Missing texts are listed in lang/<code>.missing.json in the settings folder.");
         });
+        if changed_lang {
+            save(&self.s);
+        }
 
         // ---- Window behaviour ----
         #[cfg(windows)]

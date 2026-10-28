@@ -7032,6 +7032,8 @@ pub struct RealVideoInfo {
     pub formats: Vec<RealVideoFormat>,
 }
 
+static REAL_FORMAT_CACHE: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, RealVideoInfo)>>> = std::sync::OnceLock::new();
+
 pub async fn probe_real_video_formats(
     client: &reqwest::Client,
     opts: &EngineOpts,
@@ -7054,6 +7056,15 @@ pub async fn probe_real_video_formats(
     } else {
         url
     };
+
+    let cache = REAL_FORMAT_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(c) = cache.lock() {
+        if let Some((t, info)) = c.get(target) {
+            if t.elapsed() < std::time::Duration::from_secs(600) {
+                return Some(info.clone());
+            }
+        }
+    }
     let exe = ensure_ytdlp(client).await.ok()?;
     let mut cmd = tokio::process::Command::new(exe);
     cmd.kill_on_drop(true);
@@ -7200,11 +7211,20 @@ pub async fn probe_real_video_formats(
         is_audio: true,
     });
 
-    Some(RealVideoInfo {
+    let info = RealVideoInfo {
         title,
         duration_secs,
         formats: out_formats,
-    })
+    };
+
+    if let Ok(mut c) = cache.lock() {
+        if c.len() >= 100 {
+            c.retain(|_, (t, _)| t.elapsed() < std::time::Duration::from_secs(600));
+        }
+        c.insert(target.to_string(), (std::time::Instant::now(), info.clone()));
+    }
+
+    Some(info)
 }
 
 /// Check if a URL points to a BitTorrent file or Magnet link.

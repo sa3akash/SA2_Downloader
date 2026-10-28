@@ -1397,13 +1397,34 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (!msg || typeof msg !== "object") return { ok: false };
     if (msg.type === "getVideoBarPosition") {
-      const data = await api.storage.session.get("videoBarPosition");
-      return { ok: true, position: data.videoBarPosition || null };
+      let pos = null;
+      try {
+        if (api.storage && api.storage.local) {
+          const d = await api.storage.local.get("videoBarPosition");
+          if (d && d.videoBarPosition) pos = d.videoBarPosition;
+        }
+      } catch (e) {}
+      if (!pos && api.storage && api.storage.session) {
+        try {
+          const d = await api.storage.session.get("videoBarPosition");
+          if (d && d.videoBarPosition) pos = d.videoBarPosition;
+        } catch (e) {}
+      }
+      return { ok: true, position: pos };
     }
     if (msg.type === "setVideoBarPosition") {
       const p = msg.position;
       if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return { ok: false };
-      await api.storage.session.set({ videoBarPosition: { x: p.x, y: p.y } });
+      try {
+        if (api.storage && api.storage.local) {
+          await api.storage.local.set({ videoBarPosition: { x: p.x, y: p.y } });
+        }
+      } catch (e) {}
+      try {
+        if (api.storage && api.storage.session) {
+          await api.storage.session.set({ videoBarPosition: { x: p.x, y: p.y } });
+        }
+      } catch (e) {}
       return { ok: true };
     }
     if (msg.type === "download" && msg.url) {

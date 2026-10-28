@@ -122,5 +122,18 @@
   "Hide web pages": "ওয়েব পেজ লুকান",
   "Browse": "ব্রাউজ",
   "Video Files": "ভিডিও ফাইল",
-  "Other Files": "অন্যান্য ফাইল"
+  "Other Files": "অন্যান্য ফাইল",
+  "Receiving fragments": "ফ্র্যাগমেন্ট আসছে",
+  "Fragments": "ফ্র্যাগমেন্ট",
+  "Total": "মোট",
+  "Incomplete": "অসম্পূর্ণ",
+  "Search in the List": "তালিকায় খুঁজুন",
+  "Select All": "সবগুলো নির্বাচন করুন",
+  "downloading": "ডাউনলোড হচ্ছে",
+  "in list": "তালিকায় আছে",
+  "Tasks": "টাস্ক",
+  "Tools": "টুলস",
+  "Theme": "থিম",
+  "Help": "সাহায্য",
+  "File": "ফাইল"
 }

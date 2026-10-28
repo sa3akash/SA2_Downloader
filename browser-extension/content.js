@@ -1389,7 +1389,7 @@
     const parent = document.fullscreenElement || document.documentElement;
     if (panel.parentNode !== parent) parent.appendChild(panel);
     const r = host.getBoundingClientRect();
-    const width = Math.min(380, Math.max(0, window.innerWidth - 16));
+    const width = Math.min(440, Math.max(0, window.innerWidth - 16));
     panel.style.position = "fixed"; panel.style.width = width + "px";
     panel.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, r.right - width)) + "px";
     panel.style.right = "auto"; panel.style.bottom = "auto";
@@ -2205,7 +2205,7 @@
     const panel = document.createElement("div");
     panel.setAttribute("data-dc-panel", "1");
     panel.style.cssText = [
-      "display:none", "position:relative", "width:380px", "max-width:96vw",
+      "display:none", "position:relative", "width:440px", "max-width:96vw",
       "box-sizing:border-box", "padding:12px", "margin:0", "text-align:left",
       "border:1px solid " + T.border, "border-radius:18px",
       "background:" + T.bg, "color:" + T.text, "box-shadow:" + T.shadow,
@@ -3808,30 +3808,82 @@
 
   // Universal video hover and play detection (IDM-style):
   // When a video starts playing or when the pointer moves over any video/player,
-  // ensure the download pill is placed and awaken immediately.
+  // ensure the download pill is placed and awaken immediately (like IDM).
   try {
-    document.addEventListener("play", () => {
+    const onVideoActive = () => {
       if (!alive() || !detectionOn) return;
-      ensureUniversalButtons();
-      if (ytVideoId()) refreshYouTube();
-    }, true);
-    document.addEventListener("playing", () => {
-      if (!alive() || !detectionOn) return;
-      ensureUniversalButtons();
-      if (ytVideoId()) refreshYouTube();
-    }, true);
-    document.addEventListener("pointerover", (ev) => {
-      if (!alive() || !detectionOn) return;
-      const target = ev.target;
-      if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, .html5-video-player, shreddit-player, [data-dc-shadow-player]")))) {
+      if (ytVideoId()) {
+        refreshYouTube();
+        const btn = document.getElementById("dc-yt-btn");
+        if (btn) wakeBar(btn);
+      } else {
         ensureUniversalButtons();
+        document.querySelectorAll("[data-dc-pill]").forEach((p) => wakeBar(p));
+      }
+    };
+
+    document.addEventListener("play", onVideoActive, true);
+    document.addEventListener("playing", onVideoActive, true);
+    document.addEventListener("loadeddata", onVideoActive, true);
+    document.addEventListener("loadedmetadata", onVideoActive, true);
+
+    let lastMoveCheck = 0;
+    document.addEventListener("mousemove", (ev) => {
+      if (!alive() || !detectionOn) return;
+      const now = Date.now();
+      if (now - lastMoveCheck < 80) return;
+      lastMoveCheck = now;
+      const target = ev.target;
+      let isVideoZone = false;
+      if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, .html5-video-player, #movie_player, #shorts-player, [data-dc-bar], [data-dc-panel], [data-dc-pill], shreddit-player, [data-dc-shadow-player]")))) {
+        isVideoZone = true;
+      } else {
+        // Test if cursor coordinates hover inside any visible video's viewport rect
+        for (const v of pageVideos().slice(0, 10)) {
+          const r = v.getBoundingClientRect ? v.getBoundingClientRect() : null;
+          if (r && r.width >= 120 && r.height >= 70 &&
+              ev.clientX >= r.left && ev.clientX <= r.right &&
+              ev.clientY >= r.top && ev.clientY <= r.bottom) {
+            isVideoZone = true;
+            if (v.__dcBtn) wakeBar(v.__dcBtn);
+            break;
+          }
+        }
+      }
+      if (isVideoZone) {
         if (ytVideoId()) {
           const btn = document.getElementById("dc-yt-btn");
           if (btn) wakeBar(btn);
           else refreshYouTube();
+        } else {
+          ensureUniversalButtons();
+          document.querySelectorAll("[data-dc-pill]").forEach((p) => {
+            if (p.__dcVideo) {
+              const vr = p.__dcVideo.getBoundingClientRect();
+              if (ev.clientX >= vr.left - 20 && ev.clientX <= vr.right + 20 &&
+                  ev.clientY >= vr.top - 20 && ev.clientY <= vr.bottom + 20) {
+                wakeBar(p);
+              }
+            }
+          });
         }
       }
     }, { capture: true, passive: true });
+
+    document.addEventListener("pointerover", (ev) => {
+      if (!alive() || !detectionOn) return;
+      const target = ev.target;
+      if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, .html5-video-player, #movie_player, #shorts-player, shreddit-player, [data-dc-shadow-player]")))) {
+        if (ytVideoId()) {
+          const btn = document.getElementById("dc-yt-btn");
+          if (btn) wakeBar(btn);
+          else refreshYouTube();
+        } else {
+          ensureUniversalButtons();
+        }
+      }
+    }, { capture: true, passive: true });
+
     window.addEventListener("scroll", () => {
       try {
         document.querySelectorAll("[data-dc-pill]").forEach((p) => {

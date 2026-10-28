@@ -4445,6 +4445,7 @@ impl sa2App {
             per_host_conns: self.per_host_conns,
             browser: item.browser.clone(),
             ytdlp_visitor_data: String::new(),
+            ytdlp_cookies_browser: String::new(),
             log_key: item.id.to_string(),
             mirrors: item.mirrors.clone(),
             http2: false,
@@ -4452,6 +4453,7 @@ impl sa2App {
             is_playlist: item.is_playlist,
             expected_size: item.total_bytes.unwrap_or(0),
             digest: Default::default(),
+            ..Default::default()
         };
         let shared2 = shared.clone();
         // Adaptive pairs (video-only + audio) merge via ffmpeg on completion.

@@ -77,8 +77,9 @@ describe("panelTokens", () => {
     assert.equal(light.mode, "light");
     assert.equal(dark.mode, "dark");
     assert.equal(light.bg, "#ffffff");
-    assert.equal(dark.bg, "#0f172a");
-    assert.notEqual(dark.accent, light.accent);
+    assert.equal(dark.bg, "#262830");
+    assert.equal(dark.accent, "#60cd38");
+    assert.equal(light.accent, "#60cd38");
     assert.ok(dark.toggle !== light.toggle);
     // unknown mode falls back to dark (the mockup's palette)
     assert.equal(DCRank.panelTokens().mode, "dark");
@@ -157,10 +158,10 @@ describe("panel paint", () => {
       assert.equal(panel.style.background, "#ffffff");
       assert.equal(panel.style.display, "none"); // layout untouched
       assert.equal(panel._dcT.mode, "light");
-      assert.equal(txt.style.color, "#0f172a");
-      assert.equal(div.style.background, "#e2e8f0");
-      assert.equal(item.style.background, "#f8fafc");
-      assert.equal(item.style.borderColor, "#e2e8f0");
+      assert.equal(txt.style.color, "#333333");
+      assert.equal(div.style.background, "#dde2eb");
+      assert.equal(item.style.background, "#f2f2f2");
+      assert.equal(item.style.borderColor, "#dde2eb");
     });
   });
 
@@ -171,11 +172,11 @@ describe("panel paint", () => {
       const above = fakeEl("arrow");
       above.attrs["data-dc-arrow"] = "bottom";
       DCRank.paintDcPanel(fakePanel([sel, above]));
-      assert.equal(sel.style.borderColor, "#3b82f6");
-      assert.equal(sel.style.background, "rgba(59,130,246,.16)");
+      assert.equal(sel.style.borderColor, "#60cd38");
+      assert.equal(sel.style.background, "rgba(96,205,56,.20)");
       // Arrow below the panel: the two bottom borders draw the point.
-      assert.equal(above.style.borderRightColor, "#334155");
-      assert.equal(above.style.borderBottomColor, "#334155");
+      assert.equal(above.style.borderRightColor, "#4d4d4d");
+      assert.equal(above.style.borderBottomColor, "#4d4d4d");
       assert.equal(above.style.borderLeftColor, "transparent");
     });
   });

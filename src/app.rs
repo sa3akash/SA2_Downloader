@@ -2008,7 +2008,7 @@ enum ResizeCap {
 
 /// One line of the right-click menu.
 enum CtxEntry {
-    Item { label: String, icon: &'static str, hint: &'static str, act: RowAct, danger: bool },
+    Item { label: String, icon: &'static str, hint: &'static str, act: RowAct, enabled: bool, danger: bool },
     Sep,
     /// Opens `items` (label, short tag, action) to the side.
     Sub { label: String, icon: &'static str, key: u8, items: Vec<(String, &'static str, RowAct)> },
@@ -9884,11 +9884,12 @@ impl CraftApp {
     fn ctx_entries(&self, id: u64, shift: bool) -> Vec<CtxEntry> {
         use RowAct::*;
         let t = |s: &str| crate::i18n::t(s).to_string();
-        let item = |label: &str, icon: &'static str, hint: &'static str, act: RowAct| CtxEntry::Item {
+        let item = |label: &str, icon: &'static str, hint: &'static str, act: RowAct, enabled: bool| CtxEntry::Item {
             label: t(label),
             icon,
             hint,
             act,
+            enabled,
             danger: false,
         };
         let Some(d) = self.downloads.iter().find(|d| d.id == id) else { return Vec::new() };
@@ -9897,15 +9898,20 @@ impl CraftApp {
             .map(|e| e.to_string_lossy().to_ascii_lowercase())
             .unwrap_or_default();
         let mut v = Vec::new();
-        if self.tasks.contains_key(&id) {
-            v.push(item("Show download window", MI_SPEED, "", ShowProgress));
+        let is_done = matches!(d.status, Status::Completed);
+        let is_running = self.tasks.contains_key(&id);
+        let is_paused = matches!(d.status, Status::Paused);
+        let is_failed = matches!(d.status, Status::Failed(_));
+
+        if is_running {
+            v.push(item("Show download window", MI_SPEED, "", ShowProgress, true));
             v.push(CtxEntry::Sep);
         }
 
         // Group 1: Open / Open with... / Open folder
-        v.push(item("Open", MI_OPEN, "Enter", OpenFile));
-        v.push(item("Open with...", MI_OPEN_WITH, "", OpenWith));
-        v.push(item("Open folder", MI_FOLDER_OPEN, "", OpenFolder));
+        v.push(item("Open", MI_OPEN, "Enter", OpenFile, is_done));
+        v.push(item("Open with...", MI_OPEN_WITH, "", OpenWith, is_done));
+        v.push(item("Open folder", MI_FOLDER_OPEN, "", OpenFolder, true));
         v.push(CtxEntry::Sep);
 
         // Group 2: Move / Rename
@@ -9916,21 +9922,21 @@ impl CraftApp {
             }
             v.push(CtxEntry::Sub { label: t("Move"), icon: MI_REORDER, key: 1, items: sub });
         } else {
-            v.push(item("Move", MI_REORDER, "", MoveToQueue(0)));
+            v.push(item("Move", MI_REORDER, "", MoveToQueue(0), !is_running));
         }
-        v.push(item("Rename", MI_EDIT, "F2", Rename));
+        v.push(item("Rename", MI_EDIT, "F2", Rename, !is_running));
         v.push(CtxEntry::Sep);
 
         // Group 3: Resume / Stop / Redownload / Refresh URL
-        v.push(item("Resume", MI_PLAY, "Space", Resume));
-        v.push(item("Stop", MI_STOP, "", Pause));
-        v.push(item("Redownload", MI_ARROW_DOWN, "", Redownload));
-        v.push(item("Refresh URL", MI_REFRESH, "", RefreshAddress));
+        v.push(item("Resume", MI_PLAY, "Space", Resume, is_paused || is_failed));
+        v.push(item("Stop", MI_STOP, "", Pause, is_running));
+        v.push(item("Redownload", MI_ARROW_DOWN, "", Redownload, true));
+        v.push(item("Refresh URL", MI_REFRESH, "", RefreshAddress, !is_running));
         v.push(CtxEntry::Sep);
 
         const MEDIA: &[&str] = &["mp4", "mkv", "webm", "mov", "avi", "flv", "wmv", "m4v", "ts", "3gp", "mp3", "m4a", "aac", "opus", "ogg", "wav", "flac", "wma"];
         const AUDIO: &[&str] = &["mp3", "m4a", "aac", "opus", "ogg", "wav", "flac", "wma"];
-        if matches!(d.status, Status::Completed) && MEDIA.contains(&ext.as_str()) {
+        if is_done && MEDIA.contains(&ext.as_str()) {
             let mut sub = Vec::new();
             if ext != "mp3" {
                 sub.push((t("Audio only"), "MP3", Convert(0)));
@@ -9945,23 +9951,23 @@ impl CraftApp {
                 v.push(CtxEntry::Sub { label: t("Convert"), icon: MI_TRANSFORM, key: 0, items: sub });
             }
         }
-        if matches!(d.status, Status::Completed) && crate::archive::volume_of(&d.filename).is_some() {
-            v.push(item("Extract", MI_UNARCHIVE, "", Extract));
+        if is_done && crate::archive::volume_of(&d.filename).is_some() {
+            v.push(item("Extract", MI_UNARCHIVE, "", Extract, true));
         }
 
         // Group 4: Delete
         let _ = shift;
-        v.push(CtxEntry::Item { label: t("Delete"), icon: MI_CANCEL, hint: "Del", act: RemoveFile, danger: true });
+        v.push(CtxEntry::Item { label: t("Delete"), icon: MI_CANCEL, hint: "Del", act: RemoveFile, enabled: true, danger: true });
         v.push(CtxEntry::Sep);
 
         // Group 5: Properties
-        v.push(item("Properties", MI_PROPERTIES, "", Details));
+        v.push(item("Properties", MI_PROPERTIES, "", Details, true));
         v
     }
 
     fn render_ctx_menu(&mut self, ctx: &egui::Context, id: u64, pos: egui::Pos2) {
-        const W: f32 = 200.0;
-        const ROW: f32 = 28.0;
+        const W: f32 = 210.0;
+        const ROW: f32 = 30.0;
         const SEP: f32 = 9.0;
         const PAD: f32 = 6.0;
         let shift = ctx.input(|i| i.modifiers.shift);
@@ -9989,16 +9995,26 @@ impl CraftApp {
                             );
                             y += SEP;
                         }
-                        CtxEntry::Item { label, icon, hint, act, danger } => {
+                        CtxEntry::Item { label, icon, hint, act, enabled, danger } => {
                             let r = egui::Rect::from_min_size(egui::pos2(rect.min.x + PAD, y), egui::vec2(W - PAD * 2.0, ROW));
-                            let hov = self.man.hover(&r);
+                            let hov = enabled && self.man.hover(&r);
                             if hov {
                                 p.rect_filled(r, 7.0, pl().surface_lt);
                                 self.ctx_sub = None;
                             }
-                            let col = if danger { pl().error } else if hov { pl().txt } else { pl().txt.gamma_multiply(0.85) };
+                            let col = if !enabled {
+                                pl().dim.gamma_multiply(0.40)
+                            } else if danger {
+                                pl().error
+                            } else if hov {
+                                pl().txt
+                            } else {
+                                pl().txt.gamma_multiply(0.85)
+                            };
                             ctx_row(p, r, icon, &label, hint, col, false);
-                            self.hits.push((HitKind::CtxItem(act, id), r));
+                            if enabled {
+                                self.hits.push((HitKind::CtxItem(act, id), r));
+                            }
                             y += ROW;
                         }
                         CtxEntry::Sub { label, icon, key, items } => {

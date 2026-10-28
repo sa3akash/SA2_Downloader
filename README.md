@@ -168,7 +168,7 @@ let done = downloadcraft_engine::Downloader::new(reqwest::Client::new())
 
 | Platform | Download | How |
 |---|---|---|
-| **Windows 10/11** | `DownloadCraft-1.1.0-windows-x64-portable.zip` | Extract and run `download_craft.exe` — nothing to install. |
+| **Windows 10/11** | `DownloadCraft-1.1.0-windows-x64-portable.zip` | Extract and run `sa2_downloader.exe` — nothing to install. |
 | **macOS 12+** | `DownloadCraft-1.1.0-macos-Universal.zip` | Move *Download Craft.app* to Applications (development build, not notarized — right-click → Open the first time). |
 | **Ubuntu / Debian / Mint** | `downloadcraft_1.1.0_amd64.deb` | `sudo apt install ./downloadcraft_1.1.0_amd64.deb` |
 | **Fedora** | `downloadcraft-1.1.0-1.x86_64.rpm` | `sudo dnf install ./downloadcraft-1.1.0-1.x86_64.rpm` |

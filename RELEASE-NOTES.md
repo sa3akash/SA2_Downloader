@@ -47,7 +47,7 @@
 
 All packages are compiled with full optimizations and attached directly to the GitHub Release for download and immediate use:
 
-- **Windows 10/11 (64-bit)**: Download `DownloadCraft-1.1.0-windows-x64-portable.zip` — extract and run `download_craft.exe`. Portable, zero-install, preserves settings and downloads.
+- **Windows 10/11 (64-bit)**: Download `DownloadCraft-1.1.0-windows-x64-portable.zip` — extract and run `sa2_downloader.exe`. Portable, zero-install, preserves settings and downloads.
 - **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `DownloadCraft-1.1.0-macos-Universal.zip` — unzip and move `Download Craft.app` to your Applications folder.
 - **Linux (x86_64, glibc 2.28+)**:
   - Ubuntu, Debian, Mint: `downloadcraft_1.1.0_amd64.deb` (`sudo apt install ./downloadcraft_1.1.0_amd64.deb`)

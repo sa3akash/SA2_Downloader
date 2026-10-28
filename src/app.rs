@@ -793,18 +793,18 @@ fn paint_check(p: &egui::Painter, rect: egui::Rect, checked: bool, hov: bool) {
     p.rect_stroke(
         rect,
         3.0,
-        egui::Stroke::new(1.2, if hov || checked { pl().txt } else { pl().dim }),
+        egui::Stroke::new(1.2_f32, if hov || checked { pl().txt } else { pl().dim }),
         egui::StrokeKind::Inside,
     );
     if checked {
         let c = rect.center();
         p.line_segment(
             [c + egui::vec2(-4.5, 0.0), c + egui::vec2(-1.5, 3.0)],
-            egui::Stroke::new(1.8, egui::Color32::WHITE),
+            egui::Stroke::new(1.8_f32, egui::Color32::WHITE),
         );
         p.line_segment(
             [c + egui::vec2(-1.5, 3.0), c + egui::vec2(4.5, -3.5)],
-            egui::Stroke::new(1.8, egui::Color32::WHITE),
+            egui::Stroke::new(1.8_f32, egui::Color32::WHITE),
         );
     }
 }
@@ -959,7 +959,7 @@ fn mbutton(
         p.rect_stroke(
             rect,
             RADIUS,
-            egui::Stroke::new(1.0, pl().modal_bd),
+            egui::Stroke::new(1.0_f32, pl().modal_bd),
             egui::StrokeKind::Inside,
         );
     }
@@ -1020,7 +1020,7 @@ fn about_btn(
             } else {
                 mix(pal.modal_bg, pal.surface_lt, 0.45)
             },
-            egui::Stroke::new(1.0, mix(pal.modal_bg, pal.modal_bd, 0.6)),
+            egui::Stroke::new(1.0_f32, mix(pal.modal_bg, pal.modal_bd, 0.6)),
             egui::StrokeKind::Inside,
         );
     }
@@ -1240,7 +1240,7 @@ fn dp_button(ui: &mut egui::Ui, man: &ManState, label: &str, primary: bool) -> e
         p.rect_stroke(
             rect,
             6.0,
-            egui::Stroke::new(1.0, pl().modal_bd),
+            egui::Stroke::new(1.0_f32, pl().modal_bd),
             egui::StrokeKind::Inside,
         );
     }
@@ -1280,15 +1280,15 @@ fn dp_input(
                 w.corner_radius = egui::CornerRadius::same(5);
             }
             v.widgets.inactive.bg_stroke = egui::Stroke::new(
-                1.0,
+                1.0_f32,
                 if underline {
                     egui::Color32::TRANSPARENT
                 } else {
                     pl().modal_bd
                 },
             );
-            v.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, pl().primary);
-            v.widgets.active.bg_stroke = egui::Stroke::new(1.0, pl().primary);
+            v.widgets.hovered.bg_stroke = egui::Stroke::new(1.0_f32, pl().primary);
+            v.widgets.active.bg_stroke = egui::Stroke::new(1.0_f32, pl().primary);
             ui.spacing_mut().interact_size.y = if underline { 18.0 } else { 22.0 };
             let mut te = egui::TextEdit::singleline(text)
                 .id(egui::Id::new(id))
@@ -1313,7 +1313,7 @@ fn dp_input(
                 egui::pos2(rect.min.x, rect.max.y + 1.0),
                 egui::pos2(rect.max.x, rect.max.y + 1.0),
             ],
-            egui::Stroke::new(1.0, pl().modal_bd),
+            egui::Stroke::new(1.0_f32, pl().modal_bd),
         );
     }
     rect
@@ -1339,7 +1339,7 @@ fn dp_rule_soft(ui: &mut egui::Ui, color: egui::Color32) {
     );
     ui.painter().line_segment(
         [r.left_center(), r.right_center()],
-        egui::Stroke::new(1.0, color),
+        egui::Stroke::new(1.0_f32, color),
     );
 }
 
@@ -1658,9 +1658,7 @@ fn name_cell(p: &egui::Painter, rect: egui::Rect, _icon: &str, fname: &str, cat:
         egui::pos2(rect.min.x + 20.0, rect.center().y),
         egui::vec2(thumb_size, thumb_size),
     );
-    let ext = fname.rsplit_once('.').map(|(_, e)| e).unwrap_or(cat);
-    let is_audio = cat == "Music" || ext.eq_ignore_ascii_case("mp3") || ext.eq_ignore_ascii_case("wav") || ext.eq_ignore_ascii_case("flac");
-    dm_file_thumbnail(p, thumb_rect, ext, is_audio);
+    dm_file_thumbnail(p, thumb_rect, fname);
 
     let tx = rect.min.x + 42.0;
     let max_tw = (rect.max.x - 8.0 - tx).max(20.0);
@@ -1829,7 +1827,7 @@ fn add_url_button(ui: &mut egui::Ui, man: &ManState, hot: bool) -> egui::Rect {
     }
 
     let bg_color = if hov { pl().surface_lt } else { pl().surface };
-    p.rect(rect, TOOL_H * 0.5, bg_color, egui::Stroke::new(1.2, if hot { pl().primary } else { pl().card_bd }), egui::StrokeKind::Inside);
+    p.rect(rect, TOOL_H * 0.5, bg_color, egui::Stroke::new(1.2_f32, if hot { pl().primary } else { pl().card_bd }), egui::StrokeKind::Inside);
 
     // Circular cloud icon badge on the left
     let badge_rect = egui::Rect::from_center_size(egui::pos2(rect.min.x + 18.0, rect.center().y), egui::vec2(22.0, 22.0));
@@ -3223,7 +3221,7 @@ impl CraftApp {
             }
             RowAct::Rename => {
                 if self.downloads.iter().any(|d| d.id == id) {
-                    self.show_details = Some(id);
+                    self.details_id = Some(id);
                 }
             }
             RowAct::CopyUrl => {
@@ -8220,7 +8218,7 @@ impl eframe::App for CraftApp {
                         ui.painter().rect_stroke(
                             r,
                             6.0,
-                            egui::Stroke::new(1.0, pl().modal_bd),
+                            egui::Stroke::new(1.0_f32, pl().modal_bd),
                             egui::StrokeKind::Inside,
                         );
                         ui.painter().galley(
@@ -8347,7 +8345,7 @@ impl eframe::App for CraftApp {
                                     egui::pos2(bar.min.x, bar.max.y - 0.5),
                                     egui::pos2(bar.max.x, bar.max.y - 0.5),
                                 ],
-                                egui::Stroke::new(1.0, pl().modal_bd),
+                                egui::Stroke::new(1.0_f32, pl().modal_bd),
                             );
                             p.text(
                                 egui::pos2(bar.min.x + 22.0, bar.center().y),
@@ -8792,7 +8790,7 @@ impl eframe::App for CraftApp {
                             );
                             ui.painter().line_segment(
                                 [rule.left_center(), rule.right_center()],
-                                egui::Stroke::new(1.0, pl().modal_bd),
+                                egui::Stroke::new(1.0_f32, pl().modal_bd),
                             );
                             egui::Frame::new()
                                 .inner_margin(egui::Margin {

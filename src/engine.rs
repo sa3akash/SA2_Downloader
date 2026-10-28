@@ -6942,8 +6942,25 @@ pub fn is_playlist_url_or_query(url: &str) -> bool {
         && !lower.contains("list=ll")
 }
 
+pub fn aria2_on_path() -> Option<PathBuf> {
+    let names: &[&str] = if cfg!(windows) {
+        &["aria2c.exe", "aria2c"]
+    } else {
+        &["aria2c"]
+    };
+    for dir in tool_dirs() {
+        for n in names {
+            let cand = dir.join(n);
+            if crate::platform::executable_file(&cand) {
+                return Some(cand);
+            }
+        }
+    }
+    None
+}
+
 pub fn aria2_path() -> Option<PathBuf> {
-    which::which("aria2c").ok().or_else(|| {
+    aria2_on_path().or_else(|| {
         crate::model::config_dir().map(|d| d.join("tools").join(if cfg!(windows) { "aria2c.exe" } else { "aria2c" }))
     }).filter(|p| p.is_file())
 }
@@ -6987,7 +7004,7 @@ pub async fn ensure_aria2(client: &reqwest::Client) -> Result<PathBuf> {
     }
     #[cfg(unix)]
     {
-        if let Ok(p) = which::which("aria2c") {
+        if let Some(p) = aria2_on_path() {
             return Ok(p);
         }
     }
@@ -8694,14 +8711,13 @@ async fn chunked_stream(
                             *slot = 0;
                         }
                     }
-                    if let (t, _, _, _) = probe(client, opts, url).await {
-                        if let Some(t) = t {
-                            total = t;
-                            shared.total.store(t, Ordering::SeqCst);
-                            shared.has_total.store(true, Ordering::SeqCst);
-                            // Rebind resume state to the refreshed total.
-                            write_resume_meta(dest, url, Some(t), 1);
-                        }
+                    let (t, _, _, _) = probe(client, opts, url).await;
+                    if let Some(t) = t {
+                        total = t;
+                        shared.total.store(t, Ordering::SeqCst);
+                        shared.has_total.store(true, Ordering::SeqCst);
+                        // Rebind resume state to the refreshed total.
+                        write_resume_meta(dest, url, Some(t), 1);
                     }
                     stalled = 0;
                     continue;

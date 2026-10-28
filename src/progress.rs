@@ -1265,7 +1265,7 @@ impl ProgressApp {
         btn_pill(&p, cancel_r, cancel_b.hovered(), "Cancel ✕", pl().dm_line, pl().dm_box_bd, egui::Color32::from_rgb(0xFF, 0x6B, 0x6B), None);
 
         if det_b.hovered() || pause_b.hovered() || cancel_b.hovered() {
-            ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
         if det_b.clicked() {
             self.parts_open = !self.parts_open;

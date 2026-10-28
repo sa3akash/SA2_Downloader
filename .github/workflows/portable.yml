@@ -30,7 +30,7 @@ jobs:
       - name: Package DEB, RPM and AppImage
         run: |
           curl -fL https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 -o /tmp/runtime-x86_64
-          python scripts/package_linux.py --binary target/x86_64-unknown-linux-gnu/release/download_craft --runtime /tmp/runtime-x86_64
+          python scripts/package_linux.py --binary target/x86_64-unknown-linux-gnu/release/sa2_downloader --runtime /tmp/runtime-x86_64
           python scripts/package_extensions.py --output dist
           for image in dist/DownloadCraft-*-x86_64.AppImage; do "$image" --appimage-extract-and-run --version; done
       - uses: actions/upload-artifact@v4
@@ -55,8 +55,8 @@ jobs:
       - run: node --test browser-extension/*.test.js
       - run: cargo test --locked --release --workspace
       - run: cargo build --locked --release --target aarch64-apple-darwin --target x86_64-apple-darwin
-      - run: lipo -create target/aarch64-apple-darwin/release/download_craft target/x86_64-apple-darwin/release/download_craft -output /tmp/download_craft
-      - run: python scripts/package.py --platform macos --arch Universal --binary /tmp/download_craft
+      - run: lipo -create target/aarch64-apple-darwin/release/sa2_downloader target/x86_64-apple-darwin/release/sa2_downloader -output /tmp/sa2_downloader
+      - run: python scripts/package.py --platform macos --arch Universal --binary /tmp/sa2_downloader
       - uses: actions/upload-artifact@v4
         with:
           name: DownloadCraft-macOS

@@ -12,7 +12,7 @@ a=p.parse_args()
 repo=pathlib.Path(__file__).resolve().parents[1]
 version=(repo/'VERSION').read_text().strip()
 osname=a.platform or {'Windows':'windows','Darwin':'macos','Linux':'linux'}[platform.system()]
-cand_names = ['sa2_downloader.exe', 'download_craft.exe'] if osname=='windows' else ['sa2_downloader', 'download_craft']
+cand_names = ['sa2_downloader.exe'] if osname=='windows' else ['sa2_downloader', 'download_craft']
 binary = a.binary
 if not binary or not binary.is_file():
     for name in cand_names:

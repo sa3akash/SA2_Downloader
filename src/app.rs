@@ -2140,14 +2140,14 @@ struct ZipPick {
     url: String,
     out_dir: std::path::PathBuf,
     opts: EngineOpts,
-    entries: Vec<(sa2_downloader_engine::zip::ZipEntry, bool)>,
+    entries: Vec<(SA2Downloader_engine::zip::ZipEntry, bool)>,
     status: String,
     busy: bool,
 }
 
 #[allow(dead_code)]
 enum ZipMsg {
-    Listed(Result<Vec<sa2_downloader_engine::zip::ZipEntry>, String>),
+    Listed(Result<Vec<SA2Downloader_engine::zip::ZipEntry>, String>),
     Status(String),
     Done(String),
 }
@@ -3438,8 +3438,8 @@ impl sa2App {
         self.rt.spawn(async move {
             let r = async {
                 let client = opts.build_client().map_err(|e| format!("{e:#}"))?;
-                let request: sa2_downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
-                sa2_downloader_engine::zip::list_remote(&request, &url).await.map_err(|e| e.to_string())
+                let request: SA2Downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
+                SA2Downloader_engine::zip::list_remote(&request, &url).await.map_err(|e| e.to_string())
             }
             .await;
             let _ = tx.send(ZipMsg::Listed(r));
@@ -3449,7 +3449,7 @@ impl sa2App {
     /// Fetch the ticked entries one after another into the ZIP's folder.
     fn zip_fetch_selected(&mut self) {
         let Some(p) = self.zip_pick.as_mut() else { return };
-        let picked: Vec<sa2_downloader_engine::zip::ZipEntry> =
+        let picked: Vec<SA2Downloader_engine::zip::ZipEntry> =
             p.entries.iter().filter(|(e, on)| *on && e.can_extract()).map(|(e, _)| e.clone()).collect();
         if picked.is_empty() {
             p.status = "Tick at least one file.".into();
@@ -3467,7 +3467,7 @@ impl sa2App {
                     return;
                 }
             };
-            let request: sa2_downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
+            let request: SA2Downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
             let (mut ok, n) = (0, picked.len());
             for (i, e) in picked.iter().enumerate() {
                 let _ = tx.send(ZipMsg::Status(format!("{}/{n}: {}", i + 1, e.name)));
@@ -3478,7 +3478,7 @@ impl sa2App {
                     .filter(|s| !s.is_empty() && *s != "." && *s != "..")
                     .map(crate::engine::sanitize_filename)
                     .collect();
-                match sa2_downloader_engine::zip::extract_remote(&request, &url, e, &out_dir.join(rel)).await {
+                match SA2Downloader_engine::zip::extract_remote(&request, &url, e, &out_dir.join(rel)).await {
                     Ok(_) => ok += 1,
                     Err(err) => {
                         let _ = tx.send(ZipMsg::Status(format!("{}: {err}", e.name)));

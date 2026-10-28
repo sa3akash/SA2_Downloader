@@ -5,8 +5,8 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use sa2_downloader_engine::zip::{extract_remote, list_remote};
-use sa2_downloader_engine::RequestFn;
+use SA2Downloader_engine::zip::{extract_remote, list_remote};
+use SA2Downloader_engine::RequestFn;
 
 /// A ZIP with one stored and one deflated file.
 fn make_zip(files: &[(&str, &[u8], bool)]) -> Vec<u8> {

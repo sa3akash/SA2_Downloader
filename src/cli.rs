@@ -319,9 +319,9 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
             }
             let opts = global_opts();
             let client = opts.build_client()?;
-            let request: sa2_downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
+            let request: SA2Downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
             let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
-            let entries = rt.block_on(sa2_downloader_engine::zip::list_remote(&request, &url))?;
+            let entries = rt.block_on(SA2Downloader_engine::zip::list_remote(&request, &url))?;
             let total: u64 = entries.iter().map(|e| e.size).sum();
             for e in &entries {
                 if e.is_dir {

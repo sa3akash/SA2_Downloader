@@ -29,10 +29,10 @@
 //!   HTML error page instead of the file — all caught before they corrupt it.
 //!
 //! ```no_run
-//! use sa2_downloader_engine::{Control, Downloader, Job, Progress};
+//! use SA2Downloader_engine::{Control, Downloader, Job, Progress};
 //! use std::sync::Arc;
 //!
-//! # async fn run() -> Result<(), sa2_downloader_engine::Error> {
+//! # async fn run() -> Result<(), SA2Downloader_engine::Error> {
 //! let client = reqwest::Client::new();
 //! let progress = Arc::new(Progress::default());
 //! let control = Arc::new(Control::default());

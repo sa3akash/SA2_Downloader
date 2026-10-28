@@ -982,7 +982,7 @@ impl ProgressApp {
                     )
                 })
                 .collect();
-            p.add(egui::Shape::line(pts, egui::Stroke::new(1.5, DM_ACC)));
+            p.add(egui::Shape::line(pts, egui::Stroke::new(1.5_f32, DM_ACC)));
             p.text(
                 egui::pos2(g.right() - 6.0, g.top() + 4.0),
                 egui::Align2::RIGHT_TOP,

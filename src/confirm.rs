@@ -267,7 +267,7 @@ fn plus_square(ui: &mut egui::Ui, rect: egui::Rect, salt: u64) -> egui::Response
         egui::StrokeKind::Inside,
     );
     let c = rect.center();
-    let st = egui::Stroke::new(2.0, egui::Color32::WHITE);
+    let st = egui::Stroke::new(2.0_f32, egui::Color32::WHITE);
     p.line_segment([egui::pos2(c.x - 6.0, c.y), egui::pos2(c.x + 6.0, c.y)], st);
     p.line_segment([egui::pos2(c.x, c.y - 6.0), egui::pos2(c.x, c.y + 6.0)], st);
     r

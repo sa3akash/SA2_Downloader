@@ -757,8 +757,8 @@ impl eframe::App for SettingsApp {
 
                 let p = ui.painter();
                 p.rect_filled(full, 0.0, t.bg);
-                p.vline(rail.right(), rail.y_range(), Stroke::new(1.0, t.border));
-                p.hline(full.x_range(), foot.top(), Stroke::new(1.0, t.border));
+                p.vline(rail.right(), rail.y_range(), Stroke::new(1.0_f32, t.border));
+                p.hline(full.x_range(), foot.top(), Stroke::new(1.0_f32, t.border));
 
                 // ---- rail ----
                 let mut rail_ui = ui.new_child(
@@ -979,7 +979,7 @@ fn button(ui: &mut Ui, label: &str, primary: bool) -> Response {
         rect,
         5.0,
         bg,
-        Stroke::new(1.0, bd),
+        Stroke::new(1.0_f32, bd),
         StrokeKind::Inside,
     );
     p.galley(rect.center() - galley.size() / 2.0, galley, fg);
@@ -1054,7 +1054,7 @@ fn field(ui: &mut Ui, buf: &mut String, width: Option<f32>, hint: &str) -> Respo
     let text_w = (total - 20.0).max(20.0);
     let out = egui::Frame::new()
         .fill(t.input)
-        .stroke(Stroke::new(1.0, t.border))
+        .stroke(Stroke::new(1.0_f32, t.border))
         .corner_radius(5.0)
         .inner_margin(egui::Margin::symmetric(10, 6))
         .show(ui, |ui| {
@@ -1074,7 +1074,7 @@ fn field(ui: &mut Ui, buf: &mut String, width: Option<f32>, hint: &str) -> Respo
         ui.painter().rect_stroke(
             out.response.rect,
             5.0,
-            Stroke::new(1.0, t.accent),
+            Stroke::new(1.0_f32, t.accent),
             StrokeKind::Inside,
         );
     }
@@ -1124,13 +1124,13 @@ fn checkbox(
         br,
         3.0,
         if *on { t.accent } else { t.input },
-        Stroke::new(1.5, border),
+        Stroke::new(1.5_f32, border),
         StrokeKind::Inside,
     );
     if *on {
         let c = br.center();
         let s = box_size / 14.0;
-        let tick = Stroke::new(1.8, Color32::WHITE);
+        let tick = Stroke::new(1.8_f32, Color32::WHITE);
         p.line_segment(
             [c + Vec2::new(-4.5, 0.0) * s, c + Vec2::new(-1.5, 3.0) * s],
             tick,
@@ -1344,7 +1344,7 @@ fn theme_tile(
         StrokeKind::Inside,
     );
     if active {
-        p.rect_stroke(rect, 8.0, Stroke::new(1.0, t.accent), StrokeKind::Inside);
+        p.rect_stroke(rect, 8.0, Stroke::new(1.0_f32, t.accent), StrokeKind::Inside);
     }
     // Preview box (`.tp`): a dark base so a clipped corner never flashes white.
     let prev = Rect::from_min_size(
@@ -1364,11 +1364,11 @@ fn theme_tile(
         TileKind::Dark => draw_face(p, inner, false, None),
         TileKind::Light => draw_face(p, inner, true, None),
     }
-    p.rect_stroke(prev, 5.0, Stroke::new(1.0, t.border), StrokeKind::Inside);
+    p.rect_stroke(prev, 5.0, Stroke::new(1.0_f32, t.border), StrokeKind::Inside);
     if active {
         let bc = egui::pos2(prev.max.x - 8.0, prev.min.y + 8.0);
         p.circle_filled(bc, 7.5, t.accent);
-        let s = Stroke::new(1.6, Color32::WHITE);
+        let s = Stroke::new(1.6_f32, Color32::WHITE);
         p.line_segment([bc + Vec2::new(-3.2, -0.2), bc + Vec2::new(-1.0, 2.2)], s);
         p.line_segment([bc + Vec2::new(-1.0, 2.2), bc + Vec2::new(3.4, -2.6)], s);
     }
@@ -1461,7 +1461,7 @@ fn card(
     let title = crate::i18n::t(title);
     egui::Frame::new()
         .fill(t.card)
-        .stroke(Stroke::new(1.0, t.border))
+        .stroke(Stroke::new(1.0_f32, t.border))
         .corner_radius(9.0)
         .inner_margin(egui::Margin::ZERO)
         .outer_margin(egui::Margin {

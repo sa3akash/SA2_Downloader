@@ -464,7 +464,7 @@ impl LinksApp {
             let wl = crate::shaped::width(p, label, &reg(11.5));
             let w = wn + wl + 18.0;
             let r = Rect::from_min_size(Pos2::new(right - w, rect.center().y - 12.0), Vec2::new(w, 24.0));
-            p.rect(r, 6.0, t.surface, Stroke::new(1.0, t.card_bd), egui::StrokeKind::Inside);
+            p.rect(r, 6.0, t.surface, Stroke::new(1.0_f32, t.card_bd), egui::StrokeKind::Inside);
             p.text(Pos2::new(r.min.x + 9.0, r.center().y), Align2::LEFT_CENTER, &n, semi(11.5), t.txt);
             p.text(Pos2::new(r.min.x + 9.0 + wn, r.center().y), Align2::LEFT_CENTER, label, reg(11.5), t.dim);
             right = r.min.x - 6.0;
@@ -495,7 +495,7 @@ impl LinksApp {
             let search_w = (ui.available_width() * 0.3).clamp(150.0, 250.0);
             let (r, _) = ui.allocate_exact_size(Vec2::new(search_w, 30.0), Sense::hover());
             let focused = ui.memory(|m| m.focused() == Some(egui::Id::new("links-q")));
-            ui.painter().rect(r, 6.0, t.bg, Stroke::new(1.0, if focused { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
+            ui.painter().rect(r, 6.0, t.bg, Stroke::new(1.0_f32, if focused { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
             ui.painter().text(Pos2::new(r.min.x + 16.0, r.center().y), Align2::CENTER_CENTER, crate::app::MI_SEARCH, icon(15.0), t.dim);
             ui.put(
                 Rect::from_min_max(Pos2::new(r.min.x + 28.0, r.min.y + 4.0), Pos2::new(r.max.x - 6.0, r.max.y - 4.0)),
@@ -540,7 +540,7 @@ impl LinksApp {
                             } else {
                                 (t.surface, t.card_bd, t.dim)
                             };
-                            p.rect(r, 14.0, fill, Stroke::new(1.0, bd), egui::StrokeKind::Inside);
+                            p.rect(r, 14.0, fill, Stroke::new(1.0_f32, bd), egui::StrokeKind::Inside);
                             let mut x = r.min.x + 10.0;
                             if let Some(k) = k {
                                 p.circle_filled(Pos2::new(x + 3.5, r.center().y), 3.5, k.color(dark));
@@ -594,7 +594,7 @@ impl LinksApp {
         let hdr = Rect::from_min_size(inner.min, Vec2::new(inner.width(), HDR_H));
         let p = ui.painter().clone();
         p.rect_filled(hdr, CornerRadius { nw: 7, ne: 7, sw: 0, se: 0 }, t.surface);
-        p.hline(hdr.x_range(), hdr.max.y, Stroke::new(1.0, t.card_bd));
+        p.hline(hdr.x_range(), hdr.max.y, Stroke::new(1.0_f32, t.card_bd));
         // Tri-state check over what is shown.
         let n_on = shown.iter().filter(|&&i| self.rows[i].checked).count();
         let cbr = Rect::from_center_size(Pos2::new(inner.min.x + CB_W / 2.0, hdr.center().y), Vec2::splat(15.0));
@@ -675,7 +675,7 @@ impl LinksApp {
                     } else if resp.hovered() {
                         p.rect_filled(r, 0.0, t.hover_bg);
                     }
-                    p.hline(r.x_range(), r.max.y - 0.5, Stroke::new(1.0, t.card_bd.gamma_multiply(0.5)));
+                    p.hline(r.x_range(), r.max.y - 0.5, Stroke::new(1.0_f32, t.card_bd.gamma_multiply(0.5)));
                     let dim = if row.kind == Kind::Page { 0.6 } else { 1.0 };
                     let cy = r.center().y;
                     paint_check(p, Rect::from_center_size(Pos2::new(r.min.x + CB_W / 2.0, cy), Vec2::splat(15.0)), row.checked, false, resp.hovered());
@@ -684,7 +684,7 @@ impl LinksApp {
                     let pw = (crate::shaped::width(p, &ext, &semi(11.0)) + 16.0).min(widths[0] - 16.0);
                     let pill = Rect::from_center_size(Pos2::new(xs[0] + widths[0] / 2.0, cy), Vec2::new(pw.max(52.0), 22.0));
                     p.rect_filled(pill, 4.0, COLOR_CHARCOAL);
-                    p.rect_stroke(pill, 4.0, Stroke::new(1.0, COLOR_VAMPIRE_GREY), egui::StrokeKind::Inside);
+                    p.rect_stroke(pill, 4.0, Stroke::new(1.0_f32, COLOR_VAMPIRE_GREY), egui::StrokeKind::Inside);
                     p.text(pill.center(), Align2::CENTER_CENTER, &ext, semi(11.0), Color32::WHITE);
 
                     // Column 1: File Name + link text
@@ -784,7 +784,7 @@ impl LinksApp {
         let opt0_r = Rect::from_min_size(Pos2::new(area.min.x + 64.0, row_y - 13.0), Vec2::new(opt0_w, 26.0));
         let resp0 = ui.interact(opt0_r, egui::Id::new("links-opt-auto"), Sense::click());
         let on0 = self.by_category;
-        p.rect(opt0_r, 13.0, if on0 { t.primary.gamma_multiply(0.12) } else { t.surface }, Stroke::new(1.2, if on0 { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
+        p.rect(opt0_r, 13.0, if on0 { t.primary.gamma_multiply(0.12) } else { t.surface }, Stroke::new(1.2_f32, if on0 { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
         p.circle_filled(Pos2::new(opt0_r.min.x + 13.0, opt0_r.center().y), 4.0, if on0 { t.primary } else { t.card_bd });
         if on0 { p.circle_filled(Pos2::new(opt0_r.min.x + 13.0, opt0_r.center().y), 2.0, Color32::WHITE); }
         p.text(Pos2::new(opt0_r.min.x + 24.0, opt0_r.center().y), Align2::LEFT_CENTER, "Auto sorting", semi(11.0), if on0 { t.primary } else { t.dim });
@@ -795,7 +795,7 @@ impl LinksApp {
         let opt1_r = Rect::from_min_size(Pos2::new(opt0_r.max.x + 8.0, row_y - 13.0), Vec2::new(opt1_w, 26.0));
         let resp1 = ui.interact(opt1_r, egui::Id::new("links-opt-dir"), Sense::click());
         let on1 = !self.by_category;
-        p.rect(opt1_r, 13.0, if on1 { t.primary.gamma_multiply(0.12) } else { t.surface }, Stroke::new(1.2, if on1 { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
+        p.rect(opt1_r, 13.0, if on1 { t.primary.gamma_multiply(0.12) } else { t.surface }, Stroke::new(1.2_f32, if on1 { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
         p.circle_filled(Pos2::new(opt1_r.min.x + 13.0, opt1_r.center().y), 4.0, if on1 { t.primary } else { t.card_bd });
         if on1 { p.circle_filled(Pos2::new(opt1_r.min.x + 13.0, opt1_r.center().y), 2.0, Color32::WHITE); }
         p.text(Pos2::new(opt1_r.min.x + 24.0, opt1_r.center().y), Align2::LEFT_CENTER, "All files to one directory", semi(11.0), if on1 { t.primary } else { t.dim });
@@ -804,11 +804,14 @@ impl LinksApp {
         // Path box + Browse button
         let path_x = opt1_r.max.x + 10.0;
         let avail_space = crate::dm::available_disk_space(&self.one_dir);
-        let avail_str = format!("Available: {avail_space}");
-        let avail_w = crate::shaped::width(&p, &avail_str, &semi(11.0)) + 12.0;
+        let avail_str = match avail_space {
+            Some(b) => format!("Available: {}", crate::dm::format_disk_space(b)),
+            None => String::new(),
+        };
+        let avail_w = if avail_str.is_empty() { 0.0 } else { crate::shaped::width(&p, &avail_str, &semi(11.0)) + 12.0 };
         let path_w = (area.max.x - path_x - avail_w - 8.0).clamp(110.0, 310.0);
         let path = Rect::from_min_size(Pos2::new(path_x, row_y - 14.0), Vec2::new(path_w, 28.0));
-        p.rect(path, 6.0, t.bg, Stroke::new(1.0, t.card_bd), egui::StrokeKind::Inside);
+        p.rect(path, 6.0, t.bg, Stroke::new(1.0_f32, t.card_bd), egui::StrokeKind::Inside);
         let browse = Rect::from_min_size(Pos2::new(path.max.x - 64.0, path.min.y + 3.0), Vec2::new(60.0, 22.0));
 
         if self.by_category {
@@ -821,7 +824,7 @@ impl LinksApp {
                 egui::TextEdit::singleline(&mut self.one_dir).frame(false).font(reg(11.0)).vertical_align(egui::Align::Center),
             );
             let resp = ui.interact(browse, egui::Id::new("links-browse"), Sense::click());
-            p.rect(browse, 4.0, if resp.hovered() { t.surface_lt } else { t.surface }, Stroke::new(1.0, t.card_bd), egui::StrokeKind::Inside);
+            p.rect(browse, 4.0, if resp.hovered() { t.surface_lt } else { t.surface }, Stroke::new(1.0_f32, t.card_bd), egui::StrokeKind::Inside);
             p.text(Pos2::new(browse.min.x + 6.0, browse.center().y), Align2::LEFT_CENTER, MI_FOLDER, icon(12.0), t.dim);
             p.text(Pos2::new(browse.min.x + 22.0, browse.center().y), Align2::LEFT_CENTER, "Browse", reg(10.5), t.txt);
             if resp.clicked() {
@@ -832,7 +835,9 @@ impl LinksApp {
         }
 
         // Available disk space
-        p.text(Pos2::new(path.max.x + 10.0, row_y), Align2::LEFT_CENTER, &avail_str, semi(11.0), t.dim);
+        if !avail_str.is_empty() {
+            p.text(Pos2::new(path.max.x + 10.0, row_y), Align2::LEFT_CENTER, &avail_str, semi(11.0), t.dim);
+        }
 
         // Bottom row: Action pill buttons [Cancel ✕] and [Download ⬇]
         let cancel_r = Rect::from_min_size(Pos2::new(area.max.x - 224.0, area.max.y - 30.0), Vec2::new(98.0, 28.0));
@@ -864,7 +869,7 @@ fn paint_check(p: &egui::Painter, r: Rect, on: bool, mixed: bool, hover: bool) {
             p.rect_filled(Rect::from_center_size(r.center(), Vec2::new(7.0, 2.0)), 1.0, Color32::WHITE);
         }
     } else {
-        p.rect(r, 4.0, t.bg, Stroke::new(1.5, if hover { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
+        p.rect(r, 4.0, t.bg, Stroke::new(1.5_f32, if hover { t.primary } else { t.card_bd }), egui::StrokeKind::Inside);
     }
 }
 

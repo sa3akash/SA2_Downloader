@@ -76,7 +76,7 @@ pub fn dm_box(p: &egui::Painter, r: egui::Rect) {
         r,
         DM_RAD,
         pl().dm_line,
-        egui::Stroke::new(1.0, pl().dm_box_bd),
+        egui::Stroke::new(1.0_f32, pl().dm_box_bd),
         egui::StrokeKind::Inside,
     );
 }
@@ -259,7 +259,7 @@ pub fn dm_arc(p: &egui::Painter, c: egui::Pos2, r: f32, a0: f32, a1: f32, st: eg
 pub fn dm_icon(p: &egui::Painter, r: egui::Rect, icon: DmIcon, color: egui::Color32, w: f32) {
     let s = r.width().min(r.height()) / 24.0;
     let m = |x: f32, y: f32| egui::pos2(r.min.x + x * s, r.min.y + y * s);
-    let st = egui::Stroke::new((w * s).max(1.0), color);
+    let st = egui::Stroke::new((w * s).max(1.0_f32), color);
     let line = |a: (f32, f32), b: (f32, f32)| {
         p.line_segment([m(a.0, a.1), m(b.0, b.1)], st);
     };
@@ -689,7 +689,7 @@ pub fn icon_btn_box(
         rect,
         DM_RAD,
         if hovered { pl().dm_hover2 } else { pl().dm_line },
-        egui::Stroke::new(1.0, pl().dm_box_bd),
+        egui::Stroke::new(1.0_f32, pl().dm_box_bd),
         egui::StrokeKind::Inside,
     );
     dm_icon(
@@ -721,7 +721,7 @@ pub fn btn_flat_c(
     p.rect_stroke(
         r,
         DM_RAD,
-        egui::Stroke::new(1.0, pl().dm_box_bd),
+        egui::Stroke::new(1.0_f32, pl().dm_box_bd),
         egui::StrokeKind::Inside,
     );
     p.text(
@@ -853,7 +853,7 @@ pub fn dm_check(p: &egui::Painter, r: egui::Rect, checked: bool) {
             r,
             4.0,
             pl().dm_card,
-            egui::Stroke::new(1.0, pl().dm_box_bd),
+            egui::Stroke::new(1.0_f32, pl().dm_box_bd),
             egui::StrokeKind::Inside,
         );
     }
@@ -1016,9 +1016,9 @@ pub fn dm_gauge(
     _start_color: egui::Color32,
     end_color: egui::Color32,
 ) {
-    let thickness = 6.0;
-    let a0 = 200.0;
-    let a1 = -20.0;
+    let thickness = 6.0_f32;
+    let a0 = 200.0_f32;
+    let a1 = -20.0_f32;
     // Background track arc
     dm_arc(p, center, radius, a0, a1, egui::Stroke::new(thickness, track_color));
     // Value arc

@@ -1215,7 +1215,7 @@ fn dp_small(ui: &mut egui::Ui, man: &ManState, label: &str, w: f32) -> egui::Rec
     p.rect_stroke(
         rect,
         5.0,
-        egui::Stroke::new(1.0, pl().modal_bd),
+        egui::Stroke::new(1.0_f32, pl().modal_bd),
         egui::StrokeKind::Inside,
     );
     p.text(
@@ -6307,7 +6307,7 @@ impl eframe::App for CraftApp {
                     pl().txt,
                 );
                 let mut x = mark.right() + 6.0 + name.size().x + 11.0;
-                p.vline(x, (cy - 9.0)..=(cy + 9.0), egui::Stroke::new(1.0, pl().card_bd));
+                p.vline(x, (cy - 9.0)..=(cy + 9.0), egui::Stroke::new(1.0_f32, pl().card_bd));
                 x += 9.0;
 
                 // ---- menus (`.menu-item`): the same dropdowns, now up here ----
@@ -6484,7 +6484,7 @@ impl eframe::App for CraftApp {
                     p.rect_stroke(
                         pill.expand(1.5),
                         16.0,
-                        egui::Stroke::new(3.0, wash(pl().primary, 34)),
+                        egui::Stroke::new(3.0_f32, wash(pl().primary, 34)),
                         egui::StrokeKind::Middle,
                     );
                 }
@@ -6493,7 +6493,7 @@ impl eframe::App for CraftApp {
                     14.0,
                     wash(pl().txt, if focused { 13 } else if hov { 16 } else { 10 }),
                     egui::Stroke::new(
-                        1.0,
+                        1.0_f32,
                         if focused { pl().primary } else { egui::Color32::TRANSPARENT },
                     ),
                     egui::StrokeKind::Inside,
@@ -6598,7 +6598,7 @@ impl eframe::App for CraftApp {
                     self.hits.push((HitKind::HdrCheck, lbl_resp.rect));
 
                     ui.add_space(14.0);
-                    ui.painter().vline(ui.cursor().min.x, (ui.cursor().min.y + 2.0)..=(ui.cursor().max.y - 2.0), egui::Stroke::new(1.0, pl().card_bd));
+                    ui.painter().vline(ui.cursor().min.x, (ui.cursor().min.y + 2.0)..=(ui.cursor().max.y - 2.0), egui::Stroke::new(1.0_f32, pl().card_bd));
                     ui.add_space(14.0);
 
                     let left = format!("{active} downloading · {total} in list");
@@ -6798,7 +6798,7 @@ impl eframe::App for CraftApp {
 
                         // Stats & Arc Gauge
                         let (_free_b, total_b, used_ratio) = get_disk_space_stats(&self.add_dir);
-                        let used_pct = if total_b > 0 { (used_ratio * 100.0).round() as u32 } else { 90 };
+                        let used_pct = if total_b > 0 { used_ratio.round() as u32 } else { 90 };
                         let gauge_center = egui::pos2(card_rect.center().x, card_rect.min.y + 58.0);
                         dm_gauge(p, gauge_center, 30.0, (used_pct as f32) / 100.0, pl().surface_lt, SPRING_BREEZE_START, SPRING_BREEZE_END);
                         p.text(
@@ -7446,7 +7446,7 @@ impl eframe::App for CraftApp {
                         card,
                         8.0,
                         pl().dm_card,
-                        egui::Stroke::new(1.0, pl().dm_line),
+                        egui::Stroke::new(1.0_f32, pl().dm_line),
                         egui::StrokeKind::Inside,
                     );
                     // ---- header: mark + title + window controls ----
@@ -7463,7 +7463,7 @@ impl eframe::App for CraftApp {
                             egui::pos2(o.x + 1.0, o.y + 39.5),
                             egui::pos2(o.x + DM_W - 1.0, o.y + 39.5),
                         ],
-                        egui::Stroke::new(1.0, pl().dm_line),
+                        egui::Stroke::new(1.0_f32, pl().dm_line),
                     );
                     // The dialog lives in the main canvas, so minimise/restore
                     // drive the real OS window and the X closes the dialog.
@@ -7684,7 +7684,7 @@ impl eframe::App for CraftApp {
                                 cbx,
                                 4.0,
                                 pl().dm_card,
-                                egui::Stroke::new(1.0, pl().dm_box_bd),
+                                egui::Stroke::new(1.0_f32, pl().dm_box_bd),
                                 egui::StrokeKind::Inside,
                             );
                         }
@@ -7753,7 +7753,7 @@ impl eframe::App for CraftApp {
                             .show(ctx, |ui| {
                                 egui::Frame::new()
                                     .fill(pl().dm_card)
-                                    .stroke(egui::Stroke::new(1.0, pl().dm_line))
+                                    .stroke(egui::Stroke::new(1.0_f32, pl().dm_line))
                                     .corner_radius(DM_RAD)
                                     .inner_margin(egui::Margin::same(6))
                                     .show(ui, |ui| {
@@ -8431,7 +8431,7 @@ impl eframe::App for CraftApp {
                                             strip,
                                             8.0,
                                             pl().surface,
-                                            egui::Stroke::new(1.0, soft),
+                                            egui::Stroke::new(1.0_f32, soft),
                                             egui::StrokeKind::Inside,
                                         );
                                         let fr = [1.5_f32, 0.95, 1.0];
@@ -8445,7 +8445,7 @@ impl eframe::App for CraftApp {
                                                         egui::pos2(cx, strip.min.y + 6.0),
                                                         egui::pos2(cx, strip.max.y - 6.0),
                                                     ],
-                                                    egui::Stroke::new(1.0, soft),
+                                                    egui::Stroke::new(1.0_f32, soft),
                                                 );
                                             }
                                             let tx = cx + 11.0;
@@ -9066,13 +9066,13 @@ impl eframe::App for CraftApp {
                     pf.rect_stroke(
                         card,
                         14.0,
-                        egui::Stroke::new(1.0, p.modal_bd),
+                        egui::Stroke::new(1.0_f32, p.modal_bd),
                         egui::StrokeKind::Inside,
                     );
                     pf.hline(
                         card.x_range(),
                         card.top() + 0.5,
-                        egui::Stroke::new(1.0, wash(accent, 110)),
+                        egui::Stroke::new(1.0_f32, wash(accent, 110)),
                     );
 
                     // ---- header: centered title + close ----
@@ -9080,7 +9080,7 @@ impl eframe::App for CraftApp {
                     pf.hline(
                         card.x_range(),
                         head.bottom() - 0.5,
-                        egui::Stroke::new(1.0, soft),
+                        egui::Stroke::new(1.0_f32, soft),
                     );
                     let title_g = pf.layout_no_wrap("About".to_owned(), f_title.clone(), p.txt);
                     pf.galley(
@@ -9117,7 +9117,7 @@ impl eframe::App for CraftApp {
                         tile,
                         12.0,
                         wash(accent, 26),
-                        egui::Stroke::new(1.0, wash(accent, 72)),
+                        egui::Stroke::new(1.0_f32, wash(accent, 72)),
                         egui::StrokeKind::Inside,
                     );
                     pf.text(
@@ -9144,7 +9144,7 @@ impl eframe::App for CraftApp {
                         tag,
                         8.5,
                         wash(green, 30),
-                        egui::Stroke::new(1.0, wash(green, 64)),
+                        egui::Stroke::new(1.0_f32, wash(green, 64)),
                         egui::StrokeKind::Inside,
                     );
                     pf.galley(tag.center() - tag_g.size() / 2.0, tag_g, green);
@@ -9155,7 +9155,7 @@ impl eframe::App for CraftApp {
                     );
                     y += brand_h + 16.0;
                     // divider
-                    pf.hline(bx..=card.right() - pad, y, egui::Stroke::new(1.0, soft));
+                    pf.hline(bx..=card.right() - pad, y, egui::Stroke::new(1.0_f32, soft));
                     y += 1.0 + 14.0;
                     // copy
                     for g in [&desc1, &desc2, &desc3] {
@@ -9169,7 +9169,7 @@ impl eframe::App for CraftApp {
                         cb,
                         9.0,
                         mix(p.modal_bg, p.surface_lt, 0.30),
-                        egui::Stroke::new(1.0, soft),
+                        egui::Stroke::new(1.0_f32, soft),
                         egui::StrokeKind::Inside,
                     );
                     pf.text(
@@ -9232,7 +9232,7 @@ impl eframe::App for CraftApp {
                     pf.hline(
                         card.x_range(),
                         foot.top() + 0.5,
-                        egui::Stroke::new(1.0, soft),
+                        egui::Stroke::new(1.0_f32, soft),
                     );
                     let cw = {
                         let g = pf.layout_no_wrap("Close".to_owned(), f_body.clone(), egui::Color32::WHITE);

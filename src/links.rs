@@ -1089,7 +1089,7 @@ pub fn run() -> eframe::Result<()> {
     };
     let prefs = crate::confirm::load_prefs();
     let base_url = reqwest::Url::parse(&batch.page_url).ok();
-    let rows = batch
+    let rows: Vec<Row> = batch
         .links
         .into_iter()
         .map(|l| {

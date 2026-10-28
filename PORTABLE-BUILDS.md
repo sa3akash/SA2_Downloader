@@ -1,4 +1,4 @@
-# Download Craft 1.1.0
+# Download SA2 1.1.0
 
 Use [the current release instructions](RELEASE-NOTES.md) for Windows, universal
 Mac, Fedora/RPM, Debian-family DEB and AppImage installation and media helpers.

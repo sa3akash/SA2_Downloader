@@ -67,7 +67,7 @@ fn read_value() -> Option<String> {
     parse_query(&String::from_utf8_lossy(&out.stdout))
 }
 
-/// `reg query` prints `    Download Craft    REG_SZ    "C:\…\sa2_downloader.exe" --startup`.
+/// `reg query` prints `    Download SA2    REG_SZ    "C:\…\sa2_downloader.exe" --startup`.
 fn parse_query(text: &str) -> Option<String> {
     text.lines().find_map(|l| {
         let (_, rest) = l.split_once("REG_SZ")?;
@@ -81,15 +81,15 @@ mod tests {
 
     #[test]
     fn the_run_value_quotes_the_path_and_marks_the_launch() {
-        let c = command_for(std::path::Path::new(r"D:\Apps\Download Craft\sa2_downloader.exe"));
-        assert_eq!(c, r#""D:\Apps\Download Craft\sa2_downloader.exe" --startup"#);
+        let c = command_for(std::path::Path::new(r"D:\Apps\Download SA2\sa2_downloader.exe"));
+        assert_eq!(c, r#""D:\Apps\Download SA2\sa2_downloader.exe" --startup"#);
         assert!(is_startup_launch(&["x".into(), "--startup".into()]));
         assert!(!is_startup_launch(&["x".into()]));
     }
 
     #[test]
     fn reg_query_output_is_read() {
-        let out = "\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\r\n    Download Craft    REG_SZ    \"C:\\x y\\sa2_downloader.exe\" --startup\r\n\r\n";
+        let out = "\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\r\n    Download SA2    REG_SZ    \"C:\\x y\\sa2_downloader.exe\" --startup\r\n\r\n";
         assert_eq!(parse_query(out).as_deref(), Some("\"C:\\x y\\sa2_downloader.exe\" --startup"));
         assert_eq!(parse_query("ERROR: nothing"), None);
     }

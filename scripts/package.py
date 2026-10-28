@@ -27,11 +27,11 @@ with tempfile.TemporaryDirectory() as temp:
     root=pathlib.Path(temp)/f'SA2Downloader-{version}-{osname}-{a.arch}'
     root.mkdir()
     if osname=='macos':
-        contents=root/'Download Craft.app/Contents'
+        contents=root/'Download SA2.app/Contents'
         dest=contents/'MacOS/sa2_downloader'
         dest.parent.mkdir(parents=True)
         with (contents/'Info.plist').open('wb') as f:
-            plistlib.dump({'CFBundleName':'Download Craft','CFBundleDisplayName':'Download Craft',
+            plistlib.dump({'CFBundleName':'Download SA2','CFBundleDisplayName':'Download SA2',
                 'CFBundleIdentifier':'com.SA2Downloader.app','CFBundleExecutable':'sa2_downloader',
                 'CFBundlePackageType':'APPL','CFBundleVersion':version.rsplit('.',1)[0]+version.rsplit('.',1)[1] if version.count('.')==3 else version,'CFBundleShortVersionString':version,
                 'LSMinimumSystemVersion':'12.0','NSHighResolutionCapable':True},f)

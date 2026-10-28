@@ -14,7 +14,7 @@ REPO=Path(__file__).resolve().parents[1]
 VERSION=(REPO/'VERSION').read_text().strip()
 DESKTOP='''[Desktop Entry]
 Type=Application
-Name=Download Craft
+Name=Download SA2
 Comment=Download manager with browser capture
 Exec=sa2_downloader
 Icon=com.SA2Downloader.app
@@ -58,11 +58,11 @@ Version: {VERSION}
 Section: net
 Priority: optional
 Architecture: amd64
-Maintainer: Download Craft contributors <noreply@SA2Downloader.local>
+Maintainer: Download SA2 contributors <noreply@SA2Downloader.local>
 Homepage: https://github.com/hungry-detective/SA2Downloader
 Depends: libc6 (>= 2.28), libgcc-s1, libx11-6, libxcb1, libxkbcommon0, libgl1, libwayland-client0, xdg-utils
 Recommends: libglib2.0-bin
-Description: Download Craft desktop download manager
+Description: Download SA2 desktop download manager
  Download manager with Chrome, Brave and Firefox integration, media download
  support, resumable transfers and per-user helper installation.
 ''')
@@ -84,7 +84,7 @@ Requires: glibc >= 2.28, libgcc, libX11, libxcb, libxkbcommon, mesa-libGL, wayla
 %global _build_id_links none
 %global __os_install_post %{{nil}}
 %description
-Download Craft desktop download manager with Chrome, Brave and Firefox capture.
+Download SA2 desktop download manager with Chrome, Brave and Firefox capture.
 %install
 mkdir -p %{{buildroot}}
 cp -a "{root}/usr" %{{buildroot}}/

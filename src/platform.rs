@@ -259,7 +259,7 @@ pub fn install_native_host(browser: &str) -> Result<String, String> {
         std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o700))
             .map_err(|e| e.to_string())?;
     }
-    let mut manifest = serde_json::json!({"name":"com.sa2_downloader","description":"Download Craft native host","path":launcher,"type":"stdio"});
+    let mut manifest = serde_json::json!({"name":"com.sa2_downloader","description":"Download SA2 native host","path":launcher,"type":"stdio"});
     if browser == "firefox" {
         manifest["allowed_extensions"] = serde_json::json!(["send-to-download-craft@example"]);
     } else {

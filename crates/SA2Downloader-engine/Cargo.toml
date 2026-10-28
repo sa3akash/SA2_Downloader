@@ -2,7 +2,7 @@
 name = "SA2Downloader-engine"
 version = "0.1.0"
 edition = "2021"
-description = "Multi-connection HTTP download engine with dynamic segmentation (work stealing), crash-safe resume and link refresh — the engine behind Download Craft"
+description = "Multi-connection HTTP download engine with dynamic segmentation (work stealing), crash-safe resume and link refresh — the engine behind Download SA2"
 license = "MIT"
 repository = "https://github.com/hungry-detective/SA2Downloader"
 keywords = ["download", "http", "accelerator", "segmented", "resume"]

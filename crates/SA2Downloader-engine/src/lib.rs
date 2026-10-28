@@ -1,7 +1,7 @@
 //! # SA2Downloader-engine
 //!
 //! A multi-connection HTTP(S) download engine — the one inside
-//! [Download Craft](https://github.com/hungry-detective/SA2Downloader) — built
+//! [Download SA2](https://github.com/hungry-detective/SA2Downloader) — built
 //! on `tokio` and `reqwest`, free to use in your own downloader (MIT).
 //!
 //! What makes it fast and robust:

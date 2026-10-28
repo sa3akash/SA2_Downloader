@@ -1,4 +1,4 @@
-// Live link to the Download Craft app, IDM-style.
+// Live link to the Download SA2 app, IDM-style.
 //
 // 1. One persistent native port (runtime.connectNative) instead of starting
 //    the host program for every message: requests carry an id ("rid"), the
@@ -152,7 +152,7 @@ var DCBridge = (() => {
     try {
       const spec = ["requestHeaders"];
       if (chrome.webRequest && chrome.webRequest.OnSendHeadersOptions
-          && Object.prototype.hasOwnProperty.call(chrome.webRequest.OnSendHeadersOptions, "EXTRA_HEADERS")) spec.push("extraHeaders");
+        && Object.prototype.hasOwnProperty.call(chrome.webRequest.OnSendHeadersOptions, "EXTRA_HEADERS")) spec.push("extraHeaders");
       api.webRequest.onSendHeaders.addListener((d) => {
         ctxOf(d.requestId).headers = d.requestHeaders || [];
       }, filter, spec);
@@ -162,7 +162,7 @@ var DCBridge = (() => {
         const c = byId.get(d.requestId);
         if (c && d.redirectUrl) index(d.redirectUrl, c);
       }, filter);
-    } catch (e) {}
+    } catch (e) { }
     try {
       api.webRequest.onResponseStarted.addListener((d) => {
         const c = byId.get(d.requestId);
@@ -171,12 +171,12 @@ var DCBridge = (() => {
         if (isFirefox && d.proxyInfo) c.proxy = proxyText(d.proxyInfo);
         index(d.url, c);
       }, filter);
-    } catch (e) {}
+    } catch (e) { }
     try {
       if (api.proxy && api.proxy.settings && api.proxy.settings.onChange && !isFirefox) {
         api.proxy.settings.onChange.addListener(readChromeProxy);
       }
-    } catch (e) {}
+    } catch (e) { }
     readChromeProxy();
   }
 
@@ -282,7 +282,7 @@ var DCBridge = (() => {
         buf = new Uint8Array(0);
         if (!res || !res.ok) throw new Error((res && res.error) || "the app stopped listening");
       };
-      for (;;) {
+      for (; ;) {
         const { value, done } = await reader.read();
         if (done) break;
         total += value.length;
@@ -306,14 +306,14 @@ var DCBridge = (() => {
 
   async function pageFetch(m) {
     const id = String(m.id || "");
-    const fail = (error, status) => send({ type: "pageFetchChunk", fetchId: id, error: error || "failed", status: status || null }).catch(() => {});
+    const fail = (error, status) => send({ type: "pageFetchChunk", fetchId: id, error: error || "failed", status: status || null }).catch(() => { });
     if (!/^[A-Za-z0-9-]{1,64}$/.test(id) || !/^https?:\/\//i.test(m.url || "") || !/^https?:\/\//i.test(m.page || "")) return fail("bad request");
     let tab = null;
     try {
       const tabs = await api.tabs.query({});
       tab = tabs.find((t) => t.url && samePage(t.url, m.page))
         || tabs.find((t) => { try { return t.url && new URL(t.url).origin === new URL(m.page).origin; } catch (e) { return false; } });
-    } catch (e) {}
+    } catch (e) { }
     if (!tab) return fail("the page is not open in the browser any more");
     pendingFetch.add(id);
     try {

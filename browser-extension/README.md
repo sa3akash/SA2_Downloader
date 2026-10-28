@@ -47,7 +47,7 @@ and the promise-style API calls go through `api` (`browser` when it exists,
 
 2. In Firefox open `about:debugging#/runtime/this-firefox`, press
    **Load Temporary Add-on…** and pick the `.xpi` (or the staged folder's
-   `manifest.json`). The add-on appears as *Send to Download Craft* with the
+   `manifest.json`). The add-on appears as *Send to Download SA2* with the
    ID `send-to-download-craft@example` — the same ID the app allows in
    `%APPDATA%\sa2_downloader\native-host\firefox.json`.
 3. Then do step 2 below (**Install firefox** in Settings).
@@ -124,7 +124,7 @@ URLs that server-side fetching from a flagged network cannot get.
 
 ## After updating the app or extension
 
-1. In Download Craft → **Settings** → **Browser integration**, reinstall
+1. In Download SA2 → **Settings** → **Browser integration**, reinstall
    the host for your browser (this also cleans up legacy registrations).
 2. In `chrome://extensions`, hit **reload** on the unpacked extension.
    In Firefox, rebuild the `.xpi` (see **1b**) and load it again — temporary

@@ -1,4 +1,4 @@
-# Download Craft: what is still open
+# Download SA2: what is still open
 
 The one roadmap. It lists only what is not done yet. Everything else from the
 earlier engine, IDM-parity and extension roadmaps is built and in the code.

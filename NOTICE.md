@@ -1,6 +1,6 @@
 # Third-party notices
 
-Download Craft is original Rust code written for this project. Its interface
+Download SA2 is original Rust code written for this project. Its interface
 design was inspired by modern download managers. The libraries below are
 built into the program; their own licences apply to them.
 
@@ -9,7 +9,7 @@ built into the program; their own licences apply to them.
 RAR archives are extracted with the UnRAR source code by Alexander Roshal,
 built in through the `unrar` / `unrar_sys` crates (MIT / Apache-2.0 for the
 Rust wrapper). UnRAR may be used to extract RAR archives free of charge; it
-may not be used to re-create the RAR compression algorithm. Download Craft
+may not be used to re-create the RAR compression algorithm. Download SA2
 only extracts. The full licence is in `licenses/UnRAR-license.txt` and ships
 next to the program.
 

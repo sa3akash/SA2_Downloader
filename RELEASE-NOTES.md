@@ -1,4 +1,4 @@
-# Download Craft 1.1.0 — New Modern IDM 7.0 UI, Theme System & Automated Release Builds
+# Download SA2 1.1.0 — New Modern IDM 7.0 UI, Theme System & Automated Release Builds
 
 ## What's new in 1.1.0
 
@@ -48,7 +48,7 @@
 All packages are compiled with full optimizations and attached directly to the GitHub Release for download and immediate use:
 
 - **Windows 10/11 (64-bit)**: Download `SA2Downloader-1.1.0-windows-x64-portable.zip` — extract and run `sa2_downloader.exe`. Portable, zero-install, preserves settings and downloads.
-- **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `SA2Downloader-1.1.0-macos-Universal.zip` — unzip and move `Download Craft.app` to your Applications folder.
+- **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `SA2Downloader-1.1.0-macos-Universal.zip` — unzip and move `Download SA2.app` to your Applications folder.
 - **Linux (x86_64, glibc 2.28+)**:
   - Ubuntu, Debian, Mint: `SA2Downloader_1.1.0_amd64.deb` (`sudo apt install ./SA2Downloader_1.1.0_amd64.deb`)
   - Fedora, RHEL: `SA2Downloader-1.1.0-1.x86_64.rpm` (`sudo dnf install ./SA2Downloader-1.1.0-1.x86_64.rpm`)

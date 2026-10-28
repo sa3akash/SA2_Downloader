@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-//! Download Craft: GUI + CLI + native host + standalone dialogs.
+//! Download SA2: GUI + CLI + native host + standalone dialogs.
 //! Release builds run without a console window; all diagnostics go to
 //! %APPDATA%/sa2_downloader/crash.log and the in-app log/queues panels.
 

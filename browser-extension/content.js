@@ -2372,7 +2372,7 @@
       setPrimaryLabel: (t) => {
         if (primary && primary.firstChild) primary.firstChild.textContent = t;
       },
-      setHint: (_t) => {},
+      setHint: (_t) => { },
       sync,
       show: () => { panel.style.display = "block"; paintDcPanel(panel); },
       hide: () => { panel.style.display = "none"; },
@@ -3435,7 +3435,7 @@
     } catch (e) { /* background unreachable */ }
   }
 
-  // Right-click → "Download video with Download Craft": the video under the
+  // Right-click → "Download video with Download SA2": the video under the
   // pointer (sites cover it with their own layers, so the click target is
   // rarely the <video> itself), else the biggest one on screen. It does what
   // its button does: YouTube's menu, a post's qualities, Facebook's menu.

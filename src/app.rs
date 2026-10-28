@@ -5735,14 +5735,14 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
     let manifest = match browser {
         "firefox" => serde_json::json!({
             "name": HOST_NAME,
-            "description": "Download Craft native host",
+            "description": "Download SA2 native host",
             "path": bat.to_string_lossy(),
             "type": "stdio",
             "allowed_extensions": ["send-to-download-craft@example"]
         }),
         _ => serde_json::json!({
             "name": HOST_NAME,
-            "description": "Download Craft native host",
+            "description": "Download SA2 native host",
             "path": bat.to_string_lossy(),
             "type": "stdio",
             "allowed_origins": std::iter::once(EXTENSION_ID)

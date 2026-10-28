@@ -1,7 +1,7 @@
 //! The data file: one file the size of the download, written by every
 //! connection at its own offset.
 //!
-//! Unlike one temporary file per segment (IDM's design, and Download Craft's
+//! Unlike one temporary file per segment (IDM's design, and Download SA2's
 //! before this engine), nothing has to be copied together at the end: the
 //! finished data file is simply renamed. On Windows the file is marked sparse
 //! first, so writing near the end of a large, still empty file does not make

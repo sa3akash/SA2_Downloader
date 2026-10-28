@@ -1,6 +1,6 @@
 # SA2Downloader-engine
 
-The download engine behind [Download Craft](https://github.com/hungry-detective/SA2Downloader), as a
+The download engine behind [Download SA2](https://github.com/hungry-detective/SA2Downloader), as a
 standalone Rust crate you can drop into your own downloader. MIT licensed, async (`tokio` +
 `reqwest`).
 

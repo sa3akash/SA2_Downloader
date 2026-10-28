@@ -815,7 +815,7 @@ async function sendToHostPing() {
   await syncBrowserDownloadUI();
 }
 
-// Pages where "Download video with Download Craft" is also on the page menu.
+// Pages where "Download video with Download SA2" is also on the page menu.
 const VIDEO_SITE_PATTERNS = [
   "*://*.youtube.com/*", "*://*.facebook.com/*", "*://*.instagram.com/*", "*://*.tiktok.com/*",
   "*://*.x.com/*", "*://x.com/*", "*://*.twitter.com/*", "*://*.reddit.com/*", "*://*.vimeo.com/*", "*://vimeo.com/*",

@@ -28,7 +28,7 @@ Multi-connection parallel downloads, dynamic segmentation work-stealing, YouTube
 
 <br><br>
 
-<img src="docs/screenshot-main-window.png" alt="Download Craft main window with active, paused, finished and failed downloads" width="92%">
+<img src="docs/screenshot-main-window.png" alt="Download SA2 main window with active, paused, finished and failed downloads" width="92%">
 
 </div>
 
@@ -169,7 +169,7 @@ let done = SA2Downloader_engine::Downloader::new(reqwest::Client::new())
 | Platform | Download | How |
 |---|---|---|
 | **Windows 10/11** | `SA2Downloader-1.1.0-windows-x64-portable.zip` | Extract and run `sa2_downloader.exe` — nothing to install. |
-| **macOS 12+** | `SA2Downloader-1.1.0-macos-Universal.zip` | Move *Download Craft.app* to Applications (development build, not notarized — right-click → Open the first time). |
+| **macOS 12+** | `SA2Downloader-1.1.0-macos-Universal.zip` | Move *Download SA2.app* to Applications (development build, not notarized — right-click → Open the first time). |
 | **Ubuntu / Debian / Mint** | `SA2Downloader_1.1.0_amd64.deb` | `sudo apt install ./SA2Downloader_1.1.0_amd64.deb` |
 | **Fedora** | `SA2Downloader-1.1.0-1.x86_64.rpm` | `sudo dnf install ./SA2Downloader-1.1.0-1.x86_64.rpm` |
 | **Other Linux** | `SA2Downloader-1.1.0-x86_64.AppImage` | Make it executable and open it. |

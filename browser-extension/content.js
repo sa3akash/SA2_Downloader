@@ -7,7 +7,7 @@
   // Must match manifest version + background.js EXT_VER. The background
   // rejects messages from any other version with a "reload this tab"
   // error, so a stale script can never fail mysteriously.
-  const EXT_VER = "1.1.0";
+  const EXT_VER = "1.1.1";
   // Promise-style calls (the `await api.*` one below) go through this handle
   // so one file serves both engines: Firefox exposes the promise-returning
   // `browser` namespace, Chrome only has `chrome` (promise-capable under MV3).
@@ -2343,7 +2343,9 @@
         it.el.onclick = (ev) => {
           if (ev && ev.stopPropagation) ev.stopPropagation();
           select(it);
-          if (q.onPick) q.onPick();
+          if (q.onPick) {
+            try { q.onPick(); } catch (err) { /* ignore */ }
+          }
         };
         grid.appendChild(it.el);
         items.push(it);
@@ -2351,7 +2353,9 @@
         // primary button always has something to download.
         if (!selected) {
           select(it);
-          if (q.onPick) q.onPick();
+          if (q.onPick) {
+            try { q.onPick(); } catch (err) { /* ignore */ }
+          }
         }
         sync();
         return it;
@@ -2365,9 +2369,11 @@
       },
       setInfo: (o) => {
         if (!o) return;
-        if (primary && primary.firstChild && o.res) {
-          primary.firstChild.textContent = `${dcT("panelDownload", "Download")} ${o.res}`;
-        }
+        try {
+          if (primary && primary.firstChild && o.res) {
+            primary.firstChild.textContent = `${dcT("panelDownload", "Download")} ${o.res}`;
+          }
+        } catch (e) { /* ignore */ }
       },
       setPrimaryLabel: (t) => {
         if (primary && primary.firstChild) primary.firstChild.textContent = t;

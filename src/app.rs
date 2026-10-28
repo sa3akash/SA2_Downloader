@@ -28,6 +28,7 @@ pub const TB_H: f32 = 46.0;
 /// theme (and "system" while Windows is dark) still matches the concept HTML;
 /// `LIGHT_PAL` is the same layout in a light key: same accents and geometry,
 /// inverted surfaces/text.
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub struct Palette {
     /// Panel background behind the workspace.
@@ -402,78 +403,131 @@ pub fn apply_widget_theme(ctx: &egui::Context) {
 }
 
 // ---------- Material Icons codepoints (font bundled under assets/fonts) ----------
+#[allow(dead_code)]
 pub(crate) const MI_SEARCH: &str = "\u{e8b6}";
+#[allow(dead_code)]
 pub(crate) const MI_PLAY: &str = "\u{e037}";
+#[allow(dead_code)]
 pub(crate) const MI_STOP: &str = "\u{e047}";
+#[allow(dead_code)]
 pub(crate) const MI_IMAGE: &str = "\u{e3f4}";
+#[allow(dead_code)]
 pub(crate) const MI_MUSIC: &str = "\u{e405}";
+#[allow(dead_code)]
 pub(crate) const MI_GRID: &str = "\u{e9b0}";
 /// Nine dots in a 3×3 grid (sidebar "All"; the concept draws its dotted
 /// "everything" tile this way, and it keeps All distinct from Apps).
+#[allow(dead_code)]
 pub(crate) const MI_APPS_DOTS: &str = "\u{e5c3}";
+#[allow(dead_code)]
 pub(crate) const MI_DOC: &str = "\u{e873}";
+#[allow(dead_code)]
 pub(crate) const MI_ARCHIVE: &str = "\u{e149}";
+#[allow(dead_code)]
 pub(crate) const MI_CLOUD_DL: &str = "\u{e2c0}";
+#[allow(dead_code)]
 pub(crate) const MI_PAUSE: &str = "\u{e034}";
+#[allow(dead_code)]
 pub(crate) const MI_COPY: &str = "\u{e14d}";
+#[allow(dead_code)]
 pub(crate) const MI_PUBLIC: &str = "\u{e80b}";
+#[allow(dead_code)]
 pub(crate) const MI_DELETE: &str = "\u{e872}";
 // ---- icons added for the main-window redesign (main_window.html) ----
 /// Plus (toolbar "Add URL").
+#[allow(dead_code)]
 pub(crate) const MI_ADD: &str = "\u{e145}";
 /// Rounded rect with a play mark (sidebar "Videos", table Video rows).
+#[allow(dead_code)]
 pub(crate) const MI_SLIDESHOW: &str = "\u{e41b}";
 /// Three shrinking rules (sidebar "Queued").
+#[allow(dead_code)]
 pub(crate) const MI_FILTER: &str = "\u{e152}";
 /// Circle with an X (sidebar "Failed").
+#[allow(dead_code)]
 pub(crate) const MI_CANCEL: &str = "\u{e5c9}";
 /// Cross X (close / delete).
+#[allow(dead_code)]
 pub(crate) const MI_CLOSE: &str = "\u{e5cd}";
 /// Circle with a clock (sidebar "Unfinished").
+#[allow(dead_code)]
 pub(crate) const MI_SCHEDULE: &str = "\u{e8b5}";
 /// Circle with a tick (sidebar "Finished").
+#[allow(dead_code)]
 pub(crate) const MI_CHECK_CIRCLE: &str = "\u{e86c}";
 /// Outlined circle with a play mark (toolbar "Resume").
+#[allow(dead_code)]
 pub(crate) const MI_PLAY_CIRCLE: &str = "\u{e039}";
 /// Filled circle with pause bars (toolbar "Stop All").
+#[allow(dead_code)]
 pub(crate) const MI_PAUSE_CIRCLE: &str = "\u{e035}";
 /// Outlined circle with pause bars (toolbar "Stop").
+#[allow(dead_code)]
 pub(crate) const MI_STOP_CIRCLE: &str = "\u{e1a2}";
 /// Three equal rules (toolbar "Open Queue").
+#[allow(dead_code)]
 pub(crate) const MI_REORDER: &str = "\u{e8fe}";
 /// Slider rules (toolbar "Settings").
+#[allow(dead_code)]
 pub(crate) const MI_TUNE: &str = "\u{e429}";
 /// Page with a folded corner (table "Other"/unknown rows).
+#[allow(dead_code)]
 pub(crate) const MI_INSERT_FILE: &str = "\u{e24d}";
+#[allow(dead_code)]
 pub(crate) const MI_SHARE: &str = "\u{e80d}";
 /// Collapsed / expanded affordances for the sidebar sections.
+#[allow(dead_code)]
 const MI_OPEN: &str = "\u{e0b2}";
+#[allow(dead_code)]
 const MI_MOVE: &str = "\u{e2c7}";
+#[allow(dead_code)]
 const MI_PAUSE_BARS: &str = "\u{e037}";
+#[allow(dead_code)]
 const MI_STOP_SQUARE: &str = "\u{e047}";
+#[allow(dead_code)]
 const MI_SPEED: &str = "\u{e9e4}";
+#[allow(dead_code)]
 const MI_ARROW_DOWN: &str = "\u{e5db}";
+#[allow(dead_code)]
 const MI_CHECK: &str = "\u{e5ca}";
 /// Popup-menu label prefixes: a ticked choice, and an unticked one in the
 /// same group (indented to line up with the ticked one).
+#[allow(dead_code)]
 const POPUP_CHECK: &str = "\u{1}";
+#[allow(dead_code)]
 const POPUP_INDENT: &str = "\u{2}";
+#[allow(dead_code)]
 const MI_FOLDER_OPEN: &str = "\u{e2c8}";
+#[allow(dead_code)]
 const MI_INFO: &str = "\u{e88e}";
+#[allow(dead_code)]
 const MI_REPLAY: &str = "\u{e042}";
+#[allow(dead_code)]
 const MI_TRANSFORM: &str = "\u{e428}";
+#[allow(dead_code)]
 const MI_UNARCHIVE: &str = "\u{e169}";
+#[allow(dead_code)]
 const MI_PLAYLIST_ADD: &str = "\u{e03b}";
+#[allow(dead_code)]
 const MI_LINK: &str = "\u{e157}";
+#[allow(dead_code)]
 const MI_REFRESH: &str = "\u{e5d5}";
+#[allow(dead_code)]
 const MI_VERIFIED: &str = "\u{e8e8}";
+#[allow(dead_code)]
 const MI_DELETE_FOREVER: &str = "\u{e92b}";
+#[allow(dead_code)]
 const MI_OPEN_WITH: &str = "\u{e89e}";
+#[allow(dead_code)]
 const MI_EDIT: &str = "\u{e3c9}";
+#[allow(dead_code)]
 const MI_PROPERTIES: &str = "\u{e8ef}";
+#[allow(dead_code)]
 pub(crate) const MI_CHEVRON_RIGHT: &str = "\u{e5cc}";
+#[allow(dead_code)]
 pub(crate) const MI_EXPAND_MORE: &str = "\u{e5cf}";
 /// Arrow onto a tray (sidebar "Downloading").
+#[allow(dead_code)]
 pub(crate) const MI_GET_APP: &str = "\u{e884}";
 
 /// Material Icons (Apache-2.0, Google) as fallback font for UI glyphs, plus
@@ -815,6 +869,7 @@ fn paint_check(p: &egui::Painter, rect: egui::Rect, checked: bool, hov: bool) {
 }
 
 /// Button identity for manual routing (every clickable dialog control).
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum ButtonId {
     AddPaste,
@@ -868,6 +923,7 @@ enum ButtonId {
 }
 
 /// Checkbox identity for manual routing.
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum CheckId {
     CatFold,
@@ -882,6 +938,7 @@ enum CheckId {
 }
 
 /// Slider identity for manual routing (values live in self fields/items).
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum SliderId {
     AddConns,
@@ -893,6 +950,7 @@ enum SliderId {
 }
 
 /// Active manual slider drag.
+#[allow(dead_code)]
 struct SliderCap {
     id: SliderId,
     min: f64,
@@ -1952,6 +2010,7 @@ impl SortCol {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum ToolId {
     AddUrl,
@@ -1974,6 +2033,7 @@ enum ToolId {
 /// Manual hit-test targets. Layout records (kind, rect) every frame;
 /// `process_hits` matches pointer state against them in reverse
 /// (topmost first) with click consumption. Never touches egui hit-test.
+#[allow(dead_code)]
 #[derive(Clone)]
 enum HitKind {
     Tool(ToolId),
@@ -2003,6 +2063,7 @@ enum HitKind {
 
 /// Active manual divider drag: table column resize (window edges are the
 /// OS's job now that the app uses native decorations).
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 enum ResizeCap {
     /// Dragging the divider on the right edge of `col`.
@@ -2010,6 +2071,7 @@ enum ResizeCap {
 }
 
 /// One line of the right-click menu.
+#[allow(dead_code)]
 enum CtxEntry {
     Item { label: String, icon: &'static str, hint: &'static str, act: RowAct, enabled: bool, danger: bool },
     Sep,
@@ -2037,12 +2099,14 @@ fn ctx_row(p: &egui::Painter, r: egui::Rect, icon: &str, label: &str, hint: &str
 }
 
 /// What the one-click update reports while it runs.
+#[allow(dead_code)]
 enum SelfUpdMsg {
     Status(String),
     Installed(usize),
     Failed(String),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 enum RowAct {
     Resume,
@@ -2070,18 +2134,20 @@ enum RowAct {
     VerifyChecksum,
 }
 
+#[allow(dead_code)]
 struct ZipPick {
     name: String,
     url: String,
     out_dir: std::path::PathBuf,
     opts: EngineOpts,
-    entries: Vec<(SA2Downloader_engine::zip::ZipEntry, bool)>,
+    entries: Vec<(sa2_downloader_engine::zip::ZipEntry, bool)>,
     status: String,
     busy: bool,
 }
 
+#[allow(dead_code)]
 enum ZipMsg {
-    Listed(Result<Vec<SA2Downloader_engine::zip::ZipEntry>, String>),
+    Listed(Result<Vec<sa2_downloader_engine::zip::ZipEntry>, String>),
     Status(String),
     Done(String),
 }
@@ -3372,8 +3438,8 @@ impl sa2App {
         self.rt.spawn(async move {
             let r = async {
                 let client = opts.build_client().map_err(|e| format!("{e:#}"))?;
-                let request: SA2Downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
-                SA2Downloader_engine::zip::list_remote(&request, &url).await.map_err(|e| e.to_string())
+                let request: sa2_downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
+                sa2_downloader_engine::zip::list_remote(&request, &url).await.map_err(|e| e.to_string())
             }
             .await;
             let _ = tx.send(ZipMsg::Listed(r));
@@ -3383,7 +3449,7 @@ impl sa2App {
     /// Fetch the ticked entries one after another into the ZIP's folder.
     fn zip_fetch_selected(&mut self) {
         let Some(p) = self.zip_pick.as_mut() else { return };
-        let picked: Vec<SA2Downloader_engine::zip::ZipEntry> =
+        let picked: Vec<sa2_downloader_engine::zip::ZipEntry> =
             p.entries.iter().filter(|(e, on)| *on && e.can_extract()).map(|(e, _)| e.clone()).collect();
         if picked.is_empty() {
             p.status = "Tick at least one file.".into();
@@ -3401,7 +3467,7 @@ impl sa2App {
                     return;
                 }
             };
-            let request: SA2Downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
+            let request: sa2_downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
             let (mut ok, n) = (0, picked.len());
             for (i, e) in picked.iter().enumerate() {
                 let _ = tx.send(ZipMsg::Status(format!("{}/{n}: {}", i + 1, e.name)));
@@ -3412,7 +3478,7 @@ impl sa2App {
                     .filter(|s| !s.is_empty() && *s != "." && *s != "..")
                     .map(crate::engine::sanitize_filename)
                     .collect();
-                match SA2Downloader_engine::zip::extract_remote(&request, &url, e, &out_dir.join(rel)).await {
+                match sa2_downloader_engine::zip::extract_remote(&request, &url, e, &out_dir.join(rel)).await {
                     Ok(_) => ok += 1,
                     Err(err) => {
                         let _ = tx.send(ZipMsg::Status(format!("{}: {err}", e.name)));

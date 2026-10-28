@@ -1081,7 +1081,7 @@ pub fn btn_pill(
     fg: egui::Color32,
     icon: Option<DmIcon>,
 ) {
-    let rad = (r.height() * 0.5).min(14.0);
+    let rad = r.height() * 0.5;
     p.rect_filled(r, rad, if hov { bg.gamma_multiply(1.15) } else { bg });
     if border != egui::Color32::TRANSPARENT {
         p.rect_stroke(r, rad, egui::Stroke::new(1.0_f32, border), egui::StrokeKind::Inside);
@@ -1115,7 +1115,7 @@ pub fn btn_spring_breeze(
     label: &str,
     icon: Option<DmIcon>,
 ) {
-    let rad = (r.height() * 0.5).min(14.0);
+    let rad = r.height() * 0.5;
     dm_gradient(p, r, rad, SPRING_BREEZE_START, SPRING_BREEZE_END);
     if hov {
         p.rect_filled(r, rad, egui::Color32::from_white_alpha(35));

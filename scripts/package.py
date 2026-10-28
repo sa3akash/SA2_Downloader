@@ -12,16 +12,27 @@ a=p.parse_args()
 repo=pathlib.Path(__file__).resolve().parents[1]
 version=(repo/'VERSION').read_text().strip()
 osname=a.platform or {'Windows':'windows','Darwin':'macos','Linux':'linux'}[platform.system()]
-cand_names = ['sa2_downloader.exe'] if osname=='windows' else ['sa2_downloader']
+cand_names = ['sa2_downloader.exe', 'download_craft.exe'] if osname=='windows' else ['sa2_downloader', 'download_craft']
 binary = a.binary
 if not binary or not binary.is_file():
     for name in cand_names:
-        for prefix in [repo / 'target/release', repo / 'target/x86_64-pc-windows-msvc/release']:
+        for prefix in [
+            repo / 'target/release',
+            repo / 'target/x86_64-pc-windows-msvc/release',
+            repo / 'target/x86_64-unknown-linux-gnu/release',
+            repo / 'target/x86_64-apple-darwin/release',
+            repo / 'target/aarch64-apple-darwin/release',
+        ]:
             cand = prefix / name
             if cand.is_file():
                 binary = cand
                 break
         if binary and binary.is_file():
+            break
+if not binary or not binary.is_file():
+    for cand in (repo / 'target/release').glob('*.exe' if osname == 'windows' else '*'):
+        if cand.is_file() and not cand.name.endswith(('.d', '.pdb', '.rlib', '.rmeta')):
+            binary = cand
             break
 if not binary or not binary.is_file():
     binary = repo / 'target/release' / cand_names[0]

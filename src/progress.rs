@@ -168,6 +168,7 @@ fn send_cmd(id: u64, action: &str) {
 }
 
 /// Open a file/folder with the OS default handler on any platform.
+#[allow(dead_code)]
 fn open_path(p: &std::path::Path) {
     #[cfg(windows)]
     {
@@ -234,10 +235,9 @@ fn fmt_duration(secs: u64) -> String {
 
 /// Concept card width, border-box.
 const PG_W: f32 = 470.0;
-/// Card height with no part list: title + tabs + info + progress + rule.
+#[allow(dead_code)]
 const PG_MIN_H: f32 = 286.0;
-/// Card height with the part list collapsed but its header row still shown
-/// (the chevron and the Pause/Close actions must stay reachable).
+#[allow(dead_code)]
 const PG_PART_HEAD_H: f32 = 320.0;
 /// Dead state (the item left the queue): title + notice + Close.
 const PG_DEAD_H: f32 = 148.0;
@@ -245,6 +245,7 @@ const PG_DEAD_H: f32 = 148.0;
 const HDR_H: f32 = 38.0;
 const MARK_X: f32 = 15.0;
 const MARK_Y: f32 = 10.0;
+#[allow(dead_code)]
 const MARK_S: f32 = 18.0;
 const TITLE_X: f32 = 41.0;
 /// Vertical centre of the header (and of its window controls).
@@ -253,47 +254,60 @@ const CTL_X1: f32 = 394.0;
 const CTL_X2: f32 = 422.0;
 const CTL_X3: f32 = 450.0;
 
+#[allow(dead_code)]
 const SEG_X: f32 = 15.0;
+#[allow(dead_code)]
 const SEG_Y: f32 = 44.0;
+#[allow(dead_code)]
 const SEG_W: f32 = 440.0;
+#[allow(dead_code)]
 const SEG_H: f32 = 24.0;
+#[allow(dead_code)]
 const SEG_PAD: f32 = 2.0;
+#[allow(dead_code)]
 const TAB_H: f32 = 20.0;
+#[allow(dead_code)]
 const TAB_ICON: f32 = 11.0;
-/// Gap between the two neighbouring tabs of the strip.
+#[allow(dead_code)]
 const TAB_GAP: f32 = 3.0;
 
 /// Content gutter (the concept's 15px padding inside the 1px border).
 const PAD_X: f32 = 15.0;
 /// Content right edge.
 const IN_R: f32 = 455.0;
-const INFO_Y: f32 = 84.0;
+const INFO_Y: f32 = 234.0;
 const ROW_STEP: f32 = 22.0;
+#[allow(dead_code)]
 const ROW_H: f32 = 15.0;
 
+#[allow(dead_code)]
 const PROG_Y: f32 = 266.0;
 const PROG_W: f32 = 440.0;
+#[allow(dead_code)]
 const PROG_H: f32 = 7.0;
 
+#[allow(dead_code)]
 const PART_Y: f32 = 284.0;
+#[allow(dead_code)]
 const HEAD_Y: f32 = 293.0;
+#[allow(dead_code)]
 const HEAD_H: f32 = 15.0;
-const STRIP_Y: f32 = 315.0;
+const STRIP_Y: f32 = 236.0;
 const STRIP_H: f32 = 9.0;
-const TBL_HDR_Y: f32 = 331.0;
+const TBL_HDR_Y: f32 = 252.0;
 const TBL_HDR_H: f32 = 20.0;
-const TBL_Y: f32 = 351.0;
+const TBL_Y: f32 = 276.0;
+#[allow(dead_code)]
 const TBL_STEP: f32 = 22.0;
 const TBL_PAD: f32 = 4.0;
+#[allow(dead_code)]
 const FOOT_PAD: f32 = 10.0;
 /// Table columns: # | Status (flex) | Downloaded | Total, both right on IN_R.
 const COL_NUM_W: f32 = 24.0;
 const COL_DL_X: f32 = IN_R - 170.0;
 const COL_TOT_X: f32 = IN_R - 80.0;
 
-/// A soft white highlight that fades out to both sides. Its own mesh: the
-/// shared gradient helper paints opaque colours, which turned the fading
-/// ends of this highlight into a black band.
+#[allow(dead_code)]
 fn sheen(p: &egui::Painter, r: egui::Rect) {
     let clear = egui::Color32::from_white_alpha(0);
     let mid = egui::Color32::from_white_alpha(80);
@@ -313,16 +327,17 @@ fn sheen(p: &egui::Painter, r: egui::Rect) {
     p.add(egui::Shape::mesh(mesh));
 }
 
-/// Part rows the card grows to; beyond this the table scrolls.
+#[allow(dead_code)]
 const MAX_PART_ROWS: usize = 6;
 
-/// Card height with `n` part rows — 493 at the concept's six samples.
+#[allow(dead_code)]
 fn card_h(n: usize) -> f32 {
     361.0 + TBL_STEP * n as f32
 }
 
-/// The concept's tabs, plus the per-download log.
-const TABS: [(DmIcon, &str); 4] = [
+/// The expandable details tabs.
+const TABS: [(DmIcon, &str); 5] = [
+    (DmIcon::Archive, "Parts"),
     (DmIcon::Info, "Info"),
     (DmIcon::Chart, "Speed"),
     (DmIcon::Sliders, "Settings"),
@@ -345,31 +360,28 @@ fn info_row(
     font: egui::FontId,
 ) {
     let label = crate::i18n::t(label);
-        let y = o.y + INFO_Y + ROW_STEP * i as f32;
-        let lw = crate::shaped::width(p, label, &reg(13.0));
-        crate::shaped::draw(
-            p,
-            egui::pos2(o.x + PAD_X, y),
-            egui::Align2::LEFT_TOP,
-            label,
-            reg(13.0),
-            pl().dm_lbl,
-        );
-        // The value can be a filename in any script, so it is drawn shaped.
-        let v = elide_mid(p, &value, font.clone(), IN_R - PAD_X - lw - 12.0);
-        crate::shaped::draw(
-            p,
-            egui::pos2(o.x + IN_R, y),
-            egui::Align2::RIGHT_TOP,
-            &v,
-            font,
-            col,
-        );
-    }
+    let y = o.y + INFO_Y + ROW_STEP * i as f32;
+    let lw = crate::shaped::width(p, label, &reg(12.0));
+    crate::shaped::draw(
+        p,
+        egui::pos2(o.x + PAD_X + 12.0, y),
+        egui::Align2::LEFT_TOP,
+        label,
+        reg(12.0),
+        pl().dm_lbl,
+    );
+    let v = elide_mid(p, &value, font.clone(), PROG_W - 24.0 - lw - 12.0);
+    crate::shaped::draw(
+        p,
+        egui::pos2(o.x + IN_R - 12.0, y),
+        egui::Align2::RIGHT_TOP,
+        &v,
+        font,
+        col,
+    );
+}
 
-/// One compact label/value row (the concept's `.kv`): a dim label on the
-/// gutter, the value right on the content edge. Denser than the Info tab's
-/// rows, which stay exactly as they are.
+/// One compact label/value row: dim label on the gutter, value right on content edge.
 fn kv_row(
     p: &egui::Painter,
     o: egui::Pos2,
@@ -384,16 +396,16 @@ fn kv_row(
     let lw = crate::shaped::width(p, label, &lf);
     crate::shaped::draw(
         p,
-        egui::pos2(o.x + PAD_X, y),
+        egui::pos2(o.x + PAD_X + 12.0, o.y + y),
         egui::Align2::LEFT_TOP,
         label,
         lf,
         pl().dm_lbl,
     );
-    let v = elide_mid(p, &value, font.clone(), IN_R - PAD_X - lw - 12.0);
+    let v = elide_mid(p, &value, font.clone(), PROG_W - 24.0 - lw - 12.0);
     crate::shaped::draw(
         p,
-        egui::pos2(o.x + IN_R, y),
+        egui::pos2(o.x + IN_R - 12.0, o.y + y),
         egui::Align2::RIGHT_TOP,
         &v,
         font,
@@ -632,14 +644,16 @@ impl eframe::App for ProgressApp {
         // The card follows the concept's own rules: one 25px row per part,
         // everything else fixed. A monitor-sized cap keeps a 32-connection
         // list usable — the table scrolls instead of leaving the screen.
-        //
-        // Every tab carries the part section (its header row holds the state
-        // actions), so the height no longer depends on the tab.
-        // A fragmented stream shows one row (see `fragment_parts`).
         let parts = self.snap.parts.len().max(self.snap.fragments.map_or(0, |_| 1));
         let want_h = match &self.item {
             None => PG_DEAD_H,
-            Some(_) if parts > 0 && self.parts_open => 194.0 + 32.0 + (parts.min(6) as f32 * 26.0) + 16.0,
+            Some(_) if self.parts_open => match self.tab {
+                1 => 444.0,
+                2 => 452.0,
+                3 => 430.0,
+                4 => 444.0,
+                _ => 226.0 + 32.0 + (parts.min(6).max(1) as f32 * 26.0) + 20.0,
+            },
             Some(_) => 196.0,
         };
         let want_h = match crate::model::work_area_rect(ctx) {
@@ -744,7 +758,60 @@ impl ProgressApp {
             && matches!(item.status, Status::Downloading | Status::Queued);
 
         self.progress_bar(ui, o, item, frac);
-        self.parts(ui, o, item, downloading);
+        if self.parts_open {
+            self.draw_details_tabs(ui, o);
+            match self.tab {
+                0 => self.parts(ui, o, item, downloading),
+                1 => self.body_info(ui, o, item, downloading),
+                2 => self.body_speed(ui, o, item, downloading),
+                3 => self.body_settings(ui, o),
+                4 => self.body_log(ui, o),
+                _ => self.parts(ui, o, item, downloading),
+            }
+        }
+    }
+
+    /// Segmented tab switcher: Parts, Info, Speed, Settings, Log.
+    fn draw_details_tabs(&mut self, ui: &mut egui::Ui, o: egui::Pos2) {
+        let p = ui.painter().clone();
+        let bar_y = 194.0;
+        let bar_h = 26.0;
+        let bar_r = at(o, PAD_X, bar_y, PROG_W, bar_h);
+        p.rect_filled(bar_r, 13.0, pl().dm_trough);
+        p.rect_stroke(bar_r, 13.0, egui::Stroke::new(1.0_f32, pl().dm_line), egui::StrokeKind::Inside);
+
+        let tab_w = (PROG_W - 8.0) / (TABS.len() as f32);
+        for (i, (icon_kind, label)) in TABS.iter().enumerate() {
+            let tr = egui::Rect::from_min_size(
+                egui::pos2(bar_r.min.x + 4.0 + i as f32 * tab_w, bar_r.min.y + 2.0),
+                egui::vec2(tab_w, bar_h - 4.0),
+            );
+            let b = ui.interact(tr, egui::Id::new(("pg-tab", i)), egui::Sense::click());
+            let sel = self.tab == i as u8;
+            if sel {
+                p.rect_filled(tr, 11.0, pl().dm_card);
+                p.rect_stroke(tr, 11.0, egui::Stroke::new(1.0_f32, pl().dm_line), egui::StrokeKind::Inside);
+            } else if b.hovered() {
+                p.rect_filled(tr, 11.0, pl().dm_hover2);
+            }
+            if b.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            let col = if sel { pl().dm_txt } else if b.hovered() { pl().dm_txt } else { pl().dm_dim };
+            let ic_r = egui::Rect::from_center_size(egui::pos2(tr.min.x + 14.0, tr.center().y), egui::Vec2::splat(11.0));
+            dm_icon(&p, ic_r, *icon_kind, col, 1.6);
+            p.text(
+                egui::pos2(tr.min.x + 24.0, tr.center().y),
+                egui::Align2::LEFT_CENTER,
+                *label,
+                if sel { semi(11.0) } else { reg(11.0) },
+                col,
+            );
+            if b.clicked() {
+                self.tab = i as u8;
+                self.recenter = true;
+            }
+        }
     }
 
     /// The item left the queue (removed or cancelled elsewhere).
@@ -798,6 +865,14 @@ impl ProgressApp {
     /// reads as a bug rather than as information.
     fn body_info(&mut self, ui: &mut egui::Ui, o: egui::Pos2, item: &DownloadItem, downloading: bool) {
         let p = ui.painter().clone();
+        let card = at(o, PAD_X, 226.0, PROG_W, 192.0);
+        p.rect(
+            card,
+            10.0,
+            pl().dm_trough,
+            egui::Stroke::new(1.0_f32, pl().dm_line),
+            egui::StrokeKind::Inside,
+        );
         let status_col = match &item.status {
             Status::Completed => DM_OK,
             Status::Failed(_) => pl().dm_warn,
@@ -897,12 +972,20 @@ impl ProgressApp {
     fn body_speed(&mut self, ui: &mut egui::Ui, o: egui::Pos2, item: &DownloadItem, downloading: bool) {
         let ctx = ui.ctx().clone();
         let p = ui.painter().clone();
+        let card = at(o, PAD_X, 226.0, PROG_W, 200.0);
+        p.rect(
+            card,
+            10.0,
+            pl().dm_trough,
+            egui::Stroke::new(1.0_f32, pl().dm_line),
+            egui::StrokeKind::Inside,
+        );
         let cap: u64 = self.limit_input.trim().parse().unwrap_or(0);
         let live_conns = self.snap.parts.iter().filter(|(s, e, d)| s + d <= *e).count();
         kv_row(
             &p,
             o,
-            84.0,
+            236.0,
             "Connections:",
             if downloading && live_conns > 0 {
                 format!("up to {}, {} parts left (the engine adapts)", item.connections, live_conns)
@@ -915,7 +998,7 @@ impl ProgressApp {
         kv_row(
             &p,
             o,
-            111.0,
+            258.0,
             "Current Speed:",
             if downloading && item.speed_bps > 0.0 {
                 format!("{}/s", format_bytes(item.speed_bps as u64))
@@ -928,7 +1011,7 @@ impl ProgressApp {
         kv_row(
             &p,
             o,
-            138.0,
+            280.0,
             "Global Speed Cap:",
             if cap == 0 {
                 "Unlimited".into()
@@ -939,7 +1022,7 @@ impl ProgressApp {
             reg(12.0),
         );
         // ---- the cap row: a slim field and a slim accent button ----
-        let field = at(o, PAD_X, 168.0, 348.0, 30.0);
+        let field = at(o, PAD_X + 12.0, 304.0, 318.0, 26.0);
         dm_field(
             ui,
             "pg_limit",
@@ -949,7 +1032,7 @@ impl ProgressApp {
             "0 = unlimited (KB/s)",
             false,
         );
-        let apply = at(o, IN_R - 84.0, 168.0, 84.0, 30.0);
+        let apply = at(o, IN_R - 96.0, 304.0, 84.0, 26.0);
         let ab = ui.interact(apply, egui::Id::new("pg-apply"), egui::Sense::click());
         dm_gradient(&p, apply, DM_RAD, DM_ACC, DM_ACC2);
         p.text(
@@ -976,14 +1059,14 @@ impl ProgressApp {
             None => "Type a number in KB/s and press Apply — 0 means unlimited.".to_string(),
         };
         p.text(
-            egui::pos2(o.x + PAD_X, o.y + 204.0),
+            egui::pos2(o.x + PAD_X + 12.0, o.y + 336.0),
             egui::Align2::LEFT_TOP,
             note,
             reg(10.0),
             pl().dm_dim,
         );
         // Speed over the last ~30 seconds.
-        let g = at(o, PAD_X, 220.0, PROG_W, 38.0);
+        let g = at(o, PAD_X + 12.0, 354.0, PROG_W - 24.0, 64.0);
         p.rect_filled(g, 4.0, pl().dm_line);
         let peak = self.speed_hist.iter().cloned().fold(0.0_f64, f64::max);
         if peak > 0.0 && self.speed_hist.len() > 1 {
@@ -1015,9 +1098,17 @@ impl ProgressApp {
     /// The engine's log for this download: connections, retries, fallbacks.
     fn body_log(&mut self, ui: &mut egui::Ui, o: egui::Pos2) {
         let p = ui.painter().clone();
+        let card = at(o, PAD_X, 226.0, PROG_W, 196.0);
+        p.rect(
+            card,
+            10.0,
+            pl().dm_trough,
+            egui::Stroke::new(1.0_f32, pl().dm_line),
+            egui::StrokeKind::Inside,
+        );
         if self.log_lines.is_empty() {
             p.text(
-                egui::pos2(o.x + PAD_X, o.y + 86.0),
+                egui::pos2(o.x + PAD_X + 12.0, o.y + 240.0),
                 egui::Align2::LEFT_TOP,
                 "Nothing logged yet. Each start, connection, retry and fallback of this download shows up here.",
                 reg(10.5),
@@ -1026,10 +1117,11 @@ impl ProgressApp {
             return;
         }
         let font = egui::FontId::monospace(10.0);
-        for (i, line) in self.log_lines.iter().enumerate() {
-            let shown = elide_mid(&p, line, font.clone(), PROG_W);
+        let recent: Vec<_> = self.log_lines.iter().rev().take(13).collect::<Vec<_>>().into_iter().rev().collect();
+        for (i, line) in recent.iter().enumerate() {
+            let shown = elide_mid(&p, line, font.clone(), PROG_W - 24.0);
             p.text(
-                egui::pos2(o.x + PAD_X, o.y + 80.0 + i as f32 * 13.5),
+                egui::pos2(o.x + PAD_X + 12.0, o.y + 236.0 + i as f32 * 14.0),
                 egui::Align2::LEFT_TOP,
                 shown,
                 font.clone(),
@@ -1046,20 +1138,26 @@ impl ProgressApp {
     fn body_settings(&mut self, ui: &mut egui::Ui, o: egui::Pos2) {
         let ctx = ui.ctx().clone();
         let p = ui.painter().clone();
-        // The block sits in the middle of the pane, like the concept's
-        // centred pane: equal air above and below, no dead band.
-        let y0 = 104.0;
+        let card = at(o, PAD_X, 226.0, PROG_W, 184.0);
+        p.rect(
+            card,
+            10.0,
+            pl().dm_trough,
+            egui::Stroke::new(1.0_f32, pl().dm_line),
+            egui::StrokeKind::Inside,
+        );
+        let y0 = 236.0;
         p.text(
-            egui::pos2(o.x + PAD_X, o.y + y0),
+            egui::pos2(o.x + PAD_X + 12.0, o.y + y0),
             egui::Align2::LEFT_TOP,
             "When the queue drains:",
             reg(11.0),
             pl().dm_lbl,
         );
         p.text(
-            egui::pos2(o.x + PAD_X, o.y + y0 + 19.0),
+            egui::pos2(o.x + PAD_X + 12.0, o.y + y0 + 18.0),
             egui::Align2::LEFT_TOP,
-            "Choose what SA2 Downloader does once the last item in the queue finishes.",
+            "Choose what DownloadCraft does once the last item in the queue finishes.",
             reg(10.0),
             pl().dm_dim,
         );
@@ -1071,12 +1169,12 @@ impl ProgressApp {
             ("hibernate", "Hibernate", "\u{eb3b}"),
         ];
         let grid_y = o.y + y0 + 38.0;
-        let cw = (PROG_W - 6.0) / 2.0;
+        let cw = (PROG_W - 30.0) / 2.0;
         for (i, (val, label, glyph)) in OPTS.iter().enumerate() {
             let col = (i % 2) as f32;
             let row = (i / 2) as f32;
             let r = egui::Rect::from_min_size(
-                egui::pos2(o.x + PAD_X + col * (cw + 6.0), grid_y + row * 39.0),
+                egui::pos2(o.x + PAD_X + 12.0 + col * (cw + 6.0), grid_y + row * 39.0),
                 egui::vec2(cw, 33.0),
             );
             let b = ui.interact(r, egui::Id::new(("pg-fin", i)), egui::Sense::click());
@@ -1300,14 +1398,14 @@ impl ProgressApp {
         }
     }
 
-    /// Part Info section: multi-thread table in rounded panel matching Image 5.
-    fn parts(&mut self, ui: &mut egui::Ui, o: egui::Pos2, _item: &DownloadItem, downloading: bool) {
+    /// Part Info section: multi-thread table in rounded panel matching Image 2.
+    fn parts(&mut self, ui: &mut egui::Ui, o: egui::Pos2, item: &DownloadItem, downloading: bool) {
         if !self.parts_open {
             return;
         }
         let p = ui.painter().clone();
         let frags = self.snap.fragments.filter(|_| self.snap.parts.is_empty());
-        let has_parts = !self.snap.parts.is_empty() || frags.is_some();
+        let has_parts = !self.snap.parts.is_empty() || frags.is_some() || downloading || item.downloaded_bytes > 0;
         if !has_parts {
             return;
         }
@@ -1316,11 +1414,15 @@ impl ProgressApp {
             return;
         }
 
-        let table_y = 194.0;
-        let n = self.snap.parts.len();
-        let lens: Vec<u64> = self
-            .snap
-            .parts
+        let parts_list: Vec<(u64, u64, u64)> = if self.snap.parts.is_empty() {
+            vec![(0, item.total_bytes.unwrap_or(item.downloaded_bytes), item.downloaded_bytes)]
+        } else {
+            self.snap.parts.clone()
+        };
+
+        let table_y = 226.0;
+        let n = parts_list.len();
+        let lens: Vec<u64> = parts_list
             .iter()
             .map(|(s, e, _)| e.saturating_sub(*s) + 1)
             .collect();
@@ -1342,7 +1444,7 @@ impl ProgressApp {
         p.text(egui::pos2(o.x + PAD_X + 16.0, hdr_y), egui::Align2::LEFT_TOP, "#", reg(10.5), pl().dm_head);
         p.text(egui::pos2(o.x + PAD_X + 48.0, hdr_y), egui::Align2::LEFT_TOP, "Downloaded", reg(10.5), pl().dm_head);
         p.text(egui::pos2(o.x + PAD_X + 150.0, hdr_y), egui::Align2::LEFT_TOP, "Status", reg(10.5), pl().dm_head);
-        p.text(egui::pos2(o.x + IN_R - 100.0, hdr_y), egui::Align2::LEFT_TOP, "Progress", reg(10.5), pl().dm_head);
+        p.text(egui::pos2(o.x + IN_R - 110.0, hdr_y), egui::Align2::LEFT_TOP, "Progress", reg(10.5), pl().dm_head);
 
         p.line_segment(
             [
@@ -1353,7 +1455,7 @@ impl ProgressApp {
         );
 
         let rows_top = hdr_y + 24.0;
-        for (i, (_, _, d)) in self.snap.parts.iter().take(6).enumerate() {
+        for (i, (_, _, d)) in parts_list.iter().take(6).enumerate() {
             let y = rows_top + i as f32 * 26.0;
             let len = lens[i];
             let f = if len > 0 {
@@ -1371,12 +1473,12 @@ impl ProgressApp {
                 "Waiting"
             };
 
-            p.text(egui::pos2(o.x + PAD_X + 16.0, y), egui::Align2::LEFT_TOP, (i + 1).to_string(), reg(10.0), pl().dm_lbl);
-            p.text(egui::pos2(o.x + PAD_X + 48.0, y), egui::Align2::LEFT_TOP, if *d > 0 { format_part_bytes(*d) } else { "0 KB".into() }, reg(10.0), pl().dm_txt);
-            p.text(egui::pos2(o.x + PAD_X + 150.0, y), egui::Align2::LEFT_TOP, status, reg(10.0), pl().dm_dim);
+            p.text(egui::pos2(o.x + PAD_X + 16.0, y), egui::Align2::LEFT_TOP, (i + 1).to_string(), reg(10.5), pl().dm_lbl);
+            p.text(egui::pos2(o.x + PAD_X + 48.0, y), egui::Align2::LEFT_TOP, if *d > 0 { format_part_bytes(*d) } else { "0 KB".into() }, reg(10.5), pl().dm_txt);
+            p.text(egui::pos2(o.x + PAD_X + 150.0, y), egui::Align2::LEFT_TOP, status, reg(10.5), pl().dm_dim);
 
             // Mini progress bar in Bleu De France
-            let prog_r = egui::Rect::from_min_size(egui::pos2(o.x + IN_R - 100.0, y + 4.0), egui::vec2(84.0, 6.0));
+            let prog_r = egui::Rect::from_min_size(egui::pos2(o.x + IN_R - 110.0, y + 5.0), egui::vec2(94.0, 6.0));
             p.rect_filled(prog_r, 3.0, pl().dm_line);
             if f > 0.0 {
                 let fw = (prog_r.width() * f).max(4.0);
@@ -1392,7 +1494,18 @@ impl ProgressApp {
     /// Part Info for a fragmented stream: the strip fills with the fragments
     /// done, and one row says how many of how many.
     fn fragment_parts(&self, p: &egui::Painter, o: egui::Pos2, i: u64, n: u64, downloading: bool) {
-        let strip = at(o, PAD_X, STRIP_Y, PROG_W, STRIP_H);
+        let table_card = egui::Rect::from_min_size(
+            egui::pos2(o.x + PAD_X, o.y + 226.0),
+            egui::vec2(PROG_W, 80.0),
+        );
+        p.rect(
+            table_card,
+            10.0,
+            pl().dm_trough,
+            egui::Stroke::new(1.0_f32, pl().dm_line),
+            egui::StrokeKind::Inside,
+        );
+        let strip = at(o, PAD_X + 8.0, STRIP_Y, PROG_W - 16.0, STRIP_H);
         p.rect_filled(strip, 2.0, if downloading && i == 0 { DM_YEL } else { pl().dm_box_bd });
         let f = (i as f32 / n.max(1) as f32).clamp(0.0, 1.0);
         if f > 0.0 {

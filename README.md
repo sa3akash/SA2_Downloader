@@ -157,7 +157,7 @@ Measured on a home connection (100 MB, 8 connections) against 0.9.8: speedtest.b
 70.6 s to **21.4 s**, and mirror.nforce.com from 28.2 s to **19.7 s**.
 
 ```rust
-let done = SA2Downloader_engine::Downloader::new(reqwest::Client::new())
+let done = sa2_downloader_engine::Downloader::new(reqwest::Client::new())
     .download(Job::new(url, "file.iso"), progress, control)
     .await?;
 ```

@@ -454,28 +454,28 @@ pub fn work_dir() -> Option<PathBuf> {
 
 /// Unfinished engine data for `dest`, in the temporary folder or next to it.
 pub fn has_partial(dest: &std::path::Path) -> bool {
-    SA2Downloader_engine::has_partial(dest) || work_dir().is_some_and(|w| SA2Downloader_engine::has_partial_in(dest, Some(&w)))
+    sa2_downloader_engine::has_partial(dest) || work_dir().is_some_and(|w| sa2_downloader_engine::has_partial_in(dest, Some(&w)))
 }
 
 /// Drop the engine's unfinished data for `dest` wherever it is.
 pub fn remove_partial(dest: &std::path::Path) {
-    SA2Downloader_engine::remove_partial(dest);
+    sa2_downloader_engine::remove_partial(dest);
     if let Some(w) = work_dir() {
-        SA2Downloader_engine::remove_partial_in(dest, Some(&w));
+        sa2_downloader_engine::remove_partial_in(dest, Some(&w));
     }
 }
 
 /// Every unfinished-data path of `dest` (for deleting leftovers).
 pub fn partial_paths(dest: &std::path::Path) -> Vec<PathBuf> {
     let mut v = vec![
-        SA2Downloader_engine::data_path(dest),
-        SA2Downloader_engine::journal_path(dest),
+        sa2_downloader_engine::data_path(dest),
+        sa2_downloader_engine::journal_path(dest),
         dest.with_extension("dcftp"),
         dest.with_extension("dcftpparts"),
     ];
     if let Some(w) = work_dir() {
-        v.push(SA2Downloader_engine::data_path_in(dest, Some(&w)));
-        v.push(SA2Downloader_engine::journal_path_in(dest, Some(&w)));
+        v.push(sa2_downloader_engine::data_path_in(dest, Some(&w)));
+        v.push(sa2_downloader_engine::journal_path_in(dest, Some(&w)));
     }
     v
 }
@@ -857,7 +857,7 @@ pub(crate) fn resume_offset(
     }
 }
 /// Shared token-bucket rate limiter: lives in the reusable engine crate.
-pub use SA2Downloader_engine::RateLimiter;
+pub use sa2_downloader_engine::RateLimiter;
 
 /// Lock a mutex even when poisoned (a panicking holder must not cascade
 /// into every UI poll and engine task — take the guard anyway).
@@ -7200,6 +7200,86 @@ pub fn is_playlist_url_or_query(url: &str) -> bool {
         && !lower.contains("list=ll")
 }
 
+/// Check if a URL points to a YouTube playlist or channel video list.
+pub fn is_youtube_list(url: &str) -> bool {
+    let u = url.trim().to_ascii_lowercase();
+    (u.contains("youtube.com") || u.contains("youtu.be"))
+        && (u.contains("list=") || u.contains("/playlist") || u.contains("/channel/") || u.contains("/c/") || u.contains("/@"))
+        && !u.contains("list=ll")
+}
+
+/// Extract entries from a media playlist (e.g. YouTube playlist) using yt-dlp.
+/// Returns (playlist_title, vec of (item_url, item_title)).
+pub async fn playlist_entries(
+    url: &str,
+    opts: &EngineOpts,
+) -> Result<(String, Vec<(String, String)>)> {
+    let client = opts.build_client()?;
+    let exe = ensure_ytdlp(&client).await?;
+    let mut cmd = tokio::process::Command::new(exe);
+    cmd.kill_on_drop(true);
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.arg("-J")
+        .arg("--flat-playlist")
+        .arg("--no-warnings")
+        .arg("--socket-timeout").arg("15");
+    if let Some((name, path)) = js_runtime_path() {
+        cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
+    }
+    if let Some(p) = opts.effective_proxy(url) {
+        cmd.arg("--proxy").arg(p);
+    }
+    if !opts.cookie.trim().is_empty() {
+        if let Ok(Some(jar)) = write_cookie_jar(&opts.cookie, &cookie_domain(url)).await {
+            cmd.arg("--cookies").arg(&jar.0);
+        }
+    }
+    cmd.arg(url).stdin(std::process::Stdio::null());
+    let out = tokio::time::timeout(std::time::Duration::from_secs(30), cmd.output())
+        .await
+        .map_err(|_| anyhow!("yt-dlp playlist timed out after 30 seconds"))?
+        .map_err(|e| anyhow!("yt-dlp failed to run: {e}"))?;
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        return Err(anyhow!("yt-dlp failed to retrieve playlist: {}", err.trim()));
+    }
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout)
+        .map_err(|e| anyhow!("invalid JSON from yt-dlp: {e}"))?;
+    let title = v.get("title").and_then(|t| t.as_str()).unwrap_or("Playlist").trim().to_string();
+    let mut entries_vec = Vec::new();
+    if let Some(entries) = v.get("entries").and_then(|e| e.as_array()) {
+        for e in entries {
+            let entry_title = e.get("title").and_then(|t| t.as_str()).unwrap_or("Untitled").trim().to_string();
+            let entry_url = if let Some(u) = e.get("webpage_url").and_then(|u| u.as_str()).filter(|s| s.starts_with("http")) {
+                u.to_string()
+            } else if let Some(u) = e.get("url").and_then(|u| u.as_str()).filter(|s| s.starts_with("http")) {
+                u.to_string()
+            } else if let Some(id) = e.get("id").and_then(|i| i.as_str()) {
+                if url.contains("youtube.com") || url.contains("youtu.be") {
+                    format!("https://www.youtube.com/watch?v={id}")
+                } else {
+                    format!("{url}#{id}")
+                }
+            } else if let Some(u) = e.get("url").and_then(|u| u.as_str()) {
+                u.to_string()
+            } else {
+                continue;
+            };
+            entries_vec.push((entry_url, entry_title));
+        }
+    }
+    if entries_vec.is_empty() {
+        if let Some(entry_title) = v.get("title").and_then(|t| t.as_str()) {
+            entries_vec.push((url.to_string(), entry_title.to_string()));
+        }
+    }
+    Ok((title, entries_vec))
+}
+
 pub fn aria2_on_path() -> Option<PathBuf> {
     let names: &[&str] = if cfg!(windows) {
         &["aria2c.exe", "aria2c"]
@@ -9201,7 +9281,7 @@ async fn segmented(
     shared: Arc<SharedState>,
     limiter: std::sync::Arc<RateLimiter>,
 ) -> Result<()> {
-    use SA2Downloader_engine as dce;
+    use sa2_downloader_engine as dce;
     // Strict googlevideo edges 403 ranges above ~2 MiB: ask in windows.
     let strict = is_googlevideo_url(url);
     let config = dce::Config {
@@ -9256,7 +9336,7 @@ async fn post_download(
     opts: &EngineOpts,
     shared: &Arc<SharedState>,
 ) -> Result<()> {
-    use SA2Downloader_engine as dce;
+    use sa2_downloader_engine as dce;
     let b = opts.browser.clone().unwrap_or_default();
     let body = crate::model::base64_decode(&b.body).ok_or_else(|| anyhow!("the form data could not be read"))?;
     let client = opts.build_client()?;
@@ -9296,14 +9376,14 @@ async fn post_download(
 /// Run one engine-crate download with the app's pause/stop flags bridged in
 /// and its progress bridged out; errors in the app's vocabulary.
 async fn run_dce(
-    mut dl: SA2Downloader_engine::Downloader,
-    job: SA2Downloader_engine::Job,
+    mut dl: sa2_downloader_engine::Downloader,
+    job: sa2_downloader_engine::Job,
     url: &str,
     total: u64,
     shared: &Arc<SharedState>,
     log: &str,
-) -> Result<SA2Downloader_engine::Outcome> {
-    use SA2Downloader_engine as dce;
+) -> Result<sa2_downloader_engine::Outcome> {
+    use sa2_downloader_engine as dce;
     let dbg = std::env::var("sa2_downloader_DEBUG").is_ok();
     let key = log.to_string();
     dl = dl.on_event(Arc::new(move |e: &dce::Event| {
@@ -9345,8 +9425,8 @@ async fn run_dce(
 /// Copy the engine's progress into the app's shared state and the app's
 /// pause/stop flags into the engine.
 fn sync_engine_progress(
-    progress: &SA2Downloader_engine::Progress,
-    control: &SA2Downloader_engine::Control,
+    progress: &sa2_downloader_engine::Progress,
+    control: &sa2_downloader_engine::Control,
     shared: &SharedState,
     total: u64,
 ) {
@@ -9377,8 +9457,8 @@ fn sync_engine_progress(
 
 /// Engine errors in the app's vocabulary: refusals stay final (no retry
 /// storms), throttling keeps the words the fallback ladder looks for.
-fn engine_error(url: &str, e: SA2Downloader_engine::Error) -> anyhow::Error {
-    use SA2Downloader_engine::Error as E;
+fn engine_error(url: &str, e: sa2_downloader_engine::Error) -> anyhow::Error {
+    use sa2_downloader_engine::Error as E;
     match e {
         E::Cancelled => anyhow!("cancelled"),
         E::Http { status, .. } => http_code_err(url, status),

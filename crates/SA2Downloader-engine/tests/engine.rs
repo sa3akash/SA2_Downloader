@@ -2,7 +2,7 @@
 //! slow connections, cut responses, throttling, expiring links, servers that
 //! ignore ranges, HTML error pages and files that change between runs.
 
-use SA2Downloader_engine::{Config, Control, Downloader, Error, Event, Job, Progress};
+use sa2_downloader_engine::{Config, Control, Downloader, Error, Event, Job, Progress};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -260,13 +260,13 @@ fn quick() -> Config {
     }
 }
 
-fn recorder() -> (Arc<Mutex<Vec<String>>>, SA2Downloader_engine::EventFn) {
+fn recorder() -> (Arc<Mutex<Vec<String>>>, sa2_downloader_engine::EventFn) {
     let log = Arc::new(Mutex::new(Vec::new()));
     let l = log.clone();
     (log, Arc::new(move |e: &Event| l.lock().unwrap().push(format!("{e:?}"))))
 }
 
-async fn get(dl: &Downloader, job: Job) -> Result<SA2Downloader_engine::Outcome, Error> {
+async fn get(dl: &Downloader, job: Job) -> Result<sa2_downloader_engine::Outcome, Error> {
     dl.download(job, Arc::new(Progress::default()), Arc::new(Control::default())).await
 }
 
@@ -278,8 +278,8 @@ async fn parallel_download_is_byte_exact() {
     let out = get(&Downloader::new(reqwest::Client::new()).config(quick()), job).await.unwrap();
     assert_eq!(std::fs::read(&dest).unwrap(), body(8 * MIB + 123, 1));
     assert!(out.peak_connections >= 2, "peak {}", out.peak_connections);
-    assert!(!SA2Downloader_engine::data_path(&dest).exists());
-    assert!(!SA2Downloader_engine::journal_path(&dest).exists());
+    assert!(!sa2_downloader_engine::data_path(&dest).exists());
+    assert!(!sa2_downloader_engine::journal_path(&dest).exists());
 }
 
 #[tokio::test]
@@ -371,7 +371,7 @@ async fn stopped_downloads_resume_where_they_were() {
     });
     let err = dl.download(job.clone(), progress.clone(), control).await.unwrap_err();
     assert!(matches!(err, Error::Cancelled), "{err:?}");
-    assert!(SA2Downloader_engine::has_partial(&dest));
+    assert!(sa2_downloader_engine::has_partial(&dest));
     let first_run = progress.downloaded();
     assert!(first_run > 0);
     let out = get(&dl, job).await.unwrap();
@@ -504,12 +504,12 @@ async fn a_work_folder_keeps_the_partial_elsewhere() {
         c.cancel();
     });
     let _ = dl.download(job.clone(), progress, control).await;
-    assert!(SA2Downloader_engine::has_partial_in(&dest, Some(&work)));
-    assert!(!SA2Downloader_engine::has_partial(&dest), "nothing next to the destination");
+    assert!(sa2_downloader_engine::has_partial_in(&dest, Some(&work)));
+    assert!(!sa2_downloader_engine::has_partial(&dest), "nothing next to the destination");
     let out = get(&dl, job).await.unwrap();
     assert!(out.resumed > 0);
     assert_eq!(std::fs::read(&dest).unwrap(), body(3 * MIB, 1));
-    assert!(!SA2Downloader_engine::has_partial_in(&dest, Some(&work)));
+    assert!(!sa2_downloader_engine::has_partial_in(&dest, Some(&work)));
 }
 
 #[tokio::test]

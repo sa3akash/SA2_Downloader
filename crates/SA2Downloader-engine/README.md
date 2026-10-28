@@ -45,7 +45,7 @@ reqwest = "0.12"
 ```
 
 ```rust
-use SA2Downloader_engine::{Config, Control, Downloader, Job, Progress};
+use sa2_downloader_engine::{Config, Control, Downloader, Job, Progress};
 use std::sync::Arc;
 
 #[tokio::main]

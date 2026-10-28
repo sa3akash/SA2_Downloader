@@ -996,7 +996,7 @@ fn icon_sq(ui: &mut Ui, glyph: &str, size: f32, radius: f32) -> Response {
         rect,
         radius,
         if resp.hovered() { t.btn_hover } else { t.btn },
-        Stroke::new(1.0, t.btn_bd),
+        Stroke::new(1.0_f32, t.btn_bd),
         StrokeKind::Inside,
     );
     p.text(
@@ -1032,7 +1032,7 @@ fn rule_btn(ui: &mut Ui, glyph: &str, danger: bool) -> Response {
             rect,
             4.0,
             if resp.hovered() { t.btn_hover } else { t.btn },
-            Stroke::new(1.0, t.btn_bd),
+            Stroke::new(1.0_f32, t.btn_bd),
             StrokeKind::Inside,
         );
         p.text(
@@ -1504,7 +1504,7 @@ fn card(
                     chip,
                     6.5,
                     t.input,
-                    Stroke::new(1.0, t.border),
+                    Stroke::new(1.0_f32, t.border),
                     StrokeKind::Inside,
                 );
                 p.galley(chip.center() - bg.size() / 2.0, bg, t.muted);
@@ -1524,7 +1524,7 @@ fn card(
                 ui.painter().hline(
                     ui.max_rect().x_range(),
                     top,
-                    Stroke::new(1.0, soft_line(&t)),
+                    Stroke::new(1.0_f32, soft_line(&t)),
                 );
                 egui::Frame::new()
                     .inner_margin(egui::Margin {
@@ -1582,7 +1582,7 @@ fn field_row(
             chip,
             6.5,
             t.input,
-            Stroke::new(1.0, t.border),
+            Stroke::new(1.0_f32, t.border),
             StrokeKind::Inside,
         );
         p.galley(chip.center() - bg.size() / 2.0, bg, t.muted);
@@ -1625,7 +1625,7 @@ fn input_box(
     let text_w = (w - 18.0).max(16.0);
     let out = egui::Frame::new()
         .fill(t.input)
-        .stroke(Stroke::new(1.0, t.border))
+        .stroke(Stroke::new(1.0_f32, t.border))
         .corner_radius(6.0)
         .inner_margin(egui::Margin::symmetric(9, 5))
         .show(ui, |ui| {
@@ -1651,7 +1651,7 @@ fn input_box(
         ui.painter().rect_stroke(
             out.response.rect,
             6.0,
-            Stroke::new(1.0, t.accent),
+            Stroke::new(1.0_f32, t.accent),
             StrokeKind::Inside,
         );
     }
@@ -1708,7 +1708,7 @@ fn slider_row(ui: &mut Ui, salt: &str, value: &mut f64, min: f64, max: f64) -> b
         p.circle_filled(knob, 9.0, wash(t.accent, 36));
     }
     p.circle_filled(knob, 7.0, t.accent);
-    p.circle_stroke(knob, 7.0, Stroke::new(2.0, t.card));
+    p.circle_stroke(knob, 7.0, Stroke::new(2.0_f32, t.card));
     // An editable box, so a big jump needs no dragging.
     let mut buf = format!("{}", *value as i64);
     let mut box_ui = ui.new_child(
@@ -1751,7 +1751,7 @@ fn segmented(ui: &mut Ui, salt: &str, options: &[&str], current: &mut String) ->
         rect,
         8.0,
         t.input,
-        Stroke::new(1.0, t.border),
+        Stroke::new(1.0_f32, t.border),
         StrokeKind::Inside,
     );
     let mut changed = false;
@@ -1814,7 +1814,7 @@ fn btn_dashed(ui: &mut Ui, glyph: &str, label: &str) -> Response {
         p,
         rect,
         6.0,
-        Stroke::new(1.0, if hov { t.accent } else { t.btn_bd }),
+        Stroke::new(1.0_f32, if hov { t.accent } else { t.btn_bd }),
     );
     let ig = p.layout_no_wrap(glyph.to_owned(), crate::fonts::icon(12.0), fg);
     let tg = p.layout_no_wrap(label.to_owned(), reg(11.0), fg);
@@ -1963,7 +1963,7 @@ fn platform_grid(ui: &mut Ui) {
             let tile = Rect::from_center_size(egui::pos2(cx, y + 15.0), Vec2::splat(30.0));
             if i == PLATFORMS.len() {
                 // Dashed outline + plus: the extractor list does not stop here.
-                dashed_rect(p, tile, 8.0, Stroke::new(1.0, t.btn_bd));
+                dashed_rect(p, tile, 8.0, Stroke::new(1.0_f32, t.btn_bd));
                 p.text(
                     tile.center(),
                     Align2::CENTER_CENTER,
@@ -2075,7 +2075,7 @@ fn capabilities(ui: &mut Ui, caps: &[&str]) {
             };
             let x = rect.left() + c as f32 * (col_w + gap);
             // The check is a polyline, not a glyph: nothing can go .notdef.
-            let tick = Stroke::new(1.4, green);
+            let tick = Stroke::new(1.4_f32, green);
             let ty = y + 2.0;
             p.line_segment(
                 [egui::pos2(x + 1.0, ty + 4.0), egui::pos2(x + 3.6, ty + 6.6)],
@@ -2128,7 +2128,7 @@ fn code_chip(ui: &mut Ui, s: &str) {
         rect,
         4.0,
         t.input,
-        Stroke::new(1.0, t.border),
+        Stroke::new(1.0_f32, t.border),
         StrokeKind::Inside,
     );
     p.galley(rect.center() - g.size() / 2.0, g, t.text2);
@@ -2159,7 +2159,7 @@ fn btn_icon(ui: &mut Ui, glyph: &str, label: &str, primary: bool) -> Response {
         (t.btn, t.btn_bd)
     };
     let p = ui.painter();
-    p.rect(rect, 6.0, bg, Stroke::new(1.0, bd), StrokeKind::Inside);
+    p.rect(rect, 6.0, bg, Stroke::new(1.0_f32, bd), StrokeKind::Inside);
     let ig = p.layout_no_wrap(glyph.to_owned(), crate::fonts::icon(12.0), fg);
     let tg = p.layout_no_wrap(label.to_owned(), reg(11.0), fg);
     let x = rect.center().x - (iw + gap + tw) / 2.0;
@@ -2190,7 +2190,7 @@ fn btn_mini(ui: &mut Ui, label: &str) -> Response {
         rect,
         5.0,
         if hov { t.btn_hover } else { t.btn },
-        Stroke::new(1.0, t.btn_bd),
+        Stroke::new(1.0_f32, t.btn_bd),
         StrokeKind::Inside,
     );
     let g = p.layout_no_wrap(label.to_owned(), reg(10.0), fg);
@@ -2246,7 +2246,7 @@ fn plugin_head(
         chip,
         9.0,
         wash(t.accent, 30),
-        Stroke::new(1.0, t.border),
+        Stroke::new(1.0_f32, t.border),
         StrokeKind::Inside,
     );
     p.galley(chip.center() - ver_g.size() / 2.0, ver_g, t.accent);
@@ -2287,7 +2287,7 @@ fn loc_option(
     let mut action_hit = false;
     let frame = egui::Frame::new()
         .fill(if selected { wash(t.accent, 26) } else { t.bg })
-        .stroke(Stroke::new(1.0, if selected { t.accent } else { t.border }))
+        .stroke(Stroke::new(1.0_f32, if selected { t.accent } else { t.border }))
         .corner_radius(8.0)
         .inner_margin(egui::Margin {
             left: 10,
@@ -2306,7 +2306,7 @@ fn loc_option(
                 p.circle_stroke(
                     c,
                     6.0,
-                    Stroke::new(1.4, if selected { t.accent } else { t.btn_bd }),
+                    Stroke::new(1.4_f32, if selected { t.accent } else { t.btn_bd }),
                 );
                 if selected {
                     p.circle_filled(c, 3.2, t.accent);
@@ -2850,7 +2850,7 @@ impl SettingsApp {
         };
         egui::Frame::new()
             .fill(t.card)
-            .stroke(Stroke::new(1.0, edge))
+            .stroke(Stroke::new(1.0_f32, edge))
             .corner_radius(12.0)
             .inner_margin(egui::Margin::ZERO)
             .show(ui, |ui| {
@@ -2878,7 +2878,7 @@ impl SettingsApp {
                 ui.painter().hline(
                     inner.left()..=inner.right(),
                     y,
-                    Stroke::new(1.0, blend(t.card, t.border, 0.6)),
+                    Stroke::new(1.0_f32, blend(t.card, t.border, 0.6)),
                 );
                 egui::Frame::new()
                     .inner_margin(egui::Margin {
@@ -3165,7 +3165,7 @@ impl SettingsApp {
         };
         egui::Frame::new()
             .fill(t.card)
-            .stroke(Stroke::new(1.0, edge))
+            .stroke(Stroke::new(1.0_f32, edge))
             .corner_radius(12.0)
             .inner_margin(egui::Margin::ZERO)
             .show(ui, |ui| {
@@ -3192,7 +3192,7 @@ impl SettingsApp {
                 ui.painter().hline(
                     inner.left()..=inner.right(),
                     y,
-                    Stroke::new(1.0, blend(t.card, t.border, 0.6)),
+                    Stroke::new(1.0_f32, blend(t.card, t.border, 0.6)),
                 );
                 egui::Frame::new()
                     .inner_margin(egui::Margin {
@@ -3511,7 +3511,7 @@ impl SettingsApp {
         let edge = if open { blend(t.border, t.accent, 0.5) } else { t.border };
         egui::Frame::new()
             .fill(t.card)
-            .stroke(Stroke::new(1.0, edge))
+            .stroke(Stroke::new(1.0_f32, edge))
             .corner_radius(12.0)
             .inner_margin(egui::Margin::ZERO)
             .show(ui, |ui| {
@@ -3528,7 +3528,7 @@ impl SettingsApp {
                 ui.painter().hline(
                     inner.left()..=inner.right(),
                     y,
-                    Stroke::new(1.0, blend(t.card, t.border, 0.6)),
+                    Stroke::new(1.0_f32, blend(t.card, t.border, 0.6)),
                 );
                 egui::Frame::new()
                     .inner_margin(egui::Margin { left: 13, right: 13, top: 12, bottom: 16 })

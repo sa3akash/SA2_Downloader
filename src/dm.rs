@@ -239,8 +239,6 @@ pub enum DmIcon {
     Apk,
     /// Image picture icon.
     Image,
-    /// Checkmark icon.
-    Check,
     /// Plus icon.
     Plus,
 }
@@ -596,10 +594,6 @@ pub fn dm_icon(p: &egui::Painter, r: egui::Rect, icon: DmIcon, color: egui::Colo
                 vec![m(5.0, 16.0), m(10.0, 11.0), m(13.0, 14.0), m(15.0, 12.0), m(19.0, 16.0)],
                 st,
             ));
-        }
-        DmIcon::Check => {
-            line((5.0, 12.0), (10.0, 17.0));
-            line((10.0, 17.0), (19.0, 7.0));
         }
         DmIcon::Plus => {
             line((12.0, 5.0), (12.0, 19.0));
@@ -1019,7 +1013,7 @@ pub fn dm_gauge(
     radius: f32,
     pct: f32, // 0.0 to 1.0
     track_color: egui::Color32,
-    start_color: egui::Color32,
+    _start_color: egui::Color32,
     end_color: egui::Color32,
 ) {
     let thickness = 6.0;
@@ -1090,7 +1084,7 @@ pub fn btn_pill(
     let rad = (r.height() * 0.5).min(14.0);
     p.rect_filled(r, rad, if hov { bg.gamma_multiply(1.15) } else { bg });
     if border != egui::Color32::TRANSPARENT {
-        p.rect_stroke(r, rad, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+        p.rect_stroke(r, rad, egui::Stroke::new(1.0_f32, border), egui::StrokeKind::Inside);
     }
     let iw = if icon.is_some() { 15.0 } else { 0.0 };
     let font = semi(12.0);

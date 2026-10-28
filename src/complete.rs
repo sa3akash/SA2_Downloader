@@ -167,6 +167,7 @@ impl CompleteApp {
 
         // ---- actions ----
         let path = item.dest_path();
+        #[allow(unused_mut)]
         let mut acts = vec![("Open", "open"), ("Open folder", "folder"), ("Close", "close")];
         #[cfg(windows)]
         acts.insert(1,("Open with...", "open-with"));

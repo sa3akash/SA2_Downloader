@@ -141,6 +141,7 @@ pub fn play_sound(ok: bool) {
     }
 }
 
+#[allow(unused_variables)]
 pub fn power(action: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let mut command = {

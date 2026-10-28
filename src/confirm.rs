@@ -947,7 +947,7 @@ impl eframe::App for ConfirmApp {
                 card,
                 8.0,
                 pl().dm_card,
-                egui::Stroke::new(1.0, pl().dm_line),
+                egui::Stroke::new(1.0_f32, pl().dm_line),
                 egui::StrokeKind::Inside,
             );
             // ---- header: mark + title + window controls (drag to move) ----
@@ -964,7 +964,7 @@ impl eframe::App for ConfirmApp {
                     egui::pos2(o.x + 1.0, o.y + 39.5),
                     egui::pos2(o.x + DM_W - 1.0, o.y + 39.5),
                 ],
-                egui::Stroke::new(1.0, pl().dm_line),
+                egui::Stroke::new(1.0_f32, pl().dm_line),
             );
             if ui
                 .interact(

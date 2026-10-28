@@ -575,10 +575,10 @@ impl LinksApp {
 
     fn table(&mut self, ui: &mut egui::Ui) {
         let t = pl();
-        let dark = ui.visuals().dark_mode;
+        let _dark = ui.visuals().dark_mode;
         let shown = self.shown();
         let card = ui.available_rect_before_wrap();
-        ui.painter().rect(card, 8.0, t.bg, Stroke::new(1.0, t.card_bd), egui::StrokeKind::Inside);
+        ui.painter().rect(card, 8.0, t.bg, Stroke::new(1.0_f32, t.card_bd), egui::StrokeKind::Inside);
         let inner = card.shrink(1.0);
         let widths = col_widths(&self.cols, inner.width() - CB_W - crate::app::SB_SPACE);
         let xs = {

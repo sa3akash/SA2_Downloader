@@ -667,7 +667,7 @@ impl ProgressApp {
             ui.max_rect(),
             10.0,
             pl().dm_card,
-            egui::Stroke::new(1.0, pl().dm_line),
+            egui::Stroke::new(1.0_f32, pl().dm_line),
             egui::StrokeKind::Inside,
         );
         dm_mark(&p, at(o, MARK_X, MARK_Y, 20.0, 20.0));
@@ -1284,7 +1284,7 @@ impl ProgressApp {
     }
 
     /// Part Info section: multi-thread table in rounded panel matching Image 5.
-    fn parts(&mut self, ui: &mut egui::Ui, o: egui::Pos2, item: &DownloadItem, downloading: bool) {
+    fn parts(&mut self, ui: &mut egui::Ui, o: egui::Pos2, _item: &DownloadItem, downloading: bool) {
         if !self.parts_open {
             return;
         }
@@ -1316,7 +1316,7 @@ impl ProgressApp {
             table_card,
             10.0,
             pl().dm_trough,
-            egui::Stroke::new(1.0, pl().dm_line),
+            egui::Stroke::new(1.0_f32, pl().dm_line),
             egui::StrokeKind::Inside,
         );
 
@@ -1332,7 +1332,7 @@ impl ProgressApp {
                 egui::pos2(table_card.min.x + 8.0, hdr_y + 18.0),
                 egui::pos2(table_card.max.x - 8.0, hdr_y + 18.0),
             ],
-            egui::Stroke::new(1.0, pl().dm_line),
+            egui::Stroke::new(1.0_f32, pl().dm_line),
         );
 
         let rows_top = hdr_y + 24.0;
@@ -1399,7 +1399,7 @@ impl ProgressApp {
                 egui::pos2(o.x + PAD_X, o.y + TBL_HDR_Y + TBL_HDR_H - 0.5),
                 egui::pos2(o.x + IN_R, o.y + TBL_HDR_Y + TBL_HDR_H - 0.5),
             ],
-            egui::Stroke::new(1.0, pl().dm_line),
+            egui::Stroke::new(1.0_f32, pl().dm_line),
         );
         let y = o.y + TBL_Y;
         let (status, col) = if i >= n {

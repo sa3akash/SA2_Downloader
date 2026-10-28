@@ -4819,7 +4819,7 @@ async fn download_inner(
     // throttle or botch parallel Range requests (FB/IG CDN class).
     let mut retried_fresh = false;
     let mut fell_back_single = fragile_cdn;
-    let mut last_segmented = false;
+    let mut last_segmented;
     loop {
         // googlevideo's strict ~2 MiB window is a per-request limit inside
         // the segmented engine (`max_request`), not a smaller split.
@@ -4971,6 +4971,7 @@ async fn download_inner(
 
 /// Include common Unix tool locations when launched from a Dock or desktop.
 fn tool_dirs() -> Vec<std::path::PathBuf> {
+    #[allow(unused_mut)]
     let mut paths: Vec<_> = std::env::var_os("PATH").map(|v| std::env::split_paths(&v).collect()).unwrap_or_default();
     #[cfg(unix)]
     {

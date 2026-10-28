@@ -119,13 +119,13 @@ pub const DARK_PAL: Palette = Palette {
     success: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
     warning: egui::Color32::from_rgb(0xFF, 0xC2, 0x25), // #FFC225 Lightning Yellow
     error: egui::Color32::from_rgb(255, 77, 79),
-    sel_bg: egui::Color32::from_rgba_unmultiplied(96, 205, 56, 45),
+    sel_bg: egui::Color32::from_rgba_premultiplied(17, 36, 10, 45),
     sel_bd: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
-    hover_bg: egui::Color32::from_rgba_unmultiplied(255, 255, 255, 20),
+    hover_bg: egui::Color32::from_rgba_premultiplied(20, 20, 20, 20),
     modal_bg: egui::Color32::from_rgb(0x24, 0x26, 0x30),
     modal_bd: egui::Color32::from_rgb(0x4E, 0x54, 0x68),
-    scrim: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180),
-    bar_bd: egui::Color32::from_rgba_unmultiplied(20, 20, 21, 35),
+    scrim: egui::Color32::from_rgba_premultiplied(0, 0, 0, 180),
+    bar_bd: egui::Color32::from_rgba_premultiplied(3, 3, 3, 35),
     track: egui::Color32::from_rgb(0x33, 0x36, 0x44),
     notice: egui::Color32::from_rgb(255, 150, 120),
     dm_card: egui::Color32::from_rgb(0x22, 0x24, 0x2D),
@@ -165,13 +165,13 @@ pub const LIGHT_PAL: Palette = Palette {
     success: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
     warning: egui::Color32::from_rgb(0xFF, 0xC2, 0x25), // #FFC225 Lightning Yellow
     error: egui::Color32::from_rgb(0xD9, 0x2B, 0x1E),
-    sel_bg: egui::Color32::from_rgba_unmultiplied(96, 205, 56, 35),
+    sel_bg: egui::Color32::from_rgba_premultiplied(13, 28, 8, 35),
     sel_bd: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
-    hover_bg: egui::Color32::from_rgba_unmultiplied(1, 2, 3, 18),
+    hover_bg: egui::Color32::from_rgba_premultiplied(0, 0, 0, 18),
     modal_bg: egui::Color32::from_rgb(0xFF, 0xFF, 0xFF),
     modal_bd: egui::Color32::from_rgb(0xD8, 0xDC, 0xE6),
-    scrim: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 90),
-    bar_bd: egui::Color32::from_rgba_unmultiplied(2, 3, 5, 30),
+    scrim: egui::Color32::from_rgba_premultiplied(0, 0, 0, 90),
+    bar_bd: egui::Color32::from_rgba_premultiplied(0, 0, 1, 30),
     track: egui::Color32::from_rgb(0xE2, 0xE5, 0xEE),
     notice: egui::Color32::from_rgb(0xB0, 0x4A, 0x08),
     dm_card: egui::Color32::from_rgb(0xFF, 0xFF, 0xFF),
@@ -7007,16 +7007,6 @@ impl eframe::App for sa2App {
                 ui.horizontal(|ui| {
                     ui.add_space(7.0);
                     ui.spacing_mut().item_spacing = egui::vec2(TOOL_GAP, 2.0);
-                    let room = ui.available_width() - 8.0;
-                    let font = egui::FontId::proportional(12.0);
-                    let label_w = |l: &str| crate::shaped::width(ui.painter(), l, &font);
-                    let add_label = format!("+ {}", crate::i18n::t("Add URL"));
-                    let add_w = 12.0 + 22.0 + 8.0 + crate::shaped::width(ui.painter(), &add_label, &crate::fonts::semi(12.0)) + 14.0;
-                    let sep_w = 13.0 + TOOL_GAP;
-                    let primary_count = 4.min(tools.len());
-                    let primary_w: f32 = tools[..primary_count].iter().map(|t| 10.0 + 16.0 + 7.0 + label_w(t.2) + 12.0 + TOOL_GAP).sum();
-                    let secondary_full: f32 = tools[primary_count..].iter().map(|t| 10.0 + 16.0 + 7.0 + label_w(t.2) + 12.0 + TOOL_GAP).sum();
-                    let secondary_icons_only = add_w + TOOL_GAP + sep_w + primary_w + secondary_full > room;
                     let r = add_url_button(ui, &self.man, self.clipboard_url.is_some());
                     self.hits.push((HitKind::Tool(ToolId::AddUrl), r));
                     let mut i = 0;

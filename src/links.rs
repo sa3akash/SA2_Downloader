@@ -916,7 +916,7 @@ fn drag_divider(stored: &[f32; 3], i: usize, dx: f32) -> [f32; 3] {
     } else if i == 1 {
         out[1] = (out[1] + dx).clamp(COL_MIN, 900.0);
     } else if i >= 2 {
-        out[2] = (out[2] - dx).clamp(COL_MIN, 900.0);
+        out[2] = (out[2] + dx).clamp(COL_MIN, 900.0);
     }
     out
 }
@@ -1153,7 +1153,7 @@ mod tests {
         assert_eq!(drag_divider(&c, 0, 900.0)[1], COL_MIN);
         let w = col_widths(&c, 1000.0);
         assert_eq!(w.iter().sum::<f32>(), 1000.0);
-        assert_eq!(col_widths(&c, 100.0)[3], 140.0);
+        assert_eq!(col_widths(&c, 100.0)[2], 140.0);
         // Folder links name a page, not "download_<time>.bin".
         assert_eq!(page_name("https://d.example/?dir=Series/English/A", "A"), "A.html");
         assert_eq!(page_name("https://d.example/?dir=Series/English/A", ""), "A.html");

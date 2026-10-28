@@ -5,7 +5,7 @@
 //! ```
 //! Ctrl+C stops it; running the same command again resumes.
 
-use downloadcraft_engine::{Config, Control, Downloader, Job, Progress};
+use SA2Downloader_engine::{Config, Control, Downloader, Job, Progress};
 use std::io::Write;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -51,7 +51,7 @@ async fn main() {
     let downloader = Downloader::new(reqwest::Client::new())
         .config(Config { connections, ..Config::default() })
         .on_event(Arc::new(|e| {
-            if !matches!(e, downloadcraft_engine::Event::Connecting { .. }) {
+            if !matches!(e, SA2Downloader_engine::Event::Connecting { .. }) {
                 eprintln!("\n{e}");
             }
         }));

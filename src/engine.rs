@@ -454,28 +454,28 @@ pub fn work_dir() -> Option<PathBuf> {
 
 /// Unfinished engine data for `dest`, in the temporary folder or next to it.
 pub fn has_partial(dest: &std::path::Path) -> bool {
-    downloadcraft_engine::has_partial(dest) || work_dir().is_some_and(|w| downloadcraft_engine::has_partial_in(dest, Some(&w)))
+    SA2Downloader_engine::has_partial(dest) || work_dir().is_some_and(|w| SA2Downloader_engine::has_partial_in(dest, Some(&w)))
 }
 
 /// Drop the engine's unfinished data for `dest` wherever it is.
 pub fn remove_partial(dest: &std::path::Path) {
-    downloadcraft_engine::remove_partial(dest);
+    SA2Downloader_engine::remove_partial(dest);
     if let Some(w) = work_dir() {
-        downloadcraft_engine::remove_partial_in(dest, Some(&w));
+        SA2Downloader_engine::remove_partial_in(dest, Some(&w));
     }
 }
 
 /// Every unfinished-data path of `dest` (for deleting leftovers).
 pub fn partial_paths(dest: &std::path::Path) -> Vec<PathBuf> {
     let mut v = vec![
-        downloadcraft_engine::data_path(dest),
-        downloadcraft_engine::journal_path(dest),
+        SA2Downloader_engine::data_path(dest),
+        SA2Downloader_engine::journal_path(dest),
         dest.with_extension("dcftp"),
         dest.with_extension("dcftpparts"),
     ];
     if let Some(w) = work_dir() {
-        v.push(downloadcraft_engine::data_path_in(dest, Some(&w)));
-        v.push(downloadcraft_engine::journal_path_in(dest, Some(&w)));
+        v.push(SA2Downloader_engine::data_path_in(dest, Some(&w)));
+        v.push(SA2Downloader_engine::journal_path_in(dest, Some(&w)));
     }
     v
 }
@@ -857,7 +857,7 @@ pub(crate) fn resume_offset(
     }
 }
 /// Shared token-bucket rate limiter: lives in the reusable engine crate.
-pub use downloadcraft_engine::RateLimiter;
+pub use SA2Downloader_engine::RateLimiter;
 
 /// Lock a mutex even when poisoned (a panicking holder must not cascade
 /// into every UI poll and engine task — take the guard anyway).
@@ -8899,7 +8899,7 @@ async fn chunked_once(
 }
 
 /// Multi-connection download through the reusable engine crate
-/// (`crates/downloadcraft-engine`): dynamic segmentation with work stealing,
+/// (`crates/SA2Downloader-engine`): dynamic segmentation with work stealing,
 /// one pre-allocated file, a crash-safe resume journal, throttling and
 /// connection-limit detection, expired-link refresh. This wrapper maps the
 /// app's options, pause/stop flags, progress view and errors onto it.
@@ -8914,7 +8914,7 @@ async fn segmented(
     shared: Arc<SharedState>,
     limiter: std::sync::Arc<RateLimiter>,
 ) -> Result<()> {
-    use downloadcraft_engine as dce;
+    use SA2Downloader_engine as dce;
     // Strict googlevideo edges 403 ranges above ~2 MiB: ask in windows.
     let strict = is_googlevideo_url(url);
     let config = dce::Config {
@@ -8969,7 +8969,7 @@ async fn post_download(
     opts: &EngineOpts,
     shared: &Arc<SharedState>,
 ) -> Result<()> {
-    use downloadcraft_engine as dce;
+    use SA2Downloader_engine as dce;
     let b = opts.browser.clone().unwrap_or_default();
     let body = crate::model::base64_decode(&b.body).ok_or_else(|| anyhow!("the form data could not be read"))?;
     let client = opts.build_client()?;
@@ -9009,14 +9009,14 @@ async fn post_download(
 /// Run one engine-crate download with the app's pause/stop flags bridged in
 /// and its progress bridged out; errors in the app's vocabulary.
 async fn run_dce(
-    mut dl: downloadcraft_engine::Downloader,
-    job: downloadcraft_engine::Job,
+    mut dl: SA2Downloader_engine::Downloader,
+    job: SA2Downloader_engine::Job,
     url: &str,
     total: u64,
     shared: &Arc<SharedState>,
     log: &str,
-) -> Result<downloadcraft_engine::Outcome> {
-    use downloadcraft_engine as dce;
+) -> Result<SA2Downloader_engine::Outcome> {
+    use SA2Downloader_engine as dce;
     let dbg = std::env::var("sa2_download_DEBUG").is_ok();
     let key = log.to_string();
     dl = dl.on_event(Arc::new(move |e: &dce::Event| {
@@ -9058,8 +9058,8 @@ async fn run_dce(
 /// Copy the engine's progress into the app's shared state and the app's
 /// pause/stop flags into the engine.
 fn sync_engine_progress(
-    progress: &downloadcraft_engine::Progress,
-    control: &downloadcraft_engine::Control,
+    progress: &SA2Downloader_engine::Progress,
+    control: &SA2Downloader_engine::Control,
     shared: &SharedState,
     total: u64,
 ) {
@@ -9090,8 +9090,8 @@ fn sync_engine_progress(
 
 /// Engine errors in the app's vocabulary: refusals stay final (no retry
 /// storms), throttling keeps the words the fallback ladder looks for.
-fn engine_error(url: &str, e: downloadcraft_engine::Error) -> anyhow::Error {
-    use downloadcraft_engine::Error as E;
+fn engine_error(url: &str, e: SA2Downloader_engine::Error) -> anyhow::Error {
+    use SA2Downloader_engine::Error as E;
     match e {
         E::Cancelled => anyhow!("cancelled"),
         E::Http { status, .. } => http_code_err(url, status),
@@ -9468,7 +9468,7 @@ mod tests {
         let shared = Arc::new(SharedState::new());
         let result = download(
             "https://vod.vimeocdn.com/v2/range/prot/token/v.mp4?range=0-99".to_string(),
-            std::env::temp_dir().join("downloadcraft-vimeo-fragment-guard.mp4"),
+            std::env::temp_dir().join("SA2Downloader-vimeo-fragment-guard.mp4"),
             1, EngineOpts::default(), shared.clone(),
         ).await;
         assert!(result.unwrap_err().to_string().contains("playback fragment"));

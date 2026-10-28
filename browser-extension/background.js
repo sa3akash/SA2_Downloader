@@ -94,7 +94,7 @@ function typeAllowed(cfg, name, url) {
   if (!list.length) return true;
   const ext = (s) => { const m = /\.([a-z0-9]{1,12})$/i.exec(String(s || "").split(/[?#]/)[0]); return m ? m[1].toLowerCase() : ""; };
   let e = ext(String(name || "").split(/[\\/]/).pop());
-  if (!e) { try { e = ext(new URL(url).pathname); } catch (x) {} }
+  if (!e) { try { e = ext(new URL(url).pathname); } catch (x) { } }
   return !!e && list.includes(e);
 }
 
@@ -110,13 +110,13 @@ function skipped(url) {
 // Chromium's UI switch affects the whole profile, so it is opt-in and
 // explained in the popup. Release it when capture is disabled or unavailable.
 async function syncBrowserDownloadUI() {
-  if (!api.downloads || typeof api.downloads.setUiOptions !== "function") return {supported:false};
+  if (!api.downloads || typeof api.downloads.setUiOptions !== "function") return { supported: false };
   const cfg = await settings();
   const hidden = typeof DCRank !== "undefined" && DCRank.hideDownloadUI(cfg, hostOk);
   try {
-    await api.downloads.setUiOptions({enabled:!hidden});
-    return {supported:true, hidden};
-  } catch (e) { return {supported:true, error:(e && e.message) || String(e)}; }
+    await api.downloads.setUiOptions({ enabled: !hidden });
+    return { supported: true, hidden };
+  } catch (e) { return { supported: true, error: (e && e.message) || String(e) }; }
 }
 
 function hostBlocked(url, blockHosts) {
@@ -199,8 +199,10 @@ async function sendToHost(url, filename, extra) {
       // Never feed it to the built-in video-only HLS concatenator.
       url = player || url;
       // Fragment byte counts/pairs do not describe the resolved full video.
-      extra = { ...extra, size: null, pairUrl: null, pairMime: null,
-        cookie: null, mime: null };
+      extra = {
+        ...extra, size: null, pairUrl: null, pairMime: null,
+        cookie: null, mime: null
+      };
     }
     const observedPart = [...tabMedia.values()].some(items => items.some(m => m.url === url && m.segment));
     const wholeCapture = [...tabMedia.values()].some(items => items.some(m => m.url === url && m.whole));
@@ -212,8 +214,10 @@ async function sendToHost(url, filename, extra) {
       }
       let frameInfo = null;
       if (capture && capture.frameId >= 0) {
-        try { frameInfo = await api.tabs.sendMessage(tab,
-          {type:"mediaFrameInfo"}, {frameId:capture.frameId}); } catch (e) {}
+        try {
+          frameInfo = await api.tabs.sendMessage(tab,
+            { type: "mediaFrameInfo" }, { frameId: capture.frameId });
+        } catch (e) { }
       }
       const whole = capture && DCRank.completePlaylist(capture, items);
       if (whole) {
@@ -221,13 +225,15 @@ async function sendToHost(url, filename, extra) {
       } else if (frameInfo && frameInfo.videoCount === 1 && /^https?:\/\//i.test(frameInfo.pageUrl || "")) {
         // Keep the fragment URL as evidence. The engine resolves its exact
         // single-player frame page with yt-dlp; it never saves the fragment.
-        extra = {...extra, referer:frameInfo.pageUrl, pageUrl:frameInfo.pageUrl};
+        extra = { ...extra, referer: frameInfo.pageUrl, pageUrl: frameInfo.pageUrl };
       } else {
         throw new Error("This capture is a playback fragment. Reload the video and capture its full playlist or a page containing one player.");
       }
-      extra = {...extra, size:null, pairUrl:null, pairMime:null,
-        dur:(frameInfo && frameInfo.durationSecs) || (extra && extra.dur) || null,
-        audioExpected:!!((frameInfo && frameInfo.audioExpected) || (extra && extra.audioExpected))};
+      extra = {
+        ...extra, size: null, pairUrl: null, pairMime: null,
+        dur: (frameInfo && frameInfo.durationSecs) || (extra && extra.dur) || null,
+        audioExpected: !!((frameInfo && frameInfo.audioExpected) || (extra && extra.audioExpected))
+      };
     }
     if (typeof DCRank !== "undefined") {
       for (const items of tabMedia.values()) {
@@ -236,7 +242,7 @@ async function sendToHost(url, filename, extra) {
         const root = DCRank.completePlaylist(selected, items);
         if (root && root.url !== url) {
           url = root.url;
-          extra = {...extra, size:null, pairUrl:null, pairMime:null};
+          extra = { ...extra, size: null, pairUrl: null, pairMime: null };
         }
         break;
       }
@@ -269,7 +275,7 @@ async function sendToHost(url, filename, extra) {
       const vimeoTarget = typeof DCRank !== "undefined"
         && (DCRank.isVimeoAdaptive(url) || DCRank.vimeoVideoPage(url));
       if (!cookie && pageUrl && /^https?:\/\//i.test(pageUrl)
-          && (!vimeoTarget || DCRank.vimeoVideoPage(pageUrl))) {
+        && (!vimeoTarget || DCRank.vimeoVideoPage(pageUrl))) {
         try {
           const uh = new URL(url).hostname.toLowerCase();
           const ph = new URL(pageUrl).hostname.toLowerCase();
@@ -324,8 +330,10 @@ const sentCaptures = new Map(); // url -> {url, filename, pairUrl, mime, quality
 function rememberCapture(url, filename, extra) {
   const e = extra || {};
   sentCaptures.delete(url);
-  sentCaptures.set(url, { url, filename: filename || null, pairUrl: e.pairUrl || null, mime: e.mime || null,
-    quality: e.quality || null, pageUrl: e.pageUrl || null, title: e.title || null, at: Date.now() });
+  sentCaptures.set(url, {
+    url, filename: filename || null, pairUrl: e.pairUrl || null, mime: e.mime || null,
+    quality: e.quality || null, pageUrl: e.pageUrl || null, title: e.title || null, at: Date.now()
+  });
   if (sentCaptures.size > 100) sentCaptures.delete(sentCaptures.keys().next().value);
 }
 
@@ -340,7 +348,7 @@ const seenTabs = new Map(); // canonical url -> Set(tabId), for the "×N tabs" h
 const sizeCache = new Map(); // url -> bytes (quality-menu sizes)
 
 function rankKind(url, mime, entry) {
-  if (typeof DCRank !== "undefined") return DCRank.kindOf({...(entry || {}), url, mime});
+  if (typeof DCRank !== "undefined") return DCRank.kindOf({ ...(entry || {}), url, mime });
   if (typeof DCRank !== "undefined" && DCRank.isPlaylistUrl(url)) return "playlist";
   if (typeof DCRank !== "undefined" && DCRank.isSegmentUrl(url)) return "segment";
   // Legacy fallback when rank.js failed to load (same shapes, inline).
@@ -357,7 +365,7 @@ function canonKey(url) {
 // Popup's ⏻: video detection on/off (kept in storage, mirrored here).
 let detectionOn = true;
 try {
-  api.storage.local.get({ detection: true }).then((r) => { detectionOn = r.detection !== false; }, () => {});
+  api.storage.local.get({ detection: true }).then((r) => { detectionOn = r.detection !== false; }, () => { });
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area === "local" && ch.detection) detectionOn = ch.detection.newValue !== false;
   });
@@ -397,7 +405,7 @@ function noteMedia(tabId, entry) {
     for (const item of list) {
       if (DCRank.kindOf(item) === "playlist") continue;
       if (list.some(parent => DCRank.kindOf(parent) === "playlist"
-          && DCRank.samePlayer(parent, item) && (parent.children || []).includes(item.url))) {
+        && DCRank.samePlayer(parent, item) && (parent.children || []).includes(item.url))) {
         item.segment = true; item.kind = "segment"; item.child = true;
       }
     }
@@ -422,8 +430,8 @@ function noteMedia(tabId, entry) {
   // private window (its page and signed media URLs would persist).
   try {
     api.tabs.get(tabId).then((t) => {
-      if (t && !t.incognito) chrome.storage.local.set({ downloadCraftNet: list.slice(-25) });
-    }).catch(() => {});
+      if (t && !t.incognito) chrome.storage.local.set({ SA2DownloaderNet: list.slice(-25) });
+    }).catch(() => { });
   } catch (e) { /* ignore */ }
   // Badge counts downloadable videos/streams, never playlist children or
   // subtitle side files: first from this list, then (a moment later) the
@@ -437,8 +445,8 @@ function noteMedia(tabId, entry) {
 // tab keeps the red "!" instead of a count that hides the failure.
 function setTabBadge(tabId, n) {
   try {
-    api.action.setBadgeText({ text: hostOk ? (n > 0 ? String(n) : "") : "!", tabId }).catch(() => {});
-    api.action.setBadgeBackgroundColor({ color: hostOk ? "#1F6FEB" : "#C42B1C", tabId }).catch(() => {});
+    api.action.setBadgeText({ text: hostOk ? (n > 0 ? String(n) : "") : "!", tabId }).catch(() => { });
+    api.action.setBadgeBackgroundColor({ color: hostOk ? "#1F6FEB" : "#C42B1C", tabId }).catch(() => { });
   } catch (e) { /* ignore */ }
 }
 
@@ -482,7 +490,7 @@ function forgetTab(tabId, newUrl) {
       if (!tabs.size) seenTabs.delete(ck);
     }
   } catch (e) { /* ignore */ }
-  try { api.action.setBadgeText({ text: hostOk ? "" : "!", tabId }).catch(() => {}); } catch (e) {}
+  try { api.action.setBadgeText({ text: hostOk ? "" : "!", tabId }).catch(() => { }); } catch (e) { }
 }
 
 // Request types that can carry media. Frames are included so a video opened
@@ -597,7 +605,7 @@ async function readHead(url, maxBytes, timeoutMs, headers) {
       parts.push(value);
       got += value.length;
     }
-  } finally { try { await reader.cancel(); } catch (e) {} }
+  } finally { try { await reader.cancel(); } catch (e) { } }
   const out = new Uint8Array(Math.min(got, maxBytes));
   let at = 0;
   for (const p of parts) {
@@ -626,16 +634,16 @@ async function sniffUrl(url, headers) {
 async function playlistShape(url, headers) {
   let master = false, children = [];
   try {
-    const res = await fetch(url, {credentials:"include", headers:headers || {}, signal:AbortSignal.timeout(8000)});
+    const res = await fetch(url, { credentials: "include", headers: headers || {}, signal: AbortSignal.timeout(8000) });
     if (res.ok && (!res.headers.get("content-length") || Number(res.headers.get("content-length")) <= 1024 * 1024)) {
       const reader = res.body.getReader();
       let body = "", size = 0;
       const decoder = new TextDecoder();
       try {
         while (size <= 1024 * 1024) {
-          const {value, done} = await reader.read();
+          const { value, done } = await reader.read();
           if (done) break;
-          size += value.length; body += decoder.decode(value, {stream:true});
+          size += value.length; body += decoder.decode(value, { stream: true });
           if (/#EXT-X-STREAM-INF|<MPD[\s>]/i.test(body)) master = true;
         }
         if (typeof DCRank !== "undefined") children = DCRank.playlistReferences(body, url);
@@ -646,8 +654,10 @@ async function playlistShape(url, headers) {
 }
 
 function responseMeta(details) {
-  const meta = { url: details.url, type: details.type, method: details.method,
-    status: details.statusCode, mime: "", size: 0, filename: null, acceptRanges: false };
+  const meta = {
+    url: details.url, type: details.type, method: details.method,
+    status: details.statusCode, mime: "", size: 0, filename: null, acceptRanges: false
+  };
   let clen = 0, total = 0;
   for (const h of details.responseHeaders || []) {
     const n = String(h.name || "").toLowerCase();
@@ -709,7 +719,7 @@ try {
     // extraHeaders; Firefox exposes them already and rejects the option.
     const spec = ["requestHeaders"];
     if (chrome.webRequest.OnSendHeadersOptions
-        && Object.prototype.hasOwnProperty.call(chrome.webRequest.OnSendHeadersOptions, "EXTRA_HEADERS")) {
+      && Object.prototype.hasOwnProperty.call(chrome.webRequest.OnSendHeadersOptions, "EXTRA_HEADERS")) {
       spec.push("extraHeaders");
     }
     chrome.webRequest.onSendHeaders.addListener((details) => {
@@ -767,11 +777,11 @@ try {
 function setBadge() {
   api.action
     .setBadgeText({ text: hostOk ? "" : "!" })
-    .catch(() => {});
+    .catch(() => { });
   if (!hostOk) {
     api.action
       .setBadgeBackgroundColor({ color: "#C42B1C" })
-      .catch(() => {});
+      .catch(() => { });
   }
 }
 
@@ -789,7 +799,7 @@ async function sendToHostPing() {
     if (!hostOk) lastHostError = "ping answered, but no pong (old host version?)";
     console.log(
       "[download-craft] native host '" + HOST + "': " +
-        (hostOk ? "connected" : "unexpected reply: " + lastHostError)
+      (hostOk ? "connected" : "unexpected reply: " + lastHostError)
     );
   } catch (e) {
     hostOk = false;
@@ -1019,7 +1029,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         const hits = await api.downloads.search({ url: info.linkUrl });
         const hit = hits && hits.find((d) => d.referrer);
         referrer = hit ? hit.referrer : null;
-      } catch (e) {}
+      } catch (e) { }
       markSeen(info.linkUrl, null);
       hostOk = await sendToHost(info.linkUrl, null, { pageUrl: referrer, referer: referrer });
       setBadge();
@@ -1076,7 +1086,7 @@ async function performBrowserCapture(item) {
       return;
     }
   }
-  const ok = await sendToHost(url, item.filename, {pageUrl:item.referrer || null,referer:item.referrer || null, fromRequest:true});
+  const ok = await sendToHost(url, item.filename, { pageUrl: item.referrer || null, referer: item.referrer || null, fromRequest: true });
   hostOk = ok;
   setBadge();
   if (ok) {
@@ -1121,25 +1131,25 @@ function nonReplayableDownload(url) {
 try {
   if (chrome.webRequest && chrome.webRequest.onBeforeRequest) {
     chrome.webRequest.onBeforeRequest.addListener(rememberDownloadRequest,
-      {urls:["http://*/*", "https://*/*"]});
+      { urls: ["http://*/*", "https://*/*"] });
   }
 } catch (e) { /* unsupported API; normal direct-link capture still works */ }
 
 const browserCaptures = new Map();
 function captureBrowserDownload(item) {
   const previous = browserCaptures.get(item.id);
-  if (previous) { Object.assign(previous.item,item); return previous.promise; }
-  const state = {item:{...item},promise:null};
+  if (previous) { Object.assign(previous.item, item); return previous.promise; }
+  const state = { item: { ...item }, promise: null };
   state.promise = performBrowserCapture(state.item).catch(e => {
-    console.error("[download-craft] capture failed",e);
+    console.error("[download-craft] capture failed", e);
   });
-  browserCaptures.set(item.id,state);
+  browserCaptures.set(item.id, state);
   if (browserCaptures.size > 200) browserCaptures.delete(browserCaptures.keys().next().value);
   return state.promise;
 }
 chrome.downloads.onCreated.addListener(item => { void captureBrowserDownload(item); });
 if (chrome.downloads.onDeterminingFilename) {
-  chrome.downloads.onDeterminingFilename.addListener((item,suggest) => {
+  chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     // Our own "Download in browser" files: while any extension listens here,
     // Chrome drops the name given to downloads.download() unless it is
     // suggested again - which is how joined videos were saved as the blob's
@@ -1147,10 +1157,10 @@ if (chrome.downloads.onDeterminingFilename) {
     const ours = item.byExtensionId === chrome.runtime.id
       && (bdlNames.get(item.url) || bdlNames.get(item.finalUrl));
     if (ours) {
-      try { suggest({ filename: ours, conflictAction: "uniquify" }); } catch (e) {}
+      try { suggest({ filename: ours, conflictAction: "uniquify" }); } catch (e) { }
       return false;
     }
-    captureBrowserDownload(item).finally(() => { try { suggest(); } catch (e) {} });
+    captureBrowserDownload(item).finally(() => { try { suggest(); } catch (e) { } });
     return true;
   });
 }
@@ -1165,23 +1175,23 @@ async function captureAttachmentResponse(details) {
     const cfg = await settings();
     const minBytes = Math.max(0, Number(cfg.minSizeKB) || 0) * 1024;
     if (!cfg.autoCapture || hostBlocked(details.url, cfg.blockHosts)
-        || (file.size > 0 && file.size < minBytes)) return {};
+      || (file.size > 0 && file.size < minBytes)) return {};
     const pageUrl = details.originUrl || details.documentUrl || null;
     const ok = await sendToHost(details.url, file.filename,
-      {pageUrl, referer:pageUrl, mime:file.mime, size:file.size || null});
+      { pageUrl, referer: pageUrl, mime: file.mime, size: file.size || null });
     // If the app declines, continue the original request, including its
     // authentication/session. Do not cancel and recreate this request.
     markSeen(details.url, null);
     hostOk = ok; setBadge();
-    return ok ? {cancel:true} : {};
+    return ok ? { cancel: true } : {};
   } catch (e) { return {}; }
 }
 try {
   if (typeof browser !== "undefined" && browser.runtime
-      && typeof browser.runtime.getBrowserInfo === "function"
-      && browser.webRequest && browser.webRequest.onHeadersReceived) {
+    && typeof browser.runtime.getBrowserInfo === "function"
+    && browser.webRequest && browser.webRequest.onHeadersReceived) {
     browser.webRequest.onHeadersReceived.addListener(captureAttachmentResponse,
-      {urls:["http://*/*", "https://*/*"], types:["main_frame", "sub_frame", "other"]},
+      { urls: ["http://*/*", "https://*/*"], types: ["main_frame", "sub_frame", "other"] },
       ["blocking", "responseHeaders"]);
   }
 } catch (e) { /* downloads.onCreated remains the fallback */ }
@@ -1278,9 +1288,9 @@ async function bdlSaveBlob(j, blobUrl, ext, note, bytes) {
 async function bdlRelease(j) {
   if (!j.blobUrl) return;
   if (chrome.offscreen) {
-    try { await api.runtime.sendMessage({ target: "offscreen", type: "bdl-revoke", id: j.id }); } catch (e) {}
+    try { await api.runtime.sendMessage({ target: "offscreen", type: "bdl-revoke", id: j.id }); } catch (e) { }
   } else {
-    try { URL.revokeObjectURL(j.blobUrl); } catch (e) {}
+    try { URL.revokeObjectURL(j.blobUrl); } catch (e) { }
   }
   j.blobUrl = "";
 }
@@ -1351,7 +1361,7 @@ try {
       try {
         const [d] = await api.downloads.search({ id: delta.id });
         if (d) { size = d.fileSize || d.totalBytes || size; path = d.filename || ""; }
-      } catch (e) {}
+      } catch (e) { }
       await bdlRelease(j);
       await bdlFinish(j, "done", { size, phase: "Done", path });
       // List it in the app too (finished, with Open file / folder).
@@ -1387,14 +1397,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (!msg || typeof msg !== "object") return { ok: false };
     if (msg.type === "getVideoBarPosition") {
-      const data=await api.storage.session.get("videoBarPosition");
-      return {ok:true,position:data.videoBarPosition || null};
+      const data = await api.storage.session.get("videoBarPosition");
+      return { ok: true, position: data.videoBarPosition || null };
     }
     if (msg.type === "setVideoBarPosition") {
-      const p=msg.position;
-      if(!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x<0 || p.x>1 || p.y<0 || p.y>1)return {ok:false};
-      await api.storage.session.set({videoBarPosition:{x:p.x,y:p.y}});
-      return {ok:true};
+      const p = msg.position;
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return { ok: false };
+      await api.storage.session.set({ videoBarPosition: { x: p.x, y: p.y } });
+      return { ok: true };
     }
     if (msg.type === "download" && msg.url) {
       if ((!/^https?:\/\//i.test(msg.url) && !msg.url.startsWith("magnet:")) || msg.url.length > 8000) {
@@ -1405,7 +1415,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         // push the current script into the tab so the *next* click works.
         try {
           if (sender && sender.tab && sender.tab.id !== undefined &&
-              chrome.scripting && chrome.scripting.executeScript) {
+            chrome.scripting && chrome.scripting.executeScript) {
             await api.scripting.executeScript({
               target: { tabId: sender.tab.id },
               files: ["rank.js", "content.js"],
@@ -1597,11 +1607,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const j = bdlJobs.get(msg.id);
       if (!j) return { ok: false };
       if (j.downloadId !== undefined) {
-        try { await api.downloads.cancel(j.downloadId); } catch (e) {}
+        try { await api.downloads.cancel(j.downloadId); } catch (e) { }
       } else if (bdlCtl.has(j.id)) {
         bdlCtl.get(j.id).abort();
       } else {
-        try { await api.runtime.sendMessage({ target: "offscreen", type: "bdl-cancel", id: j.id }); } catch (e) {}
+        try { await api.runtime.sendMessage({ target: "offscreen", type: "bdl-cancel", id: j.id }); } catch (e) { }
       }
       return { ok: true };
     }
@@ -1649,12 +1659,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "captureLink") {
       const cfg = await settings();
-      if (!cfg.autoCapture || !/^https?:\/\//i.test(msg.url || "") || hostBlocked(msg.url,cfg.blockHosts)
-          || !typeAllowed(cfg, msg.filename, msg.url)) return {ok:false};
-      const ok = await sendToHost(msg.url,msg.filename,{pageUrl:msg.pageUrl,referer:msg.pageUrl});
+      if (!cfg.autoCapture || !/^https?:\/\//i.test(msg.url || "") || hostBlocked(msg.url, cfg.blockHosts)
+        || !typeAllowed(cfg, msg.filename, msg.url)) return { ok: false };
+      const ok = await sendToHost(msg.url, msg.filename, { pageUrl: msg.pageUrl, referer: msg.pageUrl });
       // A failed direct handoff must replay in Brave without recapture.
-      markSeen(msg.url,null);
-      return {ok};
+      markSeen(msg.url, null);
+      return { ok };
     }
     if (msg.type === "getState") {
       // Fresh status on every popup open (the worker only pings at
@@ -1662,8 +1672,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       await sendToHostPing();
       const cfg = await settings();
       const downloadUI = await syncBrowserDownloadUI();
-      return { hideBrowserUI:!!cfg.hideBrowserUI, downloadUI, autoCapture: !!cfg.autoCapture, detection: detectionOn, deepDetect: cfg.deepDetect !== false, minSizeKB: cfg.minSizeKB, blockHosts: cfg.blockHosts, hostOk, hostError: lastHostError || null, fallbackError: lastFallbackError || null,
-        live: typeof DCBridge !== "undefined" && DCBridge.live(), captureTypes: cfg.captureTypes || "" };
+      return {
+        hideBrowserUI: !!cfg.hideBrowserUI, downloadUI, autoCapture: !!cfg.autoCapture, detection: detectionOn, deepDetect: cfg.deepDetect !== false, minSizeKB: cfg.minSizeKB, blockHosts: cfg.blockHosts, hostOk, hostError: lastHostError || null, fallbackError: lastFallbackError || null,
+        live: typeof DCBridge !== "undefined" && DCBridge.live(), captureTypes: cfg.captureTypes || ""
+      };
     }
     if (msg.type === "setAuto" && typeof msg.value === "boolean") {
       await api.storage.local.set({ autoCapture: msg.value });
@@ -1682,10 +1694,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return { ok: true };
     }
     if (msg.type === "setBrowserUI" && typeof msg.value === "boolean") {
-      await api.storage.local.set({hideBrowserUI:msg.value});
+      await api.storage.local.set({ hideBrowserUI: msg.value });
       await sendToHostPing();
       const state = await syncBrowserDownloadUI();
-      return {ok:state.supported && !state.error, ...state};
+      return { ok: state.supported && !state.error, ...state };
     }
     if (msg.type === "setFilters") {
       const patch = {};
@@ -1708,7 +1720,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return { ok: true };
     }
     return { ok: false };
-  })().then(sendResponse,()=>sendResponse({ok:false}));
+  })().then(sendResponse, () => sendResponse({ ok: false }));
   return true; // async response
 });
 
@@ -1754,8 +1766,10 @@ if (typeof DCBridge !== "undefined") {
     if (m.event !== "failed") return;
     const c = sentCaptures.get(m.url);
     if (cfg.browserFallback && browserCanTake(c) && !String(m.error || "").includes("cancelled")) {
-      const r = await startBrowserDownload({ url: c.url, pairUrl: c.pairUrl, mime: c.mime, quality: c.quality,
-        filename: c.filename || name, title: c.title, pageUrl: c.pageUrl });
+      const r = await startBrowserDownload({
+        url: c.url, pairUrl: c.pairUrl, mime: c.mime, quality: c.quality,
+        filename: c.filename || name, title: c.title, pageUrl: c.pageUrl
+      });
       if (cfg.notify) notifyUser(`dc-${m.id}`, r && r.ok ? "Downloading in the browser instead" : "Download failed",
         r && r.ok ? `The app could not download ${name}: the browser is downloading it now.` : `${name}: ${m.error || "failed"}`);
       return;

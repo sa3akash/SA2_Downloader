@@ -1,6 +1,6 @@
-# downloadcraft-engine
+# SA2Downloader-engine
 
-The download engine behind [Download Craft](https://github.com/hungry-detective/downloadcraft), as a
+The download engine behind [Download Craft](https://github.com/hungry-detective/SA2Downloader), as a
 standalone Rust crate you can drop into your own downloader. MIT licensed, async (`tokio` +
 `reqwest`).
 
@@ -10,7 +10,7 @@ Most downloaders split a file into N equal parts once. If one connection is slow
 **sit idle**, and the whole download waits for the slowest part. This engine never lets a connection
 idle while there is work left.
 
-| | Fixed split | downloadcraft-engine |
+| | Fixed split | SA2Downloader-engine |
 |---|---|---|
 | A connection finishes early | It stops; the others carry on alone | It takes over half of whatever will finish last |
 | One connection is slow | The download waits for it | Its part shrinks, others take the rest; very slow connections are reopened |
@@ -39,13 +39,13 @@ quarter alone.
 
 ```toml
 [dependencies]
-downloadcraft-engine = { git = "https://github.com/hungry-detective/downloadcraft" }
+SA2Downloader-engine = { git = "https://github.com/hungry-detective/SA2Downloader" }
 tokio = { version = "1", features = ["full"] }
 reqwest = "0.12"
 ```
 
 ```rust
-use downloadcraft_engine::{Config, Control, Downloader, Job, Progress};
+use SA2Downloader_engine::{Config, Control, Downloader, Job, Progress};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -98,7 +98,7 @@ stable `resume_key`. `has_partial(path)` and `remove_partial(path)` inspect and 
 ## Tests
 
 ```
-cargo test -p downloadcraft-engine
+cargo test -p SA2Downloader-engine
 ```
 
 The unit tests cover the segment map, journal, file writes, sniffing and ZIP parsing. The integration

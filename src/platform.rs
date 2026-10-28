@@ -345,7 +345,7 @@ pub fn extension_directory(firefox: bool) -> Result<PathBuf, String> {
     let candidates = [
         parent.join(name),
         parent.join("../Resources").join(name),
-        parent.join("../lib/downloadcraft").join(name),
+        parent.join("../lib/SA2Downloader").join(name),
     ];
     if let Some(source) = candidates
         .iter()

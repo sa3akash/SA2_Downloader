@@ -47,15 +47,15 @@
 
 All packages are compiled with full optimizations and attached directly to the GitHub Release for download and immediate use:
 
-- **Windows 10/11 (64-bit)**: Download `DownloadCraft-1.1.0-windows-x64-portable.zip` — extract and run `sa2_downloader.exe`. Portable, zero-install, preserves settings and downloads.
-- **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `DownloadCraft-1.1.0-macos-Universal.zip` — unzip and move `Download Craft.app` to your Applications folder.
+- **Windows 10/11 (64-bit)**: Download `SA2Downloader-1.1.0-windows-x64-portable.zip` — extract and run `sa2_downloader.exe`. Portable, zero-install, preserves settings and downloads.
+- **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `SA2Downloader-1.1.0-macos-Universal.zip` — unzip and move `Download Craft.app` to your Applications folder.
 - **Linux (x86_64, glibc 2.28+)**:
-  - Ubuntu, Debian, Mint: `downloadcraft_1.1.0_amd64.deb` (`sudo apt install ./downloadcraft_1.1.0_amd64.deb`)
-  - Fedora, RHEL: `downloadcraft-1.1.0-1.x86_64.rpm` (`sudo dnf install ./downloadcraft-1.1.0-1.x86_64.rpm`)
-  - Any distribution: `DownloadCraft-1.1.0-x86_64.AppImage` (make executable and run).
+  - Ubuntu, Debian, Mint: `SA2Downloader_1.1.0_amd64.deb` (`sudo apt install ./SA2Downloader_1.1.0_amd64.deb`)
+  - Fedora, RHEL: `SA2Downloader-1.1.0-1.x86_64.rpm` (`sudo dnf install ./SA2Downloader-1.1.0-1.x86_64.rpm`)
+  - Any distribution: `SA2Downloader-1.1.0-x86_64.AppImage` (make executable and run).
 - **Browser Extension (1.1.0)**:
-  - Chrome / Edge / Brave: Download `DownloadCraft-Chrome-1.1.0.zip`, extract, go to `chrome://extensions`, enable *Developer mode*, click *Load unpacked*, and select the extension folder.
-  - Firefox: Download `DownloadCraft-Firefox-1.1.0.xpi`, open `about:debugging#/runtime/this-firefox`, and click *Load Temporary Add-on…*.
+  - Chrome / Edge / Brave: Download `SA2Downloader-Chrome-1.1.0.zip`, extract, go to `chrome://extensions`, enable *Developer mode*, click *Load unpacked*, and select the extension folder.
+  - Firefox: Download `SA2Downloader-Firefox-1.1.0.xpi`, open `about:debugging#/runtime/this-firefox`, and click *Load Temporary Add-on…*.
 
 ## Media helpers
 

@@ -2055,9 +2055,9 @@ mod tests {
         let v: serde_json::Value = serde_json::json!({
             "tag_name": "v0.8.0",
             "assets": [
-                {"name": "DownloadCraft-0.8.0-linux-x64.tar.gz", "browser_download_url": "https://h/l.tgz"},
-                {"name": "DownloadCraft-0.8.0-windows-x64.zip", "browser_download_url": "https://h/w64.zip"},
-                {"name": "DownloadCraft-0.8.0-windows-x64-portable.zip", "browser_download_url": "https://h/port.zip"},
+                {"name": "SA2Downloader-0.8.0-linux-x64.tar.gz", "browser_download_url": "https://h/l.tgz"},
+                {"name": "SA2Downloader-0.8.0-windows-x64.zip", "browser_download_url": "https://h/w64.zip"},
+                {"name": "SA2Downloader-0.8.0-windows-x64-portable.zip", "browser_download_url": "https://h/port.zip"},
                 {"name": "notes.txt", "browser_download_url": "https://h/n.txt"}
             ]
         });

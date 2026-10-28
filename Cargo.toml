@@ -13,10 +13,10 @@ codegen-units = 1
 strip = true
 
 [workspace]
-members = [".", "crates/downloadcraft-engine"]
+members = [".", "crates/SA2Downloader-engine"]
 
 [dependencies]
-downloadcraft-engine = { path = "crates/downloadcraft-engine", version = "0.1.0" }
+SA2Downloader-engine = { path = "crates/SA2Downloader-engine", version = "0.1.0" }
 eframe = "0.32"
 egui = "0.32"
 tokio = { version = "1", features = ["full"] }

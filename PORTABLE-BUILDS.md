@@ -11,13 +11,13 @@ All builds across Windows, macOS, and Linux are automatically compiled, packaged
 and published to GitHub Releases by `.github/workflows/portable.yml`.
 After all builds complete successfully, release assets are attached to the GitHub
 Release page ready for instant download and use:
-- `DownloadCraft-1.1.0-windows-x64-portable.zip` (Windows portable)
-- `DownloadCraft-1.1.0-macos-Universal.zip` (macOS Apple Silicon & Intel)
-- `DownloadCraft-1.1.0-x86_64.AppImage` (Universal Linux AppImage)
-- `downloadcraft_1.1.0_amd64.deb` (Debian, Ubuntu, Mint)
-- `downloadcraft-1.1.0-1.x86_64.rpm` (Fedora, RHEL)
-- `DownloadCraft-Chrome-1.1.0.zip` (Chrome, Edge, Brave browser extension)
-- `DownloadCraft-Firefox-1.1.0.xpi` (Firefox add-on)
+- `SA2Downloader-1.1.0-windows-x64-portable.zip` (Windows portable)
+- `SA2Downloader-1.1.0-macos-Universal.zip` (macOS Apple Silicon & Intel)
+- `SA2Downloader-1.1.0-x86_64.AppImage` (Universal Linux AppImage)
+- `SA2Downloader_1.1.0_amd64.deb` (Debian, Ubuntu, Mint)
+- `SA2Downloader-1.1.0-1.x86_64.rpm` (Fedora, RHEL)
+- `SA2Downloader-Chrome-1.1.0.zip` (Chrome, Edge, Brave browser extension)
+- `SA2Downloader-Firefox-1.1.0.xpi` (Firefox add-on)
 - `SHA256SUMS.txt` (Integrity checksums)
 
 ### Local & CI Build Instructions

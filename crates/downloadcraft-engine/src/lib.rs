@@ -1,7 +1,7 @@
-//! # downloadcraft-engine
+//! # SA2Downloader-engine
 //!
 //! A multi-connection HTTP(S) download engine — the one inside
-//! [Download Craft](https://github.com/hungry-detective/downloadcraft) — built
+//! [Download Craft](https://github.com/hungry-detective/SA2Downloader) — built
 //! on `tokio` and `reqwest`, free to use in your own downloader (MIT).
 //!
 //! What makes it fast and robust:
@@ -29,10 +29,10 @@
 //!   HTML error page instead of the file — all caught before they corrupt it.
 //!
 //! ```no_run
-//! use downloadcraft_engine::{Control, Downloader, Job, Progress};
+//! use SA2Downloader_engine::{Control, Downloader, Job, Progress};
 //! use std::sync::Arc;
 //!
-//! # async fn run() -> Result<(), downloadcraft_engine::Error> {
+//! # async fn run() -> Result<(), SA2Downloader_engine::Error> {
 //! let client = reqwest::Client::new();
 //! let progress = Arc::new(Progress::default());
 //! let control = Arc::new(Control::default());

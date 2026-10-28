@@ -94,7 +94,7 @@ pub fn install_ffmpeg() -> Result<PathBuf> {
         .build()?;
     rt.block_on(async {
         let client = reqwest::Client::builder()
-            .user_agent(format!("DownloadCraft/{}",crate::model::APP_VERSION))
+            .user_agent(format!("SA2Downloader/{}",crate::model::APP_VERSION))
             .timeout(std::time::Duration::from_secs(300))
             .build()?;
         for name in ["ffmpeg", "ffprobe"] {

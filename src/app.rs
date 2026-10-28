@@ -2075,13 +2075,13 @@ struct ZipPick {
     url: String,
     out_dir: std::path::PathBuf,
     opts: EngineOpts,
-    entries: Vec<(downloadcraft_engine::zip::ZipEntry, bool)>,
+    entries: Vec<(SA2Downloader_engine::zip::ZipEntry, bool)>,
     status: String,
     busy: bool,
 }
 
 enum ZipMsg {
-    Listed(Result<Vec<downloadcraft_engine::zip::ZipEntry>, String>),
+    Listed(Result<Vec<SA2Downloader_engine::zip::ZipEntry>, String>),
     Status(String),
     Done(String),
 }
@@ -3347,8 +3347,8 @@ impl CraftApp {
         self.rt.spawn(async move {
             let r = async {
                 let client = opts.build_client().map_err(|e| format!("{e:#}"))?;
-                let request: downloadcraft_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
-                downloadcraft_engine::zip::list_remote(&request, &url).await.map_err(|e| e.to_string())
+                let request: SA2Downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
+                SA2Downloader_engine::zip::list_remote(&request, &url).await.map_err(|e| e.to_string())
             }
             .await;
             let _ = tx.send(ZipMsg::Listed(r));
@@ -3358,7 +3358,7 @@ impl CraftApp {
     /// Fetch the ticked entries one after another into the ZIP's folder.
     fn zip_fetch_selected(&mut self) {
         let Some(p) = self.zip_pick.as_mut() else { return };
-        let picked: Vec<downloadcraft_engine::zip::ZipEntry> =
+        let picked: Vec<SA2Downloader_engine::zip::ZipEntry> =
             p.entries.iter().filter(|(e, on)| *on && e.can_extract()).map(|(e, _)| e.clone()).collect();
         if picked.is_empty() {
             p.status = "Tick at least one file.".into();
@@ -3376,7 +3376,7 @@ impl CraftApp {
                     return;
                 }
             };
-            let request: downloadcraft_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
+            let request: SA2Downloader_engine::RequestFn = Arc::new(move |u: &str| opts.get(&client, u));
             let (mut ok, n) = (0, picked.len());
             for (i, e) in picked.iter().enumerate() {
                 let _ = tx.send(ZipMsg::Status(format!("{}/{n}: {}", i + 1, e.name)));
@@ -3387,7 +3387,7 @@ impl CraftApp {
                     .filter(|s| !s.is_empty() && *s != "." && *s != "..")
                     .map(crate::engine::sanitize_filename)
                     .collect();
-                match downloadcraft_engine::zip::extract_remote(&request, &url, e, &out_dir.join(rel)).await {
+                match SA2Downloader_engine::zip::extract_remote(&request, &url, e, &out_dir.join(rel)).await {
                     Ok(_) => ok += 1,
                     Err(err) => {
                         let _ = tx.send(ZipMsg::Status(format!("{}: {err}", e.name)));
@@ -5897,7 +5897,7 @@ async fn update_check_async() -> (String, Option<crate::selfupdate::Asset>, bool
     let api = std::env::var("sa2_download_UPDATE_API")
         .ok()
         .filter(|u| !u.trim().is_empty())
-        .unwrap_or_else(|| "https://api.github.com/repos/hungry-detective/downloadcraft/releases/latest".to_string());
+        .unwrap_or_else(|| "https://api.github.com/repos/hungry-detective/SA2Downloader/releases/latest".to_string());
     let resp = client
         .get(api)
         .header("Accept", "application/vnd.github+json")
@@ -5922,7 +5922,7 @@ async fn update_check_async() -> (String, Option<crate::selfupdate::Asset>, bool
         let url = v
             .get("html_url")
             .and_then(|u| u.as_str())
-            .unwrap_or("https://github.com/hungry-detective/downloadcraft/releases");
+            .unwrap_or("https://github.com/hungry-detective/SA2Downloader/releases");
         (
             format!("Update available: {tag} (you have v{current}) — {url}"),
             crate::selfupdate::pick_asset(&v),

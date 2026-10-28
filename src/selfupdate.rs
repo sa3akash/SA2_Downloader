@@ -340,8 +340,8 @@ mod tests {
     fn release_json_gives_the_portable_zip_and_its_checksum() {
         let h = "a".repeat(64);
         let v = serde_json::json!({ "assets": [
-            { "name": "DownloadCraft-1.0-x86_64.AppImage", "browser_download_url": "https://x/a", "size": 1 },
-            { "name": "DownloadCraft-1.0-windows-x64-portable.zip", "browser_download_url": "https://x/p.zip", "size": 42, "digest": format!("sha256:{h}") },
+            { "name": "SA2Downloader-1.0-x86_64.AppImage", "browser_download_url": "https://x/a", "size": 1 },
+            { "name": "SA2Downloader-1.0-windows-x64-portable.zip", "browser_download_url": "https://x/p.zip", "size": 42, "digest": format!("sha256:{h}") },
         ]});
         let a = pick_asset(&v).unwrap();
         assert_eq!((a.url.as_str(), a.size, a.sha256.as_deref()), ("https://x/p.zip", 42, Some(h.as_str())));

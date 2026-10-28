@@ -1247,7 +1247,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs 5.0.1",
- "downloadcraft-engine",
+ "SA2Downloader-engine",
  "eframe",
  "egui",
  "flate2",
@@ -1278,7 +1278,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "downloadcraft-engine"
+name = "SA2Downloader-engine"
 version = "0.1.0"
 dependencies = [
  "flate2",

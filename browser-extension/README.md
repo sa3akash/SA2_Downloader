@@ -40,7 +40,7 @@ and the promise-style API calls go through `api` (`browser` when it exists,
 
        powershell -ExecutionPolicy Bypass -File browser-extension/build-firefox.ps1
 
-   That writes `DownloadCraft-Firefox-<version>.xpi` in the repository root.
+   That writes `SA2Downloader-Firefox-<version>.xpi` in the repository root.
    Validate it with Mozilla's own linter if you like:
 
        npx web-ext lint --source-dir "%TEMP%\download-craft-firefox-stage"

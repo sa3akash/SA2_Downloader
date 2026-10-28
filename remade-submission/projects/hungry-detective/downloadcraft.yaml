@@ -1,7 +1,7 @@
-slug: downloadcraft
-name: DownloadCraft
+slug: SA2Downloader
+name: SA2Downloader
 authors: [hungry-detective]
-repository: https://github.com/hungry-detective/downloadcraft
+repository: https://github.com/hungry-detective/SA2Downloader
 originals: [internet-download-manager]
 category: productivity
 languages:

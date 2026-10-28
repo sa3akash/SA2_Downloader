@@ -32,10 +32,10 @@ jobs:
           curl -fL https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 -o /tmp/runtime-x86_64
           python scripts/package_linux.py --binary target/x86_64-unknown-linux-gnu/release/sa2_downloader --runtime /tmp/runtime-x86_64
           python scripts/package_extensions.py --output dist
-          for image in dist/DownloadCraft-*-x86_64.AppImage; do "$image" --appimage-extract-and-run --version; done
+          for image in dist/SA2Downloader-*-x86_64.AppImage; do "$image" --appimage-extract-and-run --version; done
       - uses: actions/upload-artifact@v4
         with:
-          name: DownloadCraft-Linux
+          name: SA2Downloader-Linux
           path: dist/*
   macos:
     runs-on: macos-14
@@ -59,7 +59,7 @@ jobs:
       - run: python scripts/package.py --platform macos --arch Universal --binary /tmp/sa2_downloader
       - uses: actions/upload-artifact@v4
         with:
-          name: DownloadCraft-macOS
+          name: SA2Downloader-macOS
           path: dist/*.zip
   windows:
     runs-on: windows-latest
@@ -86,7 +86,7 @@ jobs:
       - run: python scripts/package_extensions.py --output dist
       - uses: actions/upload-artifact@v4
         with:
-          name: DownloadCraft-Windows
+          name: SA2Downloader-Windows
           path: dist/*
 
   release:

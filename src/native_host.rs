@@ -572,7 +572,7 @@ fn set_prefs(prefs: &serde_json::Value) -> Result<(), String> {
 pub const DEFAULT_SITE_RULES: &str = include_str!("../site_rules.json");
 
 /// Where the app fetches newer site rules (at most once a day).
-const SITE_RULES_URL: &str = "https://raw.githubusercontent.com/hungry-detective/downloadcraft/master/site_rules.json";
+const SITE_RULES_URL: &str = "https://raw.githubusercontent.com/hungry-detective/SA2Downloader/master/site_rules.json";
 
 /// Refresh `site_rules.json` from the project when the copy is a day old.
 /// A rules file only replaces ours when it parses and is newer.

@@ -16,7 +16,7 @@ Download Craft is a free, open-source (MIT) download manager for Windows. This e
 - **Right-click menu.** Download a link, every link on a page, or the selected links with Download Craft.
 - **Keeps your session.** It passes the page's cookies, referrer and headers to the app, so downloads that need a login work like they do in the browser. These stay on your computer.
 
-No account, no ads, no tracking. The source code is at https://github.com/hungry-detective/downloadcraft.
+No account, no ads, no tracking. The source code is at https://github.com/hungry-detective/SA2Downloader.
 
 ## Category
 
@@ -77,4 +77,4 @@ Productivity (Chrome / Edge / Opera); Download Management (Firefox).
 
 ## Review notes (for the reviewer field)
 
-> The extension needs the Download Craft desktop app (free, MIT, https://github.com/hungry-detective/downloadcraft) for its main feature. Without the app it still works: downloads and videos are saved by the browser itself. To test: install the extension, open any page with a video or a file link, and use the button or the right-click menu.
+> The extension needs the Download Craft desktop app (free, MIT, https://github.com/hungry-detective/SA2Downloader) for its main feature. Without the app it still works: downloads and videos are saved by the browser itself. To test: install the extension, open any page with a video or a file link, and use the button or the right-click menu.

@@ -1,4 +1,4 @@
-# Remade.wiki submission for DownloadCraft
+# Remade.wiki submission for SA2Downloader
 # Target repo: https://github.com/replicraft/remade
 # Follow CONTRIBUTING.md: add original (if missing) + one project YAML, then open PR.
 
@@ -13,11 +13,11 @@
   aliases: [IDM]
 
 # 2) Project file to create at:
-# apps/frontend/remade-wiki/src/content/catalog/projects/hungry-detective/downloadcraft.yaml
+# apps/frontend/remade-wiki/src/content/catalog/projects/hungry-detective/SA2Downloader.yaml
 
-slug: downloadcraft
-name: DownloadCraft
-repository: https://github.com/hungry-detective/downloadcraft
+slug: SA2Downloader
+name: SA2Downloader
+repository: https://github.com/hungry-detective/SA2Downloader
 originals: [internet-download-manager]
 category: productivity
 languages:

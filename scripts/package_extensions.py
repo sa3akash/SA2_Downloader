@@ -21,11 +21,11 @@ def stage_extensions(repo, destination):
     for chrome_only in ['offscreen.html','offscreen.js']:
         (firefox/chrome_only).unlink(missing_ok=True)
     version=json.loads((firefox/'manifest.json').read_text())['version']
-    xpi=destination/f'DownloadCraft-Firefox-{version}.xpi'
+    xpi=destination/f'SA2Downloader-Firefox-{version}.xpi'
     with zipfile.ZipFile(xpi,'w',zipfile.ZIP_DEFLATED) as z:
         for f in sorted(firefox.rglob('*')):
             if f.is_file():z.write(f,f.relative_to(firefox))
-    chrome_zip=destination/f'DownloadCraft-Chrome-{version}.zip'
+    chrome_zip=destination/f'SA2Downloader-Chrome-{version}.zip'
     with zipfile.ZipFile(chrome_zip,'w',zipfile.ZIP_DEFLATED) as z:
         for f in sorted(chrome.rglob('*')):
             if f.is_file():z.write(f,f.relative_to(chrome.parent))

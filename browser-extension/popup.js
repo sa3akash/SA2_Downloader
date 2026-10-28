@@ -145,7 +145,7 @@ $("deep").onchange = () => chrome.runtime.sendMessage({ type: "setDeepDetect", v
 try {
   chrome.storage.local.get({ oneClickQuality: true }, (r) => { if (!chrome.runtime.lastError) $("oneClick").checked = !r || r.oneClickQuality !== false; });
 } catch (e) { /* stays unchecked */ }
-$("oneClick").onchange = () => { try { chrome.storage.local.set({ oneClickQuality: $("oneClick").checked }); } catch (e) {} };
+$("oneClick").onchange = () => { try { chrome.storage.local.set({ oneClickQuality: $("oneClick").checked }); } catch (e) { } };
 $("hideUI").onchange = () => {
   chrome.runtime.sendMessage({ type: "setBrowserUI", value: $("hideUI").checked }, (res) => {
     status(res && res.ok ? "Browser download UI preference saved" : "This browser could not change its download UI.", res && res.ok ? "ok" : "bad");
@@ -350,7 +350,7 @@ function card(item, mode) {
   dl.innerHTML = SVG.down + `<span>${inBrowser ? "Save" : viaApp ? "Use app" : "Download"}</span>`;
   dl.title = inBrowser ? "Download in this browser — no app needed"
     : viaApp ? "YouTube only lets the app download it — hands this quality to SA2 Downloader"
-    : "Download with SA2 Downloader";
+      : "Download with SA2 Downloader";
   dl.onclick = () => {
     const o = options[Number(sel.value)];
     if (!o) return;
@@ -439,8 +439,10 @@ function youtubeItem(v, pageUrl) {
     const key = Object.keys(sizes).find((k) => k.startsWith(`${q}p`));
     const sz = key ? sizes[key].size || 0 : 0;
     const qBadge = q === 4320 ? "8K Ultra HD" : q === 2160 ? "4K Ultra HD" : q === 1440 ? "2K Quad HD" : q === 1080 ? "1080p Full HD" : `${q}p`;
-    opts.push({ h: q, label: `${qBadge} · MP4`, size: sz, url: null, browser: null,
-      msg: { type: "download", url: page, filename: `${stem} [${q}p].mp4`, pageUrl: page, quality: `${q}p`, size: sz || null, dur: dur || null } });
+    opts.push({
+      h: q, label: `${qBadge} · MP4`, size: sz, url: null, browser: null,
+      msg: { type: "download", url: page, filename: `${stem} [${q}p].mp4`, pageUrl: page, quality: `${q}p`, size: sz || null, dur: dur || null }
+    });
   }
   // Offer Best / Maximum Resolution Available dynamically!
   opts.push({
@@ -487,8 +489,10 @@ function facebookItem(e, pageUrl) {
       label: `${q}p${a ? " (+audio)" : ""}`,
       size: est(v.bw + (a ? a.bw : 0)), approx: true, url: v.url, pairUrl: a && a.url,
       browser: browserJob(v.url, filename, a ? { pairUrl: a.url, quality: `${q}p` } : { quality: `${q}p` }),
-      msg: { type: "download", url: v.url, filename, pageUrl, quality: `${q}p`,
-        dur: dur || null, pairUrl: a ? a.url : undefined, pairMime: a ? (a.mime || "audio/mp4") : undefined },
+      msg: {
+        type: "download", url: v.url, filename, pageUrl, quality: `${q}p`,
+        dur: dur || null, pairUrl: a ? a.url : undefined, pairMime: a ? (a.mime || "audio/mp4") : undefined
+      },
     });
   }
   for (const p of (e.progressive || [])) {
@@ -839,16 +843,16 @@ async function loadVideos() {
   }
   // Fallback: last stored snapshot, filtered to this tab's page when known.
   chrome.storage.local.get(
-    ["downloadCraftVideos", "downloadCraftLinks", "downloadCraftNet", "downloadCraftPage"],
-    ({ downloadCraftVideos, downloadCraftLinks, downloadCraftNet, downloadCraftPage }) => {
+    ["SA2DownloaderVideos", "SA2DownloaderLinks", "SA2DownloaderNet", "SA2DownloaderPage"],
+    ({ SA2DownloaderVideos, SA2DownloaderLinks, SA2DownloaderNet, SA2DownloaderPage }) => {
       const samePage = (p) => !tabUrl || !p || p.split("#")[0] === tabUrl.split("#")[0];
-      const ok = samePage(downloadCraftPage);
+      const ok = samePage(SA2DownloaderPage);
       render({
-        videos: (downloadCraftVideos || []).filter((v) => samePage(v.pageUrl || downloadCraftPage)),
-        links: ok ? (downloadCraftLinks || []) : [],
-        net: ok ? (downloadCraftNet || []) : [],
+        videos: (SA2DownloaderVideos || []).filter((v) => samePage(v.pageUrl || SA2DownloaderPage)),
+        links: ok ? (SA2DownloaderLinks || []) : [],
+        net: ok ? (SA2DownloaderNet || []) : [],
         title: tab && tab.title,
-      }, downloadCraftPage || tabUrl);
+      }, SA2DownloaderPage || tabUrl);
     }
   );
 }

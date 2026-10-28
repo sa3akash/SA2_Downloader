@@ -1012,10 +1012,23 @@ pub fn is_video_page_url(url: &str) -> bool {
     let Ok(u) = reqwest::Url::parse(url) else { return false };
     let host = u.host_str().unwrap_or("").to_ascii_lowercase();
     let path = u.path().to_ascii_lowercase();
-    if host.contains("youtube.com") || host.contains("youtu.be") {
-        return path.contains("/watch") || path.contains("/shorts/") || path.contains("/embed/") || path.contains("/v/") || u.query_pairs().any(|(k, _)| k == "v");
+    if host.contains("youtu.be") {
+        let seg = path.trim_matches('/');
+        return !seg.is_empty();
     }
-    if host.contains("vimeo.com") || host.contains("dailymotion.com") || host.contains("twitch.tv") || host.contains("bilibili.com") || host.contains("soundcloud.com") {
+    if host.contains("youtube.com") {
+        return path.contains("/watch")
+            || path.contains("/shorts/")
+            || path.contains("/embed/")
+            || path.contains("/v/")
+            || u.query_pairs().any(|(k, _)| k == "v");
+    }
+    if host.contains("vimeo.com")
+        || host.contains("dailymotion.com")
+        || host.contains("twitch.tv")
+        || host.contains("bilibili.com")
+        || host.contains("soundcloud.com")
+    {
         return true;
     }
     crate::engine::social_video_page(url)
@@ -1075,7 +1088,13 @@ pub fn run() -> eframe::Result<()> {
                     name.clone()
                 } else {
                     let from_u = reqwest::Url::parse(&l.url).ok()
-                        .and_then(|u| u.query_pairs().find(|(k, _)| k == "v").map(|(_, v)| v.into_owned()))
+                        .and_then(|u| {
+                            if u.host_str().unwrap_or("").to_ascii_lowercase().contains("youtu.be") {
+                                let seg = u.path().trim_matches('/');
+                                if !seg.is_empty() { return Some(seg.to_string()); }
+                            }
+                            u.query_pairs().find(|(k, _)| k == "v").map(|(_, v)| v.into_owned())
+                        })
                         .unwrap_or_else(|| "video".to_string());
                     format!("video_{from_u}")
                 };

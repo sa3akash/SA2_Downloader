@@ -5520,7 +5520,6 @@ pub fn is_youtube_list(url: &str) -> bool {
         || path.starts_with("/channel/")
         || path.starts_with("/c/")
         || path.starts_with("/user/")
-        || (u.query_pairs().any(|(k, v)| k == "list" && !v.eq_ignore_ascii_case("ll")))
 }
 
 /// The videos of a playlist / channel: (watch URL, title), via yt-dlp's

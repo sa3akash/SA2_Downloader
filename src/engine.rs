@@ -209,6 +209,8 @@ pub struct EngineOpts {
     /// YouTube visitor id for a yt-dlp retry after a bot check (empty =
     /// yt-dlp's own). Set only by the fallback chain.
     pub ytdlp_visitor_data: String,
+    /// Browser name to load cookies from for yt-dlp (e.g. "chrome", "firefox", "edge", "brave").
+    pub ytdlp_cookies_browser: String,
     /// Name of this download's log (the queue id); empty = no log.
     pub log_key: String,
     /// Mirrors of the file (other URLs serving the same bytes).
@@ -407,6 +409,7 @@ impl Default for EngineOpts {
             captured_headers: CapturedHeaders::default(),
             browser: None,
             ytdlp_visitor_data: String::new(),
+            ytdlp_cookies_browser: String::new(),
             log_key: String::new(),
             mirrors: Vec::new(),
             http2: false,
@@ -2919,8 +2922,8 @@ fn resolve_generic(html: &str, page_url: &str) -> Option<(String, String)> {
     ] {
         if let Some(u) = meta_content(html, prop) {
             if u.starts_with("http") {
-                let e = if is_playlist_url(&u) { "mp4" } else { guess_ext(&u) };
-                return Some((with_ratebypass(&u), with_ext(&title, e)));
+                let e = if is_playlist_url(&u) { "mp4".to_string() } else { guess_ext(&u) };
+                return Some((with_ratebypass(&u), with_ext(&title, &e)));
             }
         }
     }
@@ -2941,8 +2944,8 @@ fn resolve_generic(html: &str, page_url: &str) -> Option<(String, String)> {
             if let Some(end) = rest.find('"') {
                 let u = rest[..end].replace("\\/", "/");
                 if u.starts_with("http") && (looks_media_url(&u) || is_playlist_url(&u)) {
-                    let e = if is_playlist_url(&u) { "mp4" } else { guess_ext(&u) };
-                    return Some((with_ratebypass(&u), with_ext(&title, e)));
+                    let e = if is_playlist_url(&u) { "mp4".to_string() } else { guess_ext(&u) };
+                    return Some((with_ratebypass(&u), with_ext(&title, &e)));
                 }
             }
             search = &search[p + key.len()..];
@@ -2963,8 +2966,8 @@ fn resolve_generic(html: &str, page_url: &str) -> Option<(String, String)> {
             search = &search[p + key.len()..];
         }
         if let Some(u) = best {
-            let e = if is_playlist_url(&u) { "mp4" } else { guess_ext(&u) };
-            return Some((with_ratebypass(&u), with_ext(&title, e)));
+            let e = if is_playlist_url(&u) { "mp4".to_string() } else { guess_ext(&u) };
+            return Some((with_ratebypass(&u), with_ext(&title, &e)));
         }
     }
     // bare https://....mp4/.m3u8/.mpd/.webm/.mkv/.mp3 links
@@ -2993,7 +2996,7 @@ fn resolve_generic(html: &str, page_url: &str) -> Option<(String, String)> {
                     .trim_end_matches(['"', '\'', ')', '<'])
                     .to_string();
                 if u.len() < 3000 {
-                    let out_ext = if *ext == ".m3u8" || *ext == ".mpd" { "mp4" } else { ext.trim_start_matches('.') };
+                    let out_ext = if ext.ends_with("m3u8") || ext.ends_with("mpd") { "mp4" } else { ext.trim_start_matches('.') };
                     let name = u
                         .rsplit('/')
                         .next()
@@ -4196,8 +4199,8 @@ async fn fallback_chain(
                 for b_name in ["chrome", "edge", "firefox", "brave"] {
                     if shared.cancelled.load(Ordering::SeqCst) { break; }
                     job_log(&opts.log_key, format!("retrying with {b_name} browser cookies to bypass verification"));
-                    crate::model::set_ui_pref("yt_cookies_browser", b_name);
-                    let o2 = opts.clone();
+                    let mut o2 = opts.clone();
+                    o2.ytdlp_cookies_browser = b_name.to_string();
                     reset_counters(shared);
                     if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
                         return Ok(());
@@ -5582,7 +5585,11 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
     } else {
         None
     };
-    let b_cookie = crate::model::ui_pref_str("browser_cookies", "");
+    let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
+        opts.ytdlp_cookies_browser.clone()
+    } else {
+        crate::model::ui_pref_str("browser_cookies", "")
+    };
     if let Some(j) = &jar {
         cmd.arg("--cookies").arg(&j.0);
     } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
@@ -6851,7 +6858,11 @@ async fn download_with_ytdlp(
     if let Some((name,path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}",path.display()));
     }
-    let b_cookie = crate::model::ui_pref_str("browser_cookies", "");
+    let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
+        opts.ytdlp_cookies_browser.clone()
+    } else {
+        crate::model::ui_pref_str("browser_cookies", "")
+    };
     if let Some(jar) = &jar {
         cmd.arg("--cookies").arg(&jar.0);
     } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
@@ -6914,6 +6925,7 @@ async fn download_with_ytdlp(
     // Drain stdout for progress (both pipes must be drained, or a chatty
     // helper fills the pipe buffer and deadlocks).
     let progress = Arc::clone(shared);
+    let expected_size = opts.expected_size;
     let out_task = tokio::spawn(async move {
         let mut lines = tokio::io::BufReader::new(stdout).lines();
         // A merged download is several transfers back to back (video, then
@@ -6988,7 +7000,7 @@ async fn download_with_ytdlp(
                 }
                 // No size yet (extraction, or a new leg that has not named one).
                 None => {
-                    if opts.expected_size == 0 {
+                    if expected_size == 0 {
                         progress.has_total.store(false, Ordering::SeqCst);
                     }
                 }

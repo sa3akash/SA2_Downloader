@@ -646,7 +646,7 @@ impl eframe::App for ProgressApp {
         // everything else fixed. A monitor-sized cap keeps a 32-connection
         // list usable — the table scrolls instead of leaving the screen.
         let item_conns = self.item.as_ref().map(|it| it.connections.clamp(1, 8)).unwrap_or(1);
-        let parts = if !self.snap.parts.is_empty() {
+        let _parts = if !self.snap.parts.is_empty() {
             self.snap.parts.len()
         } else if self.snap.fragments.is_some() {
             1
@@ -1440,7 +1440,7 @@ impl ProgressApp {
         };
 
         let table_y = 226.0;
-        let n = parts_list.len();
+        let _n = parts_list.len();
         let lens: Vec<u64> = parts_list
             .iter()
             .map(|(s, e, _)| e.saturating_sub(*s) + 1)

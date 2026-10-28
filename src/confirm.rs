@@ -279,6 +279,18 @@ fn plus_square(ui: &mut egui::Ui, rect: egui::Rect, salt: u64) -> egui::Response
     r
 }
 
+pub(crate) fn cat_icon(cat: &str) -> Option<(DmIcon, egui::Color32)> {
+    match cat {
+        "Video" => Some((DmIcon::Video, COLOR_BLEU_DE_FRANCE)),
+        "Music" => Some((DmIcon::Music, egui::Color32::from_rgb(0xEF, 0x44, 0x44))),
+        "Image" => Some((DmIcon::Image, egui::Color32::from_rgb(0x06, 0xB6, 0xD4))),
+        "Document" => Some((DmIcon::Doc, egui::Color32::from_rgb(0x64, 0x74, 0x8B))),
+        "Compressed" => Some((DmIcon::Archive, egui::Color32::from_rgb(0xD9, 0x77, 0x06))),
+        "Apps" => Some((DmIcon::AppWindow, egui::Color32::from_rgb(0x8B, 0x5C, 0xF6))),
+        _ => None,
+    }
+}
+
 /// Floating option list anchored under `resp` — the concept's dropdown body,
 /// shared by the category combo and the path field's recent folders, so both
 /// menus look and behave identically.
@@ -319,13 +331,25 @@ fn options_menu(
                             ui.painter().rect_filled(r, 4.0, pl().dm_hover);
                             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                         }
-                        ui.painter().text(
-                            egui::pos2(r.left() + 8.0, r.center().y),
-                            egui::Align2::LEFT_CENTER,
-                            elide_left(o, 52),
-                            reg(11.0),
-                            if o.as_str() == selected { DM_ACC } else { pl().dm_txt },
-                        );
+                        if let Some((ic, col)) = cat_icon(o) {
+                            let ic_r = egui::Rect::from_center_size(egui::pos2(r.left() + 16.0, r.center().y), egui::Vec2::splat(12.0));
+                            dm_icon(ui.painter(), ic_r, ic, col, 1.8);
+                            ui.painter().text(
+                                egui::pos2(r.left() + 28.0, r.center().y),
+                                egui::Align2::LEFT_CENTER,
+                                elide_left(o, 48),
+                                reg(11.0),
+                                if o.as_str() == selected { DM_ACC } else { pl().dm_txt },
+                            );
+                        } else {
+                            ui.painter().text(
+                                egui::pos2(r.left() + 8.0, r.center().y),
+                                egui::Align2::LEFT_CENTER,
+                                elide_left(o, 52),
+                                reg(11.0),
+                                if o.as_str() == selected { DM_ACC } else { pl().dm_txt },
+                            );
+                        }
                         if ir.clicked() {
                             picked = Some(o.clone());
                         }
@@ -353,8 +377,19 @@ pub(crate) fn combo(
     }
     let p = ui.painter();
     dm_box(p, rect);
+    let text_x = if id.contains("cat") {
+        if let Some((ic, col)) = cat_icon(current) {
+            let ic_r = egui::Rect::from_center_size(egui::pos2(rect.left() + 18.0, rect.center().y), egui::Vec2::splat(14.0));
+            dm_icon(p, ic_r, ic, col, 2.0);
+            rect.left() + 32.0
+        } else {
+            rect.left() + 13.0
+        }
+    } else {
+        rect.left() + 13.0
+    };
     p.text(
-        egui::pos2(rect.left() + 13.0, rect.center().y),
+        egui::pos2(text_x, rect.center().y),
         egui::Align2::LEFT_CENTER,
         elide_left(current, 26),
         reg(11.0),
@@ -1056,13 +1091,6 @@ impl eframe::App for ConfirmApp {
                 semi(13.5),
                 pl().dm_txt,
             );
-            p.line_segment(
-                [
-                    egui::pos2(o.x + 1.0, o.y + 39.5),
-                    egui::pos2(o.x + DM_W - 1.0, o.y + 39.5),
-                ],
-                egui::Stroke::new(1.0_f32, pl().dm_line),
-            );
             if ui
                 .interact(
                     at(0.0, 0.0, DM_W - 130.0, 39.0),
@@ -1256,7 +1284,7 @@ impl eframe::App for ConfirmApp {
                     .on_hover_text(format!("→ {}", self.effective_dir()));
             }
             let f_b = ui.interact(folder_btn, egui::Id::new("popup-folder"), egui::Sense::click());
-            icon_btn(&p, folder_btn, f_b.hovered(), DmIcon::Folder, 14.0, 1.5, pl().dm_dim);
+            icon_btn(&p, folder_btn, f_b.hovered(), DmIcon::Folder, 14.0, 1.5, COLOR_LIGHTNING_YELLOW);
             let c_b = ui.interact(caret_btn, egui::Id::new("popup-caret"), egui::Sense::click());
             icon_btn(&p, caret_btn, c_b.hovered(), DmIcon::Chevron, 10.0, 2.0, pl().dm_dim);
             if f_b.hovered() || c_b.hovered() {

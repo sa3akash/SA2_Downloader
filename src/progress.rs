@@ -185,16 +185,28 @@ fn open_path(p: &std::path::Path) {
 
 fn fmt_eta(left: u64, speed: f64) -> String {
     if speed <= 1.0 {
-        return "-".to_string();
+        return "00:00:00".to_string();
     }
     let secs = (left as f64 / speed) as u64;
-    if secs >= 3600 {
-        format!("{} h {} m left", secs / 3600, (secs % 3600) / 60)
-    } else if secs >= 60 {
-        format!("{} m {} s left", secs / 60, secs % 60)
-    } else {
-        format!("{} s left", secs)
+    let h = secs / 3600;
+    let m = (secs % 3600) / 60;
+    let s = secs % 60;
+    format!("{:02}:{:02}:{:02}", h, m, s)
+}
+
+fn format_part_bytes(bytes: u64) -> String {
+    let kb = bytes / 1024;
+    let s = kb.to_string();
+    let mut out = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    for (i, c) in chars.iter().enumerate() {
+        if i > 0 && (len - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(*c);
     }
+    format!("{out} KB")
 }
 
 /// Media length as IDM words it: "1 h 49 min", "6 min 23 s", "19 s".
@@ -235,10 +247,11 @@ const MARK_X: f32 = 15.0;
 const MARK_Y: f32 = 10.0;
 const MARK_S: f32 = 18.0;
 const TITLE_X: f32 = 41.0;
-/// Vertical centre of the header (and of its two window controls).
+/// Vertical centre of the header (and of its window controls).
 const HDR_CY: f32 = 19.0;
-const CTL_X1: f32 = 416.0;
-const CTL_X2: f32 = 446.0;
+const CTL_X1: f32 = 394.0;
+const CTL_X2: f32 = 422.0;
+const CTL_X3: f32 = 450.0;
 
 const SEG_X: f32 = 15.0;
 const SEG_Y: f32 = 44.0;
@@ -692,7 +705,8 @@ impl ProgressApp {
         }
         for (i, cx, icon, id, tip) in [
             (0usize, CTL_X1, DmIcon::Minimize, "pg-min", "Minimise"),
-            (1, CTL_X2, DmIcon::Close, "pg-close", "Close"),
+            (1, CTL_X2, DmIcon::Maximize, "pg-max", "Maximise"),
+            (2, CTL_X3, DmIcon::Close, "pg-close", "Close"),
         ] {
             let r = egui::Rect::from_center_size(
                 egui::pos2(o.x + cx, o.y + HDR_CY),
@@ -707,10 +721,13 @@ impl ProgressApp {
             }
             dm_icon(&p, r, icon, if b.hovered() { pl().dm_txt } else { pl().dm_dim }, 2.0);
             if b.clicked() {
-                if i == 0 {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
-                } else {
-                    Self::close_soon(&ctx);
+                match i {
+                    0 => ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true)),
+                    1 => {
+                        let max = ctx.input(|inp| inp.viewport().maximized.unwrap_or(false));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!max));
+                    }
+                    _ => Self::close_soon(&ctx),
                 }
             }
         }
@@ -1198,7 +1215,7 @@ impl ProgressApp {
         // ---- Row 3: Stats (Downloaded / Total | ETA | Speed in Bleu De France) ----
         let stats_y = prog_y + prog_h + 8.0;
         let dl_str = format!(
-            "{} / {}",
+            "{}/{}",
             format_bytes(item.downloaded_bytes),
             item.total_bytes.map(format_bytes).unwrap_or_else(|| "—".into())
         );
@@ -1248,21 +1265,21 @@ impl ProgressApp {
         let pause_b = ui.interact(pause_r, egui::Id::new("pg-pause-btn"), egui::Sense::click());
         let cancel_b = ui.interact(cancel_r, egui::Id::new("pg-cancel-btn"), egui::Sense::click());
 
-        btn_pill(&p, det_r, det_b.hovered(), details_lbl, pl().dm_line, pl().dm_box_bd, pl().dm_dim, None);
+        btn_pill(&p, det_r, det_b.hovered(), details_lbl, pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
 
         let paused = matches!(item.status, Status::Paused);
         btn_pill(
             &p,
             pause_r,
             pause_b.hovered(),
-            if paused { "Resume ▶" } else { "Pause ||" },
+            if paused { "Resume  ▶" } else { "Pause  ||" },
             pl().dm_card,
             COLOR_APPLE_GREEN,
-            COLOR_APPLE_GREEN,
+            pl().dm_txt,
             None,
         );
 
-        btn_pill(&p, cancel_r, cancel_b.hovered(), "Cancel ✕", pl().dm_line, pl().dm_box_bd, egui::Color32::from_rgb(0xFF, 0x6B, 0x6B), None);
+        btn_pill(&p, cancel_r, cancel_b.hovered(), "Cancel  ✕", pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
 
         if det_b.hovered() || pause_b.hovered() || cancel_b.hovered() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
@@ -1355,7 +1372,7 @@ impl ProgressApp {
             };
 
             p.text(egui::pos2(o.x + PAD_X + 16.0, y), egui::Align2::LEFT_TOP, (i + 1).to_string(), reg(10.0), pl().dm_lbl);
-            p.text(egui::pos2(o.x + PAD_X + 48.0, y), egui::Align2::LEFT_TOP, if *d > 0 { format_bytes(*d) } else { "0 KB".into() }, reg(10.0), pl().dm_txt);
+            p.text(egui::pos2(o.x + PAD_X + 48.0, y), egui::Align2::LEFT_TOP, if *d > 0 { format_part_bytes(*d) } else { "0 KB".into() }, reg(10.0), pl().dm_txt);
             p.text(egui::pos2(o.x + PAD_X + 150.0, y), egui::Align2::LEFT_TOP, status, reg(10.0), pl().dm_dim);
 
             // Mini progress bar in Bleu De France

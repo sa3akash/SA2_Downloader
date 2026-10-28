@@ -2295,6 +2295,14 @@ pub struct sa2App {
     /// the Add dialog can show the chosen stream's size, and honored by the
     /// engine at download time).
     add_quality: String,
+    add_category: String,
+    add_cat_open: bool,
+    add_is_playlist: bool,
+    add_quality_open: bool,
+    add_real_formats: Vec<crate::engine::RealVideoFormat>,
+    add_formats_rx: Option<std::sync::mpsc::Receiver<Option<crate::engine::RealVideoInfo>>>,
+    add_loading_playlist: bool,
+    add_playlist_rx: Option<std::sync::mpsc::Receiver<anyhow::Result<(String, Vec<(String, String)>)>>>,
     captured_media: HashMap<String, (u64, bool)>,
     // Details-dialog checksum staging (validated live; see Details tab).
     det_sum: String,
@@ -2475,6 +2483,14 @@ impl sa2App {
             add_user: String::new(),
             add_pass: String::new(),
             add_quality: String::new(),
+            add_category: "Video".to_string(),
+            add_cat_open: false,
+            add_is_playlist: false,
+            add_quality_open: false,
+            add_real_formats: Vec::new(),
+            add_formats_rx: None,
+            add_loading_playlist: false,
+            add_playlist_rx: None,
             captured_media: HashMap::new(),
             det_sum: String::new(),
             det_for: None,
@@ -3062,6 +3078,14 @@ impl sa2App {
                 self.add_file.clear();
                 self.add_checksum.clear();
                 self.add_quality.clear();
+                self.add_category = "Video".to_string();
+                self.add_cat_open = false;
+                self.add_is_playlist = false;
+                self.add_quality_open = false;
+                self.add_real_formats.clear();
+                self.add_formats_rx = None;
+                self.add_loading_playlist = false;
+                self.add_playlist_rx = None;
                 self.clear_add_credentials();
                 self.show_add = true;
             }
@@ -3604,15 +3628,19 @@ impl sa2App {
             timeout_secs: self.timeout_secs,
             proxy_url: self.proxy_url.clone(),
             quality_pref: self.add_quality.trim().to_string(),
+            referer: self.add_referer.clone(),
+            cookie: self.add_cookie.clone(),
             ..Default::default()
         };
+        let opts_clone = opts.clone();
+        let url_clone = url.clone();
         self.rt.spawn(async move {
-            let out = match opts.build_client() {
+            let out = match opts_clone.build_client() {
                 Ok(client) => {
                     let (mut total, _, ctype, mut disp) =
-                        crate::engine::probe(&client, &opts, &url).await;
+                        crate::engine::probe(&client, &opts_clone, &url_clone).await;
                     // A playlist's length is its text, never the video size.
-                    if crate::engine::is_stream_manifest(&url, ctype.as_deref(), "") {
+                    if crate::engine::is_stream_manifest(&url_clone, ctype.as_deref(), "") {
                         total = None;
                     }
                     // Page URLs (YouTube watch / generic video pages) answer
@@ -3622,15 +3650,15 @@ impl sa2App {
                         .as_deref()
                         .map(|c| c.contains("text/html"))
                         .unwrap_or(false)
-                        || url.contains("youtube.com")
-                        || url.contains("youtu.be");
+                        || url_clone.contains("youtube.com")
+                        || url_clone.contains("youtu.be");
                     if total.is_none() && is_page {
                         let shared =
                             std::sync::Arc::new(crate::engine::SharedState::new());
-                        if let Some(hit) = crate::engine::resolve_media(&client, &opts, &url, &shared).await
+                        if let Some(hit) = crate::engine::resolve_media(&client, &opts_clone, &url_clone, &shared).await
                         {
                             let (t2, _, _, _) =
-                                crate::engine::probe(&client, &opts, &hit.url).await;
+                                crate::engine::probe(&client, &opts_clone, &hit.url).await;
                             if total.is_none() {
                                 total = t2;
                             }
@@ -3638,7 +3666,7 @@ impl sa2App {
                             // menu choice merges (IDM shows the merged total).
                             if let Some(pair) = hit.pair_url.filter(|p| p.starts_with("http")) {
                                 let (ta, _, _, _) =
-                                    crate::engine::probe(&client, &opts, &pair).await;
+                                    crate::engine::probe(&client, &opts_clone, &pair).await;
                                 if let (Some(a), Some(b)) = (total, ta) {
                                     total = Some(a.saturating_add(b));
                                 } else {
@@ -3655,6 +3683,19 @@ impl sa2App {
                 Err(_) => (None, None),
             };
             let _ = tx.send(out);
+        });
+
+        let (ftx, frx) = std::sync::mpsc::channel();
+        self.add_formats_rx = Some(frx);
+        let f_url = url;
+        let f_opts = opts;
+        self.rt.spawn(async move {
+            let info = if let Ok(client) = f_opts.build_client() {
+                crate::engine::probe_real_video_formats(&client, &f_opts, &f_url).await
+            } else {
+                None
+            };
+            let _ = ftx.send(info);
         });
     }
     /// Start a site-grabber crawl on the Tokio runtime (P3.1).
@@ -7409,24 +7450,75 @@ impl eframe::App for sa2App {
                 self.probe_size = sz;
                 if let Some(n) = nm {
                     self.probe_name = Some(n.clone());
-                    if self.add_file.trim().is_empty() {
+                    if self.add_file.trim().is_empty()
+                        || crate::model::is_fallback_filename(&self.add_file)
+                    {
                         self.add_file = crate::model::apply_rename_template(
                             &self.rename_template,
                             &n,
                             &self.add_url,
                         );
+                        self.add_category = crate::model::category_of(&self.add_file).to_string();
+                    }
+                }
+            }
+            if let Some(rx) = self.add_formats_rx.as_ref() {
+                while let Ok(Some(info)) = rx.try_recv() {
+                    if let Some(t) = info.title {
+                        if self.add_file.trim().is_empty()
+                            || crate::model::is_fallback_filename(&self.add_file)
+                        {
+                            self.add_file = crate::model::apply_rename_template(
+                                &self.rename_template,
+                                &crate::engine::sanitize_filename(&t),
+                                &self.add_url,
+                            );
+                            self.add_category = crate::model::category_of(&self.add_file).to_string();
+                        }
+                    }
+                    if !info.formats.is_empty() {
+                        if self.probe_size.is_none() || self.probe_size == Some(0) {
+                            if let Some(first_sz) = info.formats.first().and_then(|f| f.size) {
+                                self.probe_size = Some(first_sz);
+                            }
+                        }
+                        self.add_real_formats = info.formats;
+                    }
+                }
+            }
+            if let Some(rx) = self.add_playlist_rx.as_ref() {
+                if let Ok(res) = rx.try_recv() {
+                    self.add_loading_playlist = false;
+                    match res {
+                        Ok((title, entries)) => {
+                            let links: Vec<crate::native_host::PageLink> = entries
+                                .into_iter()
+                                .map(|(u, t)| crate::native_host::PageLink { url: u, text: t })
+                                .collect();
+                            if !links.is_empty() {
+                                let _ = crate::native_host::open_links_window(&self.add_url, &title, &self.add_cookie, &links);
+                                self.show_add = false;
+                                return;
+                            }
+                        }
+                        Err(e) => {
+                            self.push_log(format!("Playlist: {e:#}"));
+                        }
                     }
                 }
             }
             let psize = self.probe_size;
             let pbusy = self.probing;
             let mut open = self.show_add;
-            // In-canvas centered modal (a separate OS window proved unstable
-            // here, so the dialog lives in the main canvas like before).
-            // The concept is a fixed-size dialog; only the advanced panel makes
-            // it taller (the concept draws that collapsed).
+            let is_media = crate::engine::is_playlist_url_or_query(&self.add_url)
+                || self.add_category == "Video"
+                || self.add_category == "Music"
+                || crate::engine::is_youtube_page(&self.add_url)
+                || crate::engine::social_video_page(&self.add_url)
+                || !self.add_quality.is_empty();
+            let pl_h = if is_media { 36.0 } else { 0.0 };
             let adv_h = if self.add_adv { DM_PANEL_H + 14.0 } else { 0.0 };
-            let card_h = (DM_H + adv_h).min((ctx.screen_rect().height() * 0.94).max(300.0));
+            let card_h = (DM_H + adv_h + pl_h).min((ctx.screen_rect().height() * 0.94).max(300.0));
             egui::Window::new("Add download")
                 .id(egui::Id::new("add_download_modal"))
                 .order(egui::Order::Foreground)
@@ -7464,13 +7556,23 @@ impl eframe::App for sa2App {
                         crate::fonts::semi(13.5),
                         pl().dm_txt,
                     );
-                    p.line_segment(
-                        [
-                            egui::pos2(o.x + 1.0, o.y + 39.5),
-                            egui::pos2(o.x + DM_W - 1.0, o.y + 39.5),
-                        ],
-                        egui::Stroke::new(1.0_f32, pl().dm_line),
+
+                    // Gear button in header for advanced options panel
+                    let gear_r = egui::Rect::from_center_size(
+                        egui::pos2(o.x + 450.0, o.y + 20.0),
+                        egui::Vec2::splat(14.0),
                     );
+                    dm_icon_btn(
+                        &p,
+                        &self.man,
+                        gear_r,
+                        DmIcon::Settings,
+                        14.0,
+                        1.5,
+                        if self.add_adv { DM_ACC } else { pl().dm_dim },
+                    );
+                    self.hits.push((HitKind::Btn(ButtonId::AddAdv), gear_r));
+
                     // The dialog lives in the main canvas, so minimise/restore
                     // drive the real OS window and the X closes the dialog.
                     for (cx, icon, ctl) in [
@@ -7500,28 +7602,131 @@ impl eframe::App for sa2App {
                             }
                         }
                     }
-                    // ---- row 1: URL + clipboard ----
-                    let url_box = at(DM_X, DM_ROW1, DM_W_IN, DM_BOX_H);
-                    let url_btn = egui::Rect::from_min_size(
-                        egui::pos2(url_box.max.x - 33.0, url_box.min.y + 5.0),
+
+                    // Size text formatted cleanly
+                    let sz_txt: String = if pbusy {
+                        "…".to_string()
+                    } else {
+                        psize
+                            .filter(|s| *s > 0)
+                            .map(format_bytes)
+                            .unwrap_or_else(|| "—".to_string())
+                    };
+
+                    // ---- row 1: File Info (thumbnail with badge + filename with pencil + file size) ----
+                    let r1_y = 48.0;
+                    let thumb_r = at(DM_X, r1_y, 44.0, 36.0);
+                    dm_file_thumbnail(&p, thumb_r, &self.add_file);
+
+                    let file_w = 340.0;
+                    let file_box = at(DM_X + 50.0, r1_y, file_w, 36.0);
+                    let pencil_btn = egui::Rect::from_center_size(
+                        egui::pos2(file_box.max.x - 16.0, file_box.center().y),
+                        egui::Vec2::splat(14.0),
+                    );
+                    dm_field(
+                        ui,
+                        "add_file",
+                        file_box,
+                        pencil_btn.min.x - 4.0,
+                        &mut self.add_file,
+                        "Filename",
+                        false,
+                    );
+                    self.hits.push((HitKind::Field("add_file"), file_box));
+                    dm_icon(&p, pencil_btn, DmIcon::Pencil, pl().dm_dim, 1.8);
+
+                    // Size text on right of row 1
+                    p.text(
+                        egui::pos2(o.x + DM_W - 17.0, o.y + r1_y + 18.0),
+                        egui::Align2::RIGHT_CENTER,
+                        &sz_txt,
+                        crate::fonts::semi(12.5),
+                        pl().dm_txt,
+                    );
+
+                    // ---- row 2: URL + clipboard button ----
+                    let r2_y = 92.0;
+                    p.text(
+                        egui::pos2(o.x + DM_X, o.y + r2_y + 18.0),
+                        egui::Align2::LEFT_CENTER,
+                        "URL",
+                        crate::fonts::semi(12.0),
+                        pl().dm_txt,
+                    );
+                    let url_x = DM_X + 36.0;
+                    let url_w = DM_W_IN - 36.0;
+                    let url_box = at(url_x, r2_y, url_w, 36.0);
+                    let clip_btn = egui::Rect::from_min_size(
+                        egui::pos2(url_box.max.x - 30.0, url_box.min.y + 4.0),
                         egui::Vec2::splat(28.0),
                     );
                     dm_field(
                         ui,
                         "add_url",
                         url_box,
-                        url_btn.min.x - 6.0,
+                        clip_btn.min.x - 4.0,
                         &mut self.add_url,
                         "https://…",
                         false,
                     );
                     self.hits.push((HitKind::Field("add_url"), url_box));
-                    dm_icon_btn(&p, &self.man, url_btn, DmIcon::Clipboard, 14.0, 1.5, pl().dm_dim);
-                    self.hits.push((HitKind::Btn(ButtonId::AddPaste), url_btn));
-                    // ---- row 2: save folder + carets | size chip ----
-                    let path_box = at(DM_X, DM_ROW2, DM_PATH_W, DM_BOX_H);
+                    dm_icon_btn(&p, &self.man, clip_btn, DmIcon::Clipboard, 14.0, 1.5, pl().dm_dim);
+                    self.hits.push((HitKind::Btn(ButtonId::AddPaste), clip_btn));
+
+                    // ---- row 3: Category dropdown | Save To selector + Available space ----
+                    let r3_lbl_y = 136.0;
+                    let r3_y = 152.0;
+
+                    // Category
+                    p.text(
+                        egui::pos2(o.x + DM_X, o.y + r3_lbl_y),
+                        egui::Align2::LEFT_TOP,
+                        "Category",
+                        crate::fonts::reg(10.5),
+                        pl().dm_dim,
+                    );
+                    let cat_w = 145.0;
+                    let cat_r = at(DM_X, r3_y, cat_w, 36.0);
+                    let cats: Vec<String> = vec![
+                        "Video".to_string(),
+                        "Music".to_string(),
+                        "Image".to_string(),
+                        "Document".to_string(),
+                        "Compressed".to_string(),
+                        "Apps".to_string(),
+                        "Other".to_string(),
+                    ];
+                    if let Some(pick) = crate::confirm::combo(ui, cat_r, "add_cat", &self.add_category, &cats, &mut self.add_cat_open) {
+                        self.add_category = pick;
+                    }
+
+                    // Save To
+                    let save_x = DM_X + cat_w + 12.0;
+                    let save_w = DM_W_IN - cat_w - 12.0;
+                    p.text(
+                        egui::pos2(o.x + save_x, o.y + r3_lbl_y),
+                        egui::Align2::LEFT_TOP,
+                        "Save To",
+                        crate::fonts::reg(10.5),
+                        pl().dm_dim,
+                    );
+
+                    // Available disk space indicator on right
+                    let free_space = crate::dm::available_disk_space(&self.add_dir);
+                    if let Some(free_b) = free_space {
+                        p.text(
+                            egui::pos2(o.x + DM_W - 17.0, o.y + r3_lbl_y),
+                            egui::Align2::RIGHT_TOP,
+                            format!("Available: {}", crate::dm::format_disk_space(free_b)),
+                            crate::fonts::reg(10.5),
+                            pl().dm_dim,
+                        );
+                    }
+
+                    let path_box = at(save_x, r3_y, save_w, 36.0);
                     let caret_btn = egui::Rect::from_min_size(
-                        egui::pos2(path_box.max.x - 33.0, path_box.min.y + 5.0),
+                        egui::pos2(path_box.max.x - 30.0, path_box.min.y + 4.0),
                         egui::Vec2::splat(28.0),
                     );
                     let folder_btn = egui::Rect::from_min_size(
@@ -7532,87 +7737,21 @@ impl eframe::App for sa2App {
                         ui,
                         "add_dir",
                         path_box,
-                        folder_btn.min.x - 6.0,
+                        folder_btn.min.x - 4.0,
                         &mut self.add_dir,
                         "Save folder",
                         false,
                     );
                     self.hits.push((HitKind::Field("add_dir"), path_box));
-                    dm_icon_btn(&p, &self.man, folder_btn, DmIcon::Folder, 14.0, 1.5, pl().dm_dim);
+                    dm_icon_btn(&p, &self.man, folder_btn, DmIcon::Folder, 14.0, 1.5, crate::dm::COLOR_LIGHTNING_YELLOW);
                     self.hits.push((HitKind::Btn(ButtonId::AddFolder), folder_btn));
                     dm_icon_btn(&p, &self.man, caret_btn, DmIcon::Chevron, 10.0, 2.0, pl().dm_dim);
                     self.add_caret = Some(caret_btn);
                     if self.man.clicked(&caret_btn) {
                         self.add_recent_open = !self.add_recent_open;
                     }
-                    // size chip: grid mark, size, and a tick once the probe is in
-                    let chip = at(DM_X + DM_PATH_W + 8.0, DM_ROW2, DM_SIZE_W, DM_BOX_H);
-                    dm_box(&p, chip);
-                    dm_icon(
-                        &p,
-                        egui::Rect::from_center_size(
-                            egui::pos2(chip.min.x + 21.0, chip.center().y),
-                            egui::Vec2::splat(16.0),
-                        ),
-                        DmIcon::Grid,
-                        DM_ACC,
-                        0.0,
-                    );
-                    let known = !pbusy && psize.filter(|s| *s > 0).is_some();
-                    let sz_txt: String = if pbusy {
-                        "…".to_string()
-                    } else {
-                        psize
-                            .filter(|s| *s > 0)
-                            .map(format_bytes)
-                            .unwrap_or_else(|| "—".to_string())
-                    };
-                    let g = p.layout_no_wrap(sz_txt, crate::fonts::reg(11.0), pl().dm_txt);
-                    let tw = g.size().x;
-                    let tx = chip.min.x + 37.0;
-                    p.galley(
-                        egui::pos2(tx, chip.center().y - g.size().y * 0.5),
-                        g,
-                        pl().dm_txt,
-                    );
-                    if known {
-                        dm_icon(
-                            &p,
-                            egui::Rect::from_min_size(
-                                egui::pos2(tx + tw + 8.0, chip.min.y + 13.0),
-                                egui::Vec2::splat(12.0),
-                            ),
-                            DmIcon::Check,
-                            DM_OK,
-                            2.5,
-                        );
-                    }
-                    // ---- row 3: filename + refresh + advanced ----
-                    let file_box = at(DM_X, DM_ROW3, DM_FILE_W, DM_BOX_H);
-                    let refr_btn = egui::Rect::from_min_size(
-                        egui::pos2(file_box.max.x + 8.0, file_box.min.y),
-                        egui::Vec2::splat(38.0),
-                    );
-                    let gear_btn = egui::Rect::from_min_size(
-                        egui::pos2(refr_btn.max.x + 8.0, refr_btn.min.y),
-                        egui::Vec2::splat(38.0),
-                    );
-                    dm_field(
-                        ui,
-                        "add_file",
-                        file_box,
-                        file_box.max.x - 13.0,
-                        &mut self.add_file,
-                        "Filename",
-                        false,
-                    );
-                    self.hits.push((HitKind::Field("add_file"), file_box));
-                    dm_icon_btn_box(&p, &self.man, refr_btn, DmIcon::Refresh, 14.0, 1.5, pl().dm_dim);
-                    self.hits.push((HitKind::Btn(ButtonId::AddRefresh), refr_btn));
-                    dm_icon_btn_box(&p, &self.man, gear_btn, DmIcon::Settings, 15.0, 1.5, pl().dm_dim);
-                    self.hits.push((HitKind::Btn(ButtonId::AddAdv), gear_btn));
-                    // ---- advanced panel (gear): same tokens, placeholders
-                    // instead of labels, per the concept's field style ----
+
+                    // ---- advanced panel (gear) ----
                     if self.add_adv {
                         let panel = at(DM_X, DM_ACT, DM_W_IN, DM_PANEL_H);
                         dm_box(&p, panel);
@@ -7703,8 +7842,155 @@ impl eframe::App for sa2App {
                         );
                         self.hits.push((HitKind::Check(CheckId::AddOverwrite), ow));
                     }
+
+                    // ---- media options: Resolution selector and Playlist toggle ----
+                    let mut pl_offset = 0.0;
+                    if is_media {
+                        pl_offset = 36.0;
+                        let is_pl_query = crate::engine::is_playlist_url_or_query(&self.add_url);
+                        let row_y = DM_ACT + adv_h - 2.0;
+
+                        let (q_x, q_w) = if is_pl_query {
+                            let pl_rect = at(DM_X, row_y, 205.0, 28.0);
+                            let cbx = egui::Rect::from_min_size(
+                                egui::pos2(pl_rect.min.x, pl_rect.center().y - 8.0),
+                                egui::Vec2::splat(16.0),
+                            );
+                            if self.add_is_playlist {
+                                p.rect_filled(cbx, 4.0, DM_ACC);
+                                dm_icon(
+                                    &p,
+                                    egui::Rect::from_center_size(cbx.center(), egui::Vec2::splat(12.0)),
+                                    DmIcon::Check,
+                                    egui::Color32::WHITE,
+                                    2.5,
+                                );
+                            } else {
+                                p.rect(
+                                    cbx,
+                                    4.0,
+                                    pl().dm_card,
+                                    egui::Stroke::new(1.0_f32, pl().dm_box_bd),
+                                    egui::StrokeKind::Inside,
+                                );
+                            }
+                            p.text(
+                                egui::pos2(cbx.max.x + 8.0, pl_rect.center().y),
+                                egui::Align2::LEFT_CENTER,
+                                "Download full playlist",
+                                crate::fonts::reg(11.0),
+                                pl().dm_txt,
+                            );
+                            if self.man.clicked(&pl_rect) {
+                                self.add_is_playlist = !self.add_is_playlist;
+                            }
+
+                            // Button to load all playlist items into the multi-file selector
+                            let view_r = at(DM_X + 210.0, row_y, 145.0, 28.0);
+                            let hov = self.man.hover(&view_r);
+                            let lbl = if self.add_loading_playlist { "Loading playlist…" } else { "📋 Select Videos" };
+                            btn_pill(&p, view_r, hov, lbl, pl().dm_line, pl().dm_box_bd, pl().dm_txt, None);
+                            if self.man.clicked(&view_r) && !self.add_loading_playlist {
+                                let (tx, rx) = std::sync::mpsc::channel();
+                                self.add_playlist_rx = Some(rx);
+                                self.add_loading_playlist = true;
+                                let url = self.add_url.clone();
+                                let opts = EngineOpts {
+                                    user_agent: self.user_agent.clone(),
+                                    timeout_secs: self.timeout_secs,
+                                    proxy_url: self.proxy_url.clone(),
+                                    referer: self.add_referer.clone(),
+                                    cookie: self.add_cookie.clone(),
+                                    quality_pref: self.add_quality.clone(),
+                                    ..Default::default()
+                                };
+                                self.rt.spawn(async move {
+                                    let res = crate::engine::playlist_entries(&url, &opts).await;
+                                    let _ = tx.send(res);
+                                });
+                            }
+                            (DM_X + 365.0, DM_W_IN - 365.0)
+                        } else {
+                            (DM_X, 220.0)
+                        };
+
+                        // Resolution / Quality dropdown
+                        let q_rect = at(q_x, row_y, q_w, 28.0);
+                        let cur_q_disp = if !self.add_real_formats.is_empty() {
+                            if let Some(cur) = self.add_real_formats.iter().find(|f| {
+                                f.quality_val.eq_ignore_ascii_case(&self.add_quality)
+                                    || (self.add_quality == "best" && f.quality_val == "best")
+                            }) {
+                                cur.label.clone()
+                            } else {
+                                self.add_real_formats[0].label.clone()
+                            }
+                        } else {
+                            match self.add_quality.trim().to_ascii_lowercase().as_str() {
+                                "" | "best" | "max" | "highest" => "Best Quality".to_string(),
+                                "audio" => "Audio only (MP3)".to_string(),
+                                "2160p" | "4k" => "4K (2160p)".to_string(),
+                                "1440p" | "2k" => "2K (1440p)".to_string(),
+                                "1080p" => "1080p Full HD".to_string(),
+                                "720p" => "720p HD".to_string(),
+                                "480p" => "480p SD".to_string(),
+                                "360p" => "360p SD".to_string(),
+                                other => other.to_string(),
+                            }
+                        };
+
+                        let q_opts: Vec<String> = if !self.add_real_formats.is_empty() {
+                            self.add_real_formats.iter().map(|f| f.label.clone()).collect()
+                        } else {
+                            vec![
+                                "Best Quality".to_string(),
+                                "4K (2160p)".to_string(),
+                                "2K (1440p)".to_string(),
+                                "1080p Full HD".to_string(),
+                                "720p HD".to_string(),
+                                "480p SD".to_string(),
+                                "360p SD".to_string(),
+                                "Audio only (MP3)".to_string(),
+                            ]
+                        };
+
+                        if let Some(pick) = crate::confirm::combo(ui, q_rect, "add_quality_combo", &cur_q_disp, &q_opts, &mut self.add_quality_open) {
+                            if let Some(rf) = self.add_real_formats.iter().find(|f| f.label == pick) {
+                                self.add_quality = rf.quality_val.clone();
+                                if let Some(sz) = rf.size {
+                                    self.probe_size = Some(sz);
+                                }
+                                if rf.is_audio {
+                                    self.add_category = "Music".to_string();
+                                    if !self.add_file.ends_with(".mp3") {
+                                        let stem = std::path::Path::new(&self.add_file)
+                                            .file_stem()
+                                            .and_then(|s| s.to_str())
+                                            .unwrap_or(&self.add_file);
+                                        self.add_file = format!("{stem}.mp3");
+                                    }
+                                }
+                            } else {
+                                match pick.as_str() {
+                                    "Best Quality" => self.add_quality = "best".to_string(),
+                                    "4K (2160p)" => self.add_quality = "2160p".to_string(),
+                                    "2K (1440p)" => self.add_quality = "1440p".to_string(),
+                                    "1080p Full HD" => self.add_quality = "1080p".to_string(),
+                                    "720p HD" => self.add_quality = "720p".to_string(),
+                                    "480p SD" => self.add_quality = "480p".to_string(),
+                                    "360p SD" => self.add_quality = "360p".to_string(),
+                                    "Audio only (MP3)" => {
+                                        self.add_quality = "audio".to_string();
+                                        self.add_category = "Music".to_string();
+                                    }
+                                    other => self.add_quality = other.to_string(),
+                                }
+                            }
+                        }
+                    }
+
                     // ---- actions: [Download Later] [Cancel X] [Download v] ----
-                    let act_y = DM_ACT + adv_h;
+                    let act_y = DM_ACT + adv_h + pl_offset;
                     let later_btn = at(DM_X, act_y, 130.0, 36.0);
                     btn_pill(&p, later_btn, self.man.hover(&later_btn), "Download Later", pl().dm_line, pl().dm_box_bd, pl().dm_txt, None);
                     self.hits.push((HitKind::Btn(ButtonId::AddAdd), later_btn));
@@ -9465,6 +9751,12 @@ impl sa2App {
         item.checksum_sha256 = csum;
         item.overwrite_existing = self.add_overwrite;
         item.quality_pref = self.add_quality.trim().to_string();
+        item.category = self.add_category.clone();
+        item.is_playlist = self.add_is_playlist;
+        if self.add_quality.eq_ignore_ascii_case("audio") {
+            item.expects_audio = true;
+            item.category = "Music".to_string();
+        }
         // Probed (or browser-measured) size survives queueing so the engine
         // and progress UI know the total even if a re-probe would 403.
         item.total_bytes = self.probe_size.filter(|s| *s > 0);
@@ -9497,6 +9789,14 @@ impl sa2App {
         self.add_file.clear();
         self.add_checksum.clear();
         self.add_quality.clear();
+        self.add_category = "Video".to_string();
+        self.add_cat_open = false;
+        self.add_is_playlist = false;
+        self.add_quality_open = false;
+        self.add_real_formats.clear();
+        self.add_formats_rx = None;
+        self.add_loading_playlist = false;
+        self.add_playlist_rx = None;
         self.clear_add_credentials();
         if download {
             self.queue_running = true;
@@ -10177,6 +10477,14 @@ impl sa2App {
                                 self.add_file.clear();
                                 self.add_checksum.clear();
                                 self.add_quality.clear();
+                                self.add_category = "Video".to_string();
+                                self.add_cat_open = false;
+                                self.add_is_playlist = false;
+                                self.add_quality_open = false;
+                                self.add_real_formats.clear();
+                                self.add_formats_rx = None;
+                                self.add_loading_playlist = false;
+                                self.add_playlist_rx = None;
                                 self.clear_add_credentials();
                                 // A link picked up from the clipboard is
                                 // pre-filled here: the lit Add URL button is

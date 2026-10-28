@@ -14,13 +14,16 @@ version=(repo/'VERSION').read_text().strip()
 osname=a.platform or {'Windows':'windows','Darwin':'macos','Linux':'linux'}[platform.system()]
 cand_names = ['sa2_downloader.exe'] if osname=='windows' else ['sa2_downloader']
 binary = a.binary
-if not binary:
+if not binary or not binary.is_file():
     for name in cand_names:
-        cand = repo / 'target/release' / name
-        if cand.is_file():
-            binary = cand
+        for prefix in [repo / 'target/release', repo / 'target/x86_64-pc-windows-msvc/release']:
+            cand = prefix / name
+            if cand.is_file():
+                binary = cand
+                break
+        if binary and binary.is_file():
             break
-if not binary:
+if not binary or not binary.is_file():
     binary = repo / 'target/release' / cand_names[0]
 a.output.mkdir(parents=True,exist_ok=True)
 with tempfile.TemporaryDirectory() as temp:

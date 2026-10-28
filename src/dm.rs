@@ -1086,25 +1086,25 @@ pub fn btn_pill(
     if border != egui::Color32::TRANSPARENT {
         p.rect_stroke(r, rad, egui::Stroke::new(1.0_f32, border), egui::StrokeKind::Inside);
     }
-    let iw = if icon.is_some() { 15.0 } else { 0.0 };
+    let iw = if icon.is_some() { 16.0 } else { 0.0 };
     let font = semi(12.0);
     let galley = p.layout_no_wrap(label.to_string(), font, fg);
     let total_w = iw + galley.size().x;
     let x0 = r.center().x - total_w * 0.5;
+    p.galley(
+        egui::pos2(x0, r.center().y - galley.size().y * 0.5),
+        galley,
+        fg,
+    );
     if let Some(ic) = icon {
         dm_icon(
             p,
-            egui::Rect::from_center_size(egui::pos2(x0 + 6.0, r.center().y), egui::Vec2::splat(12.0)),
+            egui::Rect::from_center_size(egui::pos2(x0 + total_w - 6.0, r.center().y), egui::Vec2::splat(12.0)),
             ic,
             fg,
             2.0,
         );
     }
-    p.galley(
-        egui::pos2(x0 + iw, r.center().y - galley.size().y * 0.5),
-        galley,
-        fg,
-    );
 }
 
 /// Spring Breeze primary gradient pill button with Apple Green gradient and white text.
@@ -1125,20 +1125,20 @@ pub fn btn_spring_breeze(
     let galley = p.layout_no_wrap(label.to_string(), font, egui::Color32::WHITE);
     let total_w = iw + galley.size().x;
     let x0 = r.center().x - total_w * 0.5;
+    p.galley(
+        egui::pos2(x0, r.center().y - galley.size().y * 0.5),
+        galley,
+        egui::Color32::WHITE,
+    );
     if let Some(ic) = icon {
         dm_icon(
             p,
-            egui::Rect::from_center_size(egui::pos2(x0 + 7.0, r.center().y), egui::Vec2::splat(12.0)),
+            egui::Rect::from_center_size(egui::pos2(x0 + total_w - 6.0, r.center().y), egui::Vec2::splat(12.0)),
             ic,
             egui::Color32::WHITE,
             2.2,
         );
     }
-    p.galley(
-        egui::pos2(x0 + iw, r.center().y - galley.size().y * 0.5),
-        galley,
-        egui::Color32::WHITE,
-    );
 }
 
 /// Query free disk space for a directory path.

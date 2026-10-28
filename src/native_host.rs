@@ -392,6 +392,8 @@ pub struct InboxItem {
     pub dur: Option<u64>,
     #[serde(default, alias = "audioExpected")]
     pub audio_expected: bool,
+    #[serde(default, alias = "isPlaylist")]
+    pub is_playlist: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser: Option<crate::model::BrowserContext>,
 }
@@ -791,6 +793,7 @@ fn queue_download(msg: &Incoming) -> Result<bool, String> {
         quality: msg.quality.clone().filter(|s| !s.trim().is_empty()),
         dur: msg.dur.filter(|s| *s > 0),
         audio_expected: msg.audio_expected,
+        is_playlist: msg.is_playlist,
         browser: msg.browser.clone().and_then(|b| b.sanitized()),
     };
     // Same URL re-captured: refresh metadata instead of ignoring it (the
@@ -862,6 +865,7 @@ fn spawn_confirm(msg: &Incoming) {
         cmd.arg("--quality").arg(q);
     }
     if msg.audio_expected { cmd.arg("--expect-audio"); }
+    if msg.is_playlist { cmd.arg("--is-playlist"); }
     if let Some(d) = msg.dur.filter(|s| *s > 0) {
         cmd.arg("--dur").arg(d.to_string());
     }

@@ -407,7 +407,7 @@
       || (v.audioTracks && v.audioTracks.length > 0)));
   }
 
-  function sendDownload(url, filename, mime, size, pair, quality, dur) {
+  function sendDownload(url, filename, mime, size, pair, quality, dur, isPlaylist) {
     // Use only the matching video or an unambiguous sole video. Subtitle,
     // audio-only and ordinary file links do not borrow video expectations.
     const evidence = typeof DCRank !== "undefined"
@@ -449,7 +449,23 @@
       filename = base.toLowerCase().endsWith(ext.toLowerCase()) ? base : base + ext;
     }
     try {
-      chrome.runtime.sendMessage({ type: "download", url: sendUrl, filename, ver: EXT_VER, pageUrl: location.href, referer: location.href, mime: mime || null, size: size || null, pairUrl: (pair && pair.url) || null, pairMime: (pair && pair.mime) || null, quality: quality || null, dur: dur || null, audioExpected, visitorData: ytVisitorData() }, (res) => {
+      chrome.runtime.sendMessage({
+        type: "download",
+        url: sendUrl,
+        filename,
+        ver: EXT_VER,
+        pageUrl: location.href,
+        referer: location.href,
+        mime: mime || null,
+        size: size || null,
+        pairUrl: (pair && pair.url) || null,
+        pairMime: (pair && pair.mime) || null,
+        quality: quality || null,
+        dur: dur || null,
+        audioExpected,
+        visitorData: ytVisitorData(),
+        is_playlist: !!isPlaylist,
+      }, (res) => {
         if (chrome.runtime.lastError) {
           if (ctxInvalidated(chrome.runtime.lastError)) markDead();
           toast("SA2 Downloader: " + chrome.runtime.lastError.message);
@@ -2348,12 +2364,15 @@
         return chip;
       },
       setInfo: (o) => {
-        if (o.res != null) resEl.textContent = o.res;
-        if (o.size != null) sizeEl.textContent = o.size ? "• " + o.size : "";
-        if (o.format != null) fmtEl.textContent = String(o.format).toUpperCase();
+        if (!o) return;
+        if (primary && primary.firstChild && o.res) {
+          primary.firstChild.textContent = `${dcT("panelDownload", "Download")} ${o.res}`;
+        }
       },
-      setPrimaryLabel: (t) => { primary.firstChild.textContent = t; },
-      setHint: (t) => { sendTxt.lastChild.textContent = t; },
+      setPrimaryLabel: (t) => {
+        if (primary && primary.firstChild) primary.firstChild.textContent = t;
+      },
+      setHint: (_t) => {},
       sync,
       show: () => { panel.style.display = "block"; paintDcPanel(panel); },
       hide: () => { panel.style.display = "none"; },
@@ -2819,7 +2838,14 @@
       });
       if (e.st) sizePairs.push({ item: it, sizeEl: it.sizeEl, st: e.st });
     });
-    // "Other Files": subtitle tracks and audio-only streams as chips.
+    // "Other Files": playlist, subtitle tracks and audio-only streams as chips.
+    if (/[?&]list=([^&]+)/i.test(location.href)) {
+      api.addChip({
+        label: `📋 ${dcT("panelPlaylist", "Download Entire Playlist")}`,
+        tip: "Download all videos in this playlist or album with SA2 Downloader",
+        send: () => sendDownload(location.href, fname, "video/mp4", null, null, null, null, true),
+      });
+    }
     for (const sb of (info.subs || [])) {
       api.addChip({
         label: `📄 VTT ${sb.label}`,

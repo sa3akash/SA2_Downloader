@@ -220,6 +220,7 @@ struct ConfirmApp {
     adding_cat: bool,
     new_cat: String,
     custom_cats: Vec<String>,
+    is_playlist: bool,
 }
 
 const CATEGORIES: &[&str] = &[
@@ -611,6 +612,7 @@ impl ConfirmApp {
         item.quality_pref = self.quality_pref.trim().to_string();
         item.duration_secs = self.duration_secs;
         item.expects_audio = self.expects_audio;
+        item.is_playlist = self.is_playlist;
         let id = match crate::model::append_to_queue(&mut item) {
             crate::model::AppendResult::Added(id) => {
                 save_remember_category(self.remember_path);
@@ -701,6 +703,7 @@ pub fn run() -> eframe::Result<()> {
         "--pair-mime",
         "--quality",
         "--dur",
+        "--is-playlist",
     ];
     let args: Vec<String> = std::env::args().collect();
     let mut map: std::collections::HashMap<&str, String> = std::collections::HashMap::new();
@@ -744,6 +747,9 @@ pub fn run() -> eframe::Result<()> {
         .and_then(|s| s.parse::<u64>().ok())
         .filter(|s| *s > 0 && *s < 86400)
         .unwrap_or(0);
+    let is_playlist_cli = args.iter().any(|s| s == "--is-playlist");
+    let is_pure_pl = engine::is_pure_playlist_url(&url);
+    let is_playlist = is_playlist_cli || is_pure_pl;
 
     // Claim the inbox entry first so the main window won't prompt too.
     let mut headers = std::collections::BTreeMap::new();
@@ -814,6 +820,7 @@ pub fn run() -> eframe::Result<()> {
         adding_cat: false,
         new_cat: String::new(),
         custom_cats: Vec::new(),
+        is_playlist,
     };
     // Prefill filename from server when the extension sent none useful.
     // A browser-known size skips probing entirely (server re-probes of
@@ -920,7 +927,9 @@ impl eframe::App for ConfirmApp {
             0.0
         };
         let adv_h = if self.show_adv { panel_h + 14.0 } else { 0.0 };
-        let mut want_h = DM_H + adv_h;
+        let is_pl_url = engine::is_playlist_url_or_query(&self.url);
+        let pl_h = if is_pl_url { 30.0 } else { 0.0 };
+        let mut want_h = DM_H + adv_h + pl_h;
         if !self.notice.is_empty() {
             want_h += 16.0;
         }
@@ -1230,8 +1239,18 @@ impl eframe::App for ConfirmApp {
                 }
             }
 
+            // ---- playlist download toggle (when URL is a playlist or mix) ----
+            let mut pl_offset = 0.0;
+            if engine::is_playlist_url_or_query(&self.url) {
+                pl_offset = 30.0;
+                let pl_rect = at(DM_X, DM_ACT + adv_h - 2.0, DM_W_IN, 24.0);
+                if check_row(ui, pl_rect, "popup_pl", self.is_playlist, "Download entire playlist / album").clicked() {
+                    self.is_playlist = !self.is_playlist;
+                }
+            }
+
             // ---- actions: [Download Later] [Cancel X] [Download v] ----
-            let act_y = DM_ACT + adv_h;
+            let act_y = DM_ACT + adv_h + pl_offset;
             let later_r = at(DM_X, act_y, 130.0, 36.0);
             let dl_r = egui::Rect::from_min_size(
                 egui::pos2(o.x + DM_W - 17.0 - 130.0, o.y + act_y),

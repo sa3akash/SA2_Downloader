@@ -175,6 +175,7 @@ fn opts_for(item: &DownloadItem, limit_bps: u64) -> EngineOpts {
     o.require_audio = item.expects_audio || !item.pair_url.is_empty();
     o.overwrite_existing = item.overwrite_existing;
     o.quality_pref = item.quality_pref.clone();
+    o.is_playlist = item.is_playlist;
     o
 }
 

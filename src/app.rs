@@ -4334,7 +4334,7 @@ impl CraftApp {
             mirrors: item.mirrors.clone(),
             http2: false,
             any_ip: false,
-            is_playlist: false,
+            is_playlist: item.is_playlist,
             digest: Default::default(),
         };
         let shared2 = shared.clone();

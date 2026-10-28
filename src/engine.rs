@@ -4353,8 +4353,9 @@ async fn download_inner(
     // proves nothing about the full video's size or completeness.
     let resolve_page = match vimeo_download_target(&url, &opts.referer)? {
         Some(page) => Some(page),
-        // A post on Instagram, TikTok, X or Reddit: yt-dlp knows each site's
+        // YouTube, Instagram, TikTok, X or Reddit: yt-dlp knows each site's
         // player (the video and its separate audio, the real qualities).
+        None if is_youtube_page(&url) => Some(url.clone()),
         None if social_video_page(&url) => Some(url.clone()),
         None if is_playlist_url_or_query(&url) => Some(url.clone()),
         None => fragment_page(&normalize_media_url(&url), &opts.referer)?,
@@ -6287,6 +6288,7 @@ async fn verify_completed_media(dest: &std::path::Path, shared: &Arc<SharedState
     };
     let resolved = mutex_guard(&shared.resolved_name).clone();
     let actual = resolved.map(|name| dest.with_file_name(name)).unwrap_or_else(|| dest.to_path_buf());
+    if !actual.is_file() { return Ok(()); }
     let mut cmd = tokio::process::Command::new(exe);
     cmd.kill_on_drop(true);
     #[cfg(windows)]
@@ -6657,7 +6659,7 @@ async fn download_with_ytdlp(
             }
         }
     }
-    let is_pl = opts.is_playlist || is_playlist_url_or_query(url);
+    let is_pl = opts.is_playlist || is_pure_playlist_url(url);
     if is_pl {
         cmd.arg("--yes-playlist");
     } else {
@@ -6897,6 +6899,23 @@ async fn download_with_ytdlp(
         }
         return Err(anyhow!(msg));
     }
+    if is_pl {
+        // Multi-file playlist / album download
+        let total = shared.downloaded.load(Ordering::SeqCst);
+        let len = if total > 0 {
+            total
+        } else if let Some(ref p) = final_path {
+            tokio::fs::metadata(p).await.map(|m| m.len()).unwrap_or(1)
+        } else {
+            1
+        };
+        shared.downloaded.store(len, Ordering::SeqCst);
+        shared.total.store(len, Ordering::SeqCst);
+        shared.has_total.store(true, Ordering::SeqCst);
+        shared.frag_count.store(0, Ordering::SeqCst);
+        tidy_parts_dir(dest);
+        return Ok(());
+    }
     // Postprocessing can change the extension. Only the exact file reported
     // by this run, with the expected stem and directory, may be promoted.
     if !dest.is_file() {
@@ -6940,6 +6959,15 @@ pub fn is_torrent_target(url: &str) -> bool {
     lower.starts_with("magnet:")
         || lower.ends_with(".torrent")
         || lower.contains(".torrent?")
+}
+
+/// Check if a URL points purely to a playlist/album container (rather than a specific video playing within one).
+pub fn is_pure_playlist_url(url: &str) -> bool {
+    let lower = url.trim().to_ascii_lowercase();
+    (lower.contains("/playlist") || lower.contains("/album/"))
+        && !lower.contains("watch?v=")
+        && !lower.contains("&v=")
+        && !lower.contains("youtu.be/")
 }
 
 /// Check if a URL points to a playlist, series, or video/audio album.
@@ -11613,6 +11641,15 @@ mod recovery_tests {
         assert!(explain_failure("error following redirect: too many redirects").unwrap().contains("login"));
         assert!(explain_failure("invalid peer certificate: UnknownIssuer").unwrap().contains("certificate"));
         assert!(explain_failure("HTTP 500").is_none());
+    }
+
+    #[test]
+    fn playlist_detection_works_correctly() {
+        assert!(is_playlist_url_or_query("https://www.youtube.com/playlist?list=PL123"));
+        assert!(is_playlist_url_or_query("https://www.youtube.com/watch?v=abc&list=RD123"));
+        assert!(!is_playlist_url_or_query("https://www.youtube.com/watch?v=abc"));
+        assert!(is_pure_playlist_url("https://www.youtube.com/playlist?list=PL123"));
+        assert!(!is_pure_playlist_url("https://www.youtube.com/watch?v=abc&list=RD123"));
     }
 
     #[test]

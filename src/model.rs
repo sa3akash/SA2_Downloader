@@ -202,6 +202,9 @@ pub struct DownloadItem {
     /// Named queue this row belongs to; empty = the Main queue.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub queue: String,
+    /// Whether this task represents an entire playlist or album download.
+    #[serde(default)]
+    pub is_playlist: bool,
 }
 
 /// A named queue besides Main (IDM: several queues, each with its own
@@ -407,6 +410,7 @@ impl DownloadItem {
             browser: None,
             mirrors: Vec::new(),
             queue: String::new(),
+            is_playlist: false,
         }
     }
 

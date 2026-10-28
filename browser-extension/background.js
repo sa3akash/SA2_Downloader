@@ -312,7 +312,7 @@ async function sendToHost(url, filename, extra) {
       quality: (extra && extra.quality) || null,
       dur: (extra && extra.dur) || null,
       audioExpected: !!(extra && extra.audioExpected),
-      is_playlist: !!(extra && extra.is_playlist),
+      is_playlist: !!(extra && (extra.is_playlist || extra.isPlaylist)),
     });
     return !!res && (res.type === "ok" || res.type === "pong");
   } catch (e) {
@@ -1446,7 +1446,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           quality: msg.quality || null,
           dur: msg.dur || null,
           audioExpected: !!msg.audioExpected,
-          is_playlist: !!msg.is_playlist,
+          is_playlist: !!(msg.is_playlist || msg.isPlaylist),
         });
         hostOk = ok;
         setBadge();

@@ -4447,6 +4447,7 @@ impl sa2App {
             http2: false,
             any_ip: false,
             is_playlist: item.is_playlist,
+            expected_size: item.total_bytes.unwrap_or(0),
             digest: Default::default(),
         };
         let shared2 = shared.clone();

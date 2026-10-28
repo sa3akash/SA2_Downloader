@@ -2132,7 +2132,7 @@
 
     // Resolution label: clean formatting without redundant parentheses when badge already says so
     let resTxt = o.res || (o.h ? `${o.h}p` : "");
-    resTxt = resTxt.replace(/\s*\((?:8K|4K|2K|HD)\)/i, "").trim();
+    resTxt = resTxt.replace(/\s*\(?(?:8K|4K|2K|HD|Full\s*HD)\)?/gi, "").trim();
     const resEl = document.createElement("span");
     resEl.setAttribute("data-dc-p", "res-txt");
     resEl.style.cssText = "font-size:11px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;";
@@ -2142,7 +2142,7 @@
     // Optional size tag e.g. 785 MB
     const size = document.createElement("span");
     size.setAttribute("data-dc-p", "size-txt");
-    size.style.cssText = "font-size:9.5px;color:" + T.dim + ";white-space:nowrap;flex:none;margin-left:auto;padding-left:2px;";
+    size.style.cssText = "font-size:9.5px;color:" + T.dim + ";white-space:nowrap;flex:none;margin-left:auto;padding-left:4px;";
     size.textContent = o.size || "";
     if (o.size) el.appendChild(size);
 
@@ -2292,7 +2292,7 @@
     gridHead.appendChild(dcText(dcT("panelVideoFiles", "Video Files"), "muted", "font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;"));
     gridHead.appendChild(badge);
     const grid = document.createElement("div");
-    grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:6px;";
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:6px;width:100%;box-sizing:border-box;";
     gridSec.appendChild(gridHead);
     gridSec.appendChild(grid);
     scroller.appendChild(gridDivider);
@@ -2305,7 +2305,7 @@
     chipsHead.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
     chipsHead.appendChild(dcText(dcT("panelOtherFiles", "Other Files"), "muted", "font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;"));
     const chipsWrap = document.createElement("div");
-    chipsWrap.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:6px;";
+    chipsWrap.style.cssText = "display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:6px;width:100%;box-sizing:border-box;";
     chipsSec.appendChild(chipsHead);
     chipsSec.appendChild(chipsWrap);
     scroller.appendChild(chipsDivider);

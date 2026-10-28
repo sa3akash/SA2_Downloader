@@ -1018,6 +1018,8 @@ pub fn is_video_page_url(url: &str) -> bool {
         || (lower.contains("youtube.com") && (lower.contains("?v=") || lower.contains("&v=")))
         || lower.starts_with("/watch?v=")
         || lower.contains("watch?v=")
+        || lower.starts_with("/shorts/")
+        || lower.contains("/shorts/")
     {
         return true;
     }
@@ -1086,12 +1088,20 @@ pub fn run() -> eframe::Result<()> {
         }
     };
     let prefs = crate::confirm::load_prefs();
+    let base_url = reqwest::Url::parse(&batch.page_url).ok();
     let rows = batch
         .links
         .into_iter()
         .map(|l| {
-            let is_vid = is_video_page_url(&l.url);
-            let mut name = engine::sanitize_filename(&filename_from_url(&l.url));
+            let u_resolved = if let Ok(u) = reqwest::Url::parse(&l.url) {
+                u.to_string()
+            } else if let Some(base) = &base_url {
+                base.join(&l.url).map(|u| u.to_string()).unwrap_or_else(|_| l.url.clone())
+            } else {
+                l.url.clone()
+            };
+            let is_vid = is_video_page_url(&u_resolved) || is_video_page_url(&l.url);
+            let mut name = engine::sanitize_filename(&filename_from_url(&u_resolved));
             if is_vid {
                 let t = l.text.trim();
                 let base = if !t.is_empty() && t.chars().count() <= 120 && !t.contains('{') {
@@ -1099,7 +1109,7 @@ pub fn run() -> eframe::Result<()> {
                 } else if !crate::model::is_fallback_filename(&name) && name.contains('.') {
                     name.clone()
                 } else {
-                    let from_u = reqwest::Url::parse(&l.url).ok()
+                    let from_u = reqwest::Url::parse(&u_resolved).ok()
                         .and_then(|u| {
                             if u.host_str().unwrap_or("").to_ascii_lowercase().contains("youtu.be") {
                                 let seg = u.path().trim_matches('/');
@@ -1116,7 +1126,7 @@ pub fn run() -> eframe::Result<()> {
                     format!("{base}.mp4")
                 });
             } else if crate::model::is_fallback_filename(&name) {
-                name = page_name(&l.url, &l.text);
+                name = page_name(&u_resolved, &l.text);
             }
             let (_, html, image) = if is_vid {
                 ("Video".to_string(), false, false)
@@ -1126,7 +1136,7 @@ pub fn run() -> eframe::Result<()> {
             let kind = if is_vid { Kind::Video } else { Kind::of(&name, html, image) };
             // Files and videos start checked; pages and links to other sites do not.
             let checked = kind != Kind::Page && kind != Kind::Other && kind != Kind::Image;
-            Row { url: l.url, text: l.text, name, guessed_name: !is_vid, kind, size: None, checked, probe: Probe::Pending }
+            Row { url: u_resolved, text: l.text, name, guessed_name: !is_vid, kind, size: None, checked, probe: Probe::Pending }
         })
         .collect();
     let rt = std::sync::Arc::new(

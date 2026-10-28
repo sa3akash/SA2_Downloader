@@ -223,6 +223,8 @@ pub struct EngineOpts {
     pub any_ip: bool,
     /// When true, download the entire playlist if the URL is a playlist or album.
     pub is_playlist: bool,
+    /// Known/expected size upfront from browser or user choice (bytes).
+    pub expected_size: u64,
     /// HTTP Digest login learned from the server's challenge (shared by
     /// every clone of these options).
     pub digest: Arc<std::sync::Mutex<Option<DigestAuth>>>,
@@ -410,6 +412,7 @@ impl Default for EngineOpts {
             http2: false,
             any_ip: false,
             is_playlist: false,
+            expected_size: 0,
             digest: Default::default(),
         }
     }
@@ -4103,6 +4106,10 @@ pub async fn download(
 ) -> Result<()> {
     shared.expected_duration.store(opts.expected_duration_secs, Ordering::SeqCst);
     shared.expects_audio.store(opts.require_audio, Ordering::SeqCst);
+    if opts.expected_size > 0 {
+        shared.total.store(opts.expected_size, Ordering::SeqCst);
+        shared.has_total.store(true, Ordering::SeqCst);
+    }
     let log = opts.log_key.clone();
     job_log(&log, format!("start: {url} ({connections} connections)"));
     if let Err(e) = download_inner(url.clone(), dest.clone(), connections, opts.clone(), shared.clone()).await {
@@ -4172,14 +4179,25 @@ async fn fallback_chain(
         // the page's own visitor id when there are no cookies to send.
         let visitor = opts.browser.as_ref().map(|b| b.visitor_data.clone()).unwrap_or_default();
         let bot = format!("{err:#}").to_ascii_lowercase();
-        if !visitor.is_empty() && opts.cookie.trim().is_empty() && (bot.contains("not a bot") || bot.contains("sign in to confirm")) {
+        if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") {
             if let Ok(exe) = ensure_ytdlp(&client).await {
-                let mut o2 = opts.clone();
-                o2.ytdlp_visitor_data = visitor;
-                reset_counters(shared);
-                match download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
-                    Ok(()) => return Ok(()),
-                    Err(e) => err = e,
+                if !visitor.is_empty() && opts.cookie.trim().is_empty() {
+                    let mut o2 = opts.clone();
+                    o2.ytdlp_visitor_data = visitor;
+                    reset_counters(shared);
+                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
+                        return Ok(());
+                    }
+                }
+                for b_name in ["chrome", "edge", "firefox", "brave"] {
+                    if shared.cancelled.load(Ordering::SeqCst) { break; }
+                    job_log(&opts.log_key, format!("retrying with {b_name} browser cookies to bypass verification"));
+                    crate::model::set_ui_pref("yt_cookies_browser", b_name);
+                    let o2 = opts.clone();
+                    reset_counters(shared);
+                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
+                        return Ok(());
+                    }
                 }
             }
         }
@@ -4386,8 +4404,13 @@ async fn download_inner(
         }
         let client = opts.build_client()?;
         let exe = ensure_ytdlp(&client).await?;
-        shared.total.store(0, Ordering::SeqCst);
-        shared.has_total.store(false, Ordering::SeqCst);
+        if opts.expected_size > 0 {
+            shared.total.store(opts.expected_size, Ordering::SeqCst);
+            shared.has_total.store(true, Ordering::SeqCst);
+        } else {
+            shared.total.store(0, Ordering::SeqCst);
+            shared.has_total.store(false, Ordering::SeqCst);
+        }
         shared.downloaded.store(0, Ordering::SeqCst);
         // Fail on extraction errors; never fall back to saving a fragment.
         return download_with_ytdlp(&exe, &page, &dest, connections, &opts, &shared).await;
@@ -6962,7 +6985,11 @@ async fn download_with_ytdlp(
                     progress.has_total.store(true, Ordering::SeqCst);
                 }
                 // No size yet (extraction, or a new leg that has not named one).
-                None => progress.has_total.store(false, Ordering::SeqCst),
+                None => {
+                    if opts.expected_size == 0 {
+                        progress.has_total.store(false, Ordering::SeqCst);
+                    }
+                }
             }
             if let Some(speed) = p.speed.filter(|s| *s > 0.0) {
                 progress.speed_bps.store(speed as u64, Ordering::SeqCst);
@@ -7104,6 +7131,20 @@ pub struct RealVideoInfo {
 }
 
 static REAL_FORMAT_CACHE: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, RealVideoInfo)>>> = std::sync::OnceLock::new();
+
+/// Instant synchronous cache check for video formats (0ms delay).
+pub fn cached_real_video_formats(url: &str) -> Option<RealVideoInfo> {
+    let target = url.trim();
+    let cache = REAL_FORMAT_CACHE.get()?;
+    if let Ok(c) = cache.lock() {
+        if let Some((t, info)) = c.get(target) {
+            if t.elapsed() < std::time::Duration::from_secs(600) {
+                return Some(info.clone());
+            }
+        }
+    }
+    None
+}
 
 pub async fn probe_real_video_formats(
     client: &reqwest::Client,

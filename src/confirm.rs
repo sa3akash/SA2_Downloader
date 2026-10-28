@@ -539,8 +539,9 @@ impl ConfirmApp {
         };
         let (tx, rx) = std::sync::mpsc::channel();
         self.probe_rx = Some(rx);
-        self.probing = true;
         self.probe_size = self.browser_size;
+        self.probing = self.browser_size.is_none();
+        let has_browser_size = self.browser_size.is_some();
         let url = self.url.clone();
         let referer = self.referer.clone();
         // Quality choice feeds the page resolve so the dialog measures the
@@ -584,7 +585,7 @@ impl ConfirmApp {
                         .unwrap_or(false)
                         || url.contains("youtube.com")
                         || url.contains("youtu.be");
-                    if total.is_none() && is_page {
+                    if !has_browser_size && total.is_none() && is_page {
                         let shared =
                             std::sync::Arc::new(engine::SharedState::new());
                         if let Some(hit) =
@@ -892,7 +893,9 @@ pub fn run() -> eframe::Result<()> {
         quality_open: false,
         loading_playlist: false,
         playlist_rx: None,
-        real_formats: Vec::new(),
+        real_formats: crate::engine::cached_real_video_formats(&url)
+            .map(|info| info.formats)
+            .unwrap_or_default(),
         formats_rx: None,
     };
     app.start_probe();

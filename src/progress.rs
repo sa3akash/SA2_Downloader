@@ -655,19 +655,7 @@ impl eframe::App for ProgressApp {
         };
         let want_h = match &self.item {
             None => PG_DEAD_H,
-            Some(_) if self.parts_open => match self.tab {
-                1 => 444.0,
-                2 => 452.0,
-                3 => 430.0,
-                4 => 444.0,
-                _ => {
-                    if self.snap.fragments.is_some() && self.snap.parts.is_empty() {
-                        368.0
-                    } else {
-                        226.0 + (parts.min(6).max(1) as f32 * 28.0) + 72.0
-                    }
-                }
-            },
+            Some(_) if self.parts_open => 448.0,
             Some(_) => 196.0,
         };
         let want_h = match crate::model::work_area_rect(ctx) {
@@ -874,7 +862,7 @@ impl ProgressApp {
     /// reads as a bug rather than as information.
     fn body_info(&mut self, ui: &mut egui::Ui, o: egui::Pos2, item: &DownloadItem, downloading: bool) {
         let p = ui.painter().clone();
-        let card = at(o, PAD_X, 226.0, PROG_W, 192.0);
+        let card = at(o, PAD_X, 226.0, PROG_W, 204.0);
         p.rect(
             card,
             10.0,
@@ -981,7 +969,7 @@ impl ProgressApp {
     fn body_speed(&mut self, ui: &mut egui::Ui, o: egui::Pos2, item: &DownloadItem, downloading: bool) {
         let ctx = ui.ctx().clone();
         let p = ui.painter().clone();
-        let card = at(o, PAD_X, 226.0, PROG_W, 200.0);
+        let card = at(o, PAD_X, 226.0, PROG_W, 204.0);
         p.rect(
             card,
             10.0,
@@ -1107,7 +1095,7 @@ impl ProgressApp {
     /// The engine's log for this download: connections, retries, fallbacks.
     fn body_log(&mut self, ui: &mut egui::Ui, o: egui::Pos2) {
         let p = ui.painter().clone();
-        let card = at(o, PAD_X, 226.0, PROG_W, 196.0);
+        let card = at(o, PAD_X, 226.0, PROG_W, 204.0);
         p.rect(
             card,
             10.0,
@@ -1147,7 +1135,7 @@ impl ProgressApp {
     fn body_settings(&mut self, ui: &mut egui::Ui, o: egui::Pos2) {
         let ctx = ui.ctx().clone();
         let p = ui.painter().clone();
-        let card = at(o, PAD_X, 226.0, PROG_W, 184.0);
+        let card = at(o, PAD_X, 226.0, PROG_W, 204.0);
         p.rect(
             card,
             10.0,
@@ -1460,7 +1448,7 @@ impl ProgressApp {
 
         let table_card = egui::Rect::from_min_size(
             egui::pos2(o.x + PAD_X, o.y + table_y),
-            egui::vec2(PROG_W, (n.min(6) as f32 * 28.0) + 48.0),
+            egui::vec2(PROG_W, 204.0),
         );
         p.rect(
             table_card,
@@ -1527,7 +1515,7 @@ impl ProgressApp {
     fn fragment_parts(&self, p: &egui::Painter, o: egui::Pos2, i: u64, n: u64, downloading: bool) {
         let table_card = egui::Rect::from_min_size(
             egui::pos2(o.x + PAD_X, o.y + 226.0),
-            egui::vec2(PROG_W, 108.0),
+            egui::vec2(PROG_W, 204.0),
         );
         p.rect(
             table_card,

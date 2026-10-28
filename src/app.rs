@@ -485,6 +485,8 @@ fn file_icon(cat: &str) -> &'static str {
         "Apps" => MI_GRID,
         "Document" => MI_DOC,
         "Compressed" => MI_ARCHIVE,
+        "Torrents" => MI_CLOUD_DL,
+        "Playlists" => MI_PLAYLIST_ADD,
         _ => MI_INSERT_FILE,
     }
 }
@@ -500,6 +502,8 @@ fn cat_color(cat: &str) -> egui::Color32 {
         "Music" => egui::Color32::from_rgb(0xa8, 0x55, 0xf7),
         "Document" => egui::Color32::from_rgb(0xef, 0x44, 0x44),
         "Apps" => egui::Color32::from_rgb(0x06, 0xb6, 0xd4),
+        "Torrents" => egui::Color32::from_rgb(0x10, 0xb9, 0x81),
+        "Playlists" => egui::Color32::from_rgb(0xec, 0x48, 0x99),
         _ => pl().dm_dim,
     }
 }
@@ -6585,13 +6589,15 @@ impl eframe::App for CraftApp {
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         let cur = self.filter.clone();
-                        let cats: [(&str, &str, &str); 6] = [
+                        let cats: [(&str, &str, &str); 8] = [
                             ("Image", MI_IMAGE, crate::i18n::t("Pictures")),
                             ("Video", MI_SLIDESHOW, crate::i18n::t("Videos")),
                             ("Music", MI_MUSIC, crate::i18n::t("Music")),
                             ("Document", MI_DOC, crate::i18n::t("Documents")),
                             ("Compressed", MI_ARCHIVE, crate::i18n::t("Compressed")),
                             ("Apps", MI_GRID, crate::i18n::t("Apps")),
+                            ("Torrents", MI_CLOUD_DL, crate::i18n::t("Torrents")),
+                            ("Playlists", MI_PLAYLIST_ADD, crate::i18n::t("Playlists")),
                         ];
                         let statuses: [(&str, &str, &str, usize, bool); 5] = [
                             ("Downloading", MI_GET_APP, crate::i18n::t("Downloading"), n_active, n_active > 0),

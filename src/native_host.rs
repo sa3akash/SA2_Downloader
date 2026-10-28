@@ -68,6 +68,8 @@ struct Incoming {
     pub dur: Option<u64>,
     #[serde(default, alias = "audioExpected")]
     pub audio_expected: bool,
+    #[serde(default, alias = "isPlaylist")]
+    pub is_playlist: bool,
     /// "Download all links" (`{"type":"links"}`): every link on a page.
     #[serde(default)]
     pub links: Option<Vec<PageLink>>,
@@ -816,7 +818,7 @@ fn queue_download(msg: &Incoming) -> Result<bool, String> {
 /// it outlives this short-lived native-host process).
 fn spawn_confirm(msg: &Incoming) {
     let url = msg.url.clone().unwrap_or_default();
-    if !(url.starts_with("http://") || url.starts_with("https://")) {
+    if !(url.starts_with("http://") || url.starts_with("https://") || url.starts_with("magnet:")) {
         return;
     }
     let Ok(exe) = crate::platform::launch_path() else {

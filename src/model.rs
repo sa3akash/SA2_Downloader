@@ -453,12 +453,18 @@ pub fn start_at_due(s: &str, now: DateTime<Local>) -> bool {
     }
 }
 
-pub fn category_of(filename: &str) -> &'static str {    let ext = filename
+pub fn category_of(filename: &str) -> &'static str {
+    if filename.starts_with("magnet:") {
+        return "Torrents";
+    }
+    let ext = filename
         .rsplit('.')
         .next()
         .unwrap_or("")
         .to_ascii_lowercase();
     match ext.as_str() {
+        "torrent" => "Torrents",
+        "m3u" | "m3u8" | "pls" => "Playlists",
         "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "ico" => "Image",
         "mp3" | "wav" | "flac" | "ogg" | "m4a" => "Music",
         "mp4" | "mkv" | "avi" | "mov" | "webm" | "ts" | "m4s" => "Video",
@@ -516,6 +522,23 @@ pub fn format_eta(item: &DownloadItem) -> String {
 /// skipped in favor of an earlier meaningful segment; otherwise a
 /// timestamped default.
 pub fn filename_from_url(raw: &str) -> String {
+    let raw_t = raw.trim();
+    if raw_t.starts_with("magnet:") {
+        if let Some(pos) = raw_t.find("dn=") {
+            let rest = &raw_t[pos + 3..];
+            let dn_enc = rest.split('&').next().unwrap_or(rest);
+            let name = percent_decode(dn_enc);
+            if !name.trim().is_empty() {
+                return name;
+            }
+        }
+        if let Some(pos) = raw_t.find("urn:btih:") {
+            let hash = &raw_t[pos + 9..].split('&').next().unwrap_or("hash");
+            let prefix = &hash[..hash.len().min(12)];
+            return format!("torrent_{prefix}.torrent");
+        }
+        return "download.torrent".to_string();
+    }
     const PLACEHOLDERS: &[&str] = &[
         "videoplayback", "watch", "play", "player", "download", "media",
         "api", "v", "video", "audio", "file", "get", "stream", "content",
@@ -627,13 +650,16 @@ fn percent_decode(s: &str) -> String {
 
 pub fn is_download_url(s: &str) -> bool {
     let t = s.trim();
+    if t.starts_with("magnet:?") || t.starts_with("magnet:") {
+        return t.len() >= 10 && t.contains("xt=");
+    }
     // FTPS: `ftps://` (implicit on 990, else explicit) and `ftpes://`.
     (t.starts_with("http://")
         || t.starts_with("https://")
         || t.starts_with("ftp://")
         || t.starts_with("ftps://")
         || t.starts_with("ftpes://"))
-        && t.len() < 2048
+        && t.len() < 4096
         && !t.contains(' ')
 }
 
@@ -1609,6 +1635,9 @@ mod tests {
         assert_eq!(category_of("a.pdf"), "Document");
         assert_eq!(category_of("a.zip"), "Compressed");
         assert_eq!(category_of("a.exe"), "Apps");
+        assert_eq!(category_of("movie.torrent"), "Torrents");
+        assert_eq!(category_of("magnet:?xt=urn:btih:12345"), "Torrents");
+        assert_eq!(category_of("playlist.m3u8"), "Playlists");
         assert_eq!(category_of("a.xyz"), "Other");
         assert_eq!(category_of("noext"), "Other");
     }

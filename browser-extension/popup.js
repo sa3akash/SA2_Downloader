@@ -189,12 +189,15 @@ function sendBrowser(job) {
 $("send").onclick = () => {
   const url = $("url").value.trim();
   if (!url) return;
-  if (!/^https?:\/\//i.test(url) || url.length > 4000) {
-    status("Only http(s) links up to 4000 chars can be sent.", "bad");
+  if ((!/^https?:\/\//i.test(url) && !url.startsWith("magnet:")) || url.length > 8000) {
+    status("Only http(s) or magnet links can be sent.", "bad");
     return;
   }
-  if (hostOk) send({ type: "download", url });
-  else sendBrowser({ url, filename: "" });
+  const isMag = url.startsWith("magnet:");
+  if (hostOk) send({ type: "download", url, filename: isMag ? "torrent.download" : undefined, quality: "best" });
+  else if (!isMag) sendBrowser({ url, filename: "" });
+  else status("Magnet/Torrent downloads require SA2 Downloader app to be running.", "bad");
+  $("url").value = "";
 };
 
 // ---------- building cards ----------
@@ -274,7 +277,7 @@ function card(item, mode) {
   tag.className = "tag"; tag.textContent = item.tag || "VIDEO";
 
   const topH = Math.max(0, ...options.map((o) => {
-    if (o.h && o.h > 0) return o.h;
+    if (o.h && o.h > 0 && o.h < 9000) return o.h;
     const l = String(o.label || "");
     if (/8k/i.test(l)) return 4320;
     if (/4k/i.test(l)) return 2160;
@@ -283,8 +286,15 @@ function card(item, mode) {
     return m ? parseInt(m[1], 10) : 0;
   }));
 
+  const isPl = options.some((o) => o.h === 10000);
   let resPill = null;
-  if (topH >= 4320) {
+  if (isPl) {
+    resPill = document.createElement("span");
+    resPill.className = "res-badge";
+    resPill.style.background = "linear-gradient(135deg,#8b5cf6,#6366f1)";
+    resPill.style.color = "#fff";
+    resPill.textContent = "PLAYLIST";
+  } else if (topH >= 4320) {
     resPill = document.createElement("span");
     resPill.className = "res-badge res-8k";
     resPill.textContent = "8K UHD";
@@ -300,6 +310,10 @@ function card(item, mode) {
     resPill = document.createElement("span");
     resPill.className = "res-badge res-fhd";
     resPill.textContent = "1080p";
+  } else if (options.some((o) => o.h === 9999)) {
+    resPill = document.createElement("span");
+    resPill.className = "res-badge res-4k";
+    resPill.textContent = "MAX RES";
   }
 
   const size = document.createElement("span");
@@ -423,11 +437,30 @@ function youtubeItem(v, pageUrl) {
   for (const q of [4320, 2160, 1440, 1080, 720, 480, 360, 240, 144]) {
     if (have.has(q)) continue;
     const key = Object.keys(sizes).find((k) => k.startsWith(`${q}p`));
-    if (!key && q > 1080) continue;
     const sz = key ? sizes[key].size || 0 : 0;
     const qBadge = q === 4320 ? "8K Ultra HD" : q === 2160 ? "4K Ultra HD" : q === 1440 ? "2K Quad HD" : q === 1080 ? "1080p Full HD" : `${q}p`;
     opts.push({ h: q, label: `${qBadge} · MP4`, size: sz, url: null, browser: null,
       msg: { type: "download", url: page, filename: `${stem} [${q}p].mp4`, pageUrl: page, quality: `${q}p`, size: sz || null, dur: dur || null } });
+  }
+  // Offer Best / Maximum Resolution Available dynamically!
+  opts.push({
+    h: 9999,
+    label: "★ Best / Max Resolution (Auto 8K / 4K / Best)",
+    size: 0,
+    url: null,
+    browser: null,
+    msg: { type: "download", url: page, filename: `${stem} [Max].mp4`, pageUrl: page, quality: "best", size: null, dur: dur || null }
+  });
+  // If this video is part of a playlist or on a playlist page:
+  if (page.includes("list=") || (pageUrl && pageUrl.includes("list=")) || page.includes("/playlist")) {
+    opts.push({
+      h: 10000,
+      label: "⚡ Download Entire Playlist (All Videos)",
+      size: 0,
+      url: null,
+      browser: null,
+      msg: { type: "download", url: page, filename: `${stem}_playlist.mp4`, pageUrl: page, quality: "best", is_playlist: true }
+    });
   }
   (v.audio || []).forEach((st) => pushStream(st, "a"));
   opts.sort((a, b) => b.h - a.h);
@@ -781,7 +814,16 @@ async function activeTab() {
 async function loadVideos() {
   const tab = await activeTab();
   await loadHidden(tab);
-  const tabUrl = (tab && tab.url && /^https?:\/\//i.test(tab.url)) ? tab.url : null;
+  const tabUrl = (tab && tab.url && (/^https?:\/\//i.test(tab.url) || tab.url.startsWith("magnet:"))) ? tab.url : null;
+  const isPlaylist = tabUrl && (tabUrl.includes("list=") || tabUrl.includes("/playlist") || tabUrl.includes("/album/"));
+  const plBanner = $("playlistBanner");
+  if (plBanner) {
+    plBanner.style.display = isPlaylist ? "flex" : "none";
+    $("dlPlaylistBtn").onclick = () => {
+      send({ type: "download", url: tabUrl, filename: "playlist.mp4", pageUrl: tabUrl, quality: "best", is_playlist: true });
+      status("Full playlist queued to SA2 Downloader ✓", "ok");
+    };
+  }
   if (tab && tab.id !== undefined) {
     try {
       // The top frame only: every iframe also answers (ad/account frames

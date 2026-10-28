@@ -221,6 +221,8 @@ pub struct EngineOpts {
     /// client_builder). The fallback chain turns it on for a host that has
     /// no working IPv4 path or failed its name lookup.
     pub any_ip: bool,
+    /// When true, download the entire playlist if the URL is a playlist or album.
+    pub is_playlist: bool,
     /// HTTP Digest login learned from the server's challenge (shared by
     /// every clone of these options).
     pub digest: Arc<std::sync::Mutex<Option<DigestAuth>>>,
@@ -407,6 +409,7 @@ impl Default for EngineOpts {
             mirrors: Vec::new(),
             http2: false,
             any_ip: false,
+            is_playlist: false,
             digest: Default::default(),
         }
     }
@@ -4332,6 +4335,13 @@ async fn download_inner(
         let client = opts.build_client()?;
         url = crate::gdrive::resolve(&client, &opts, &url).await?;
     }
+    // BitTorrent & Magnet links:
+    if is_torrent_target(&url) {
+        let _job = claim_dest_job(&dest).ok_or_else(|| anyhow!("this destination is already downloading elsewhere"))?;
+        let client = opts.build_client()?;
+        let exe = ensure_aria2(&client).await?;
+        return download_with_torrent(&exe, &url, &dest, connections, &opts, &shared).await;
+    }
     // Resolve Vimeo before probing the CDN: a successful fragment response
     // proves nothing about the full video's size or completeness.
     let resolve_page = match vimeo_download_target(&url, &opts.referer)? {
@@ -4339,6 +4349,7 @@ async fn download_inner(
         // A post on Instagram, TikTok, X or Reddit: yt-dlp knows each site's
         // player (the video and its separate audio, the real qualities).
         None if social_video_page(&url) => Some(url.clone()),
+        None if is_playlist_url_or_query(&url) => Some(url.clone()),
         None => fragment_page(&normalize_media_url(&url), &opts.referer)?,
     };
     if let Some(page) = resolve_page {
@@ -6200,6 +6211,14 @@ async fn write_cookie_jar(cookie: &str, domain: &str) -> Result<Option<CookieJar
 /// The audio tier prefers m4a: the merge output is mp4, and Opus in mp4 is the
 /// one combination players still object to.
 fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
+    let p = pref.trim().to_ascii_lowercase();
+    if p == "best" || p == "max" || p == "highest" || p == "auto" {
+        return if can_merge {
+            "bv*+ba[ext=m4a]/bv*+ba/b".to_string()
+        } else {
+            "b".to_string()
+        };
+    }
     match (quality_cap(pref), can_merge) {
         (Some(h), true) => format!(
             "bv*[height<={h}]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b"
@@ -6630,8 +6649,13 @@ async fn download_with_ytdlp(
             }
         }
     }
-    cmd.arg("--no-playlist")
-        .arg("--no-warnings")
+    let is_pl = opts.is_playlist || is_playlist_url_or_query(url);
+    if is_pl {
+        cmd.arg("--yes-playlist");
+    } else {
+        cmd.arg("--no-playlist");
+    }
+    cmd.arg("--no-warnings")
         .arg("--abort-on-unavailable-fragments")
         .arg("--no-simulate")
         .arg("--print")
@@ -6661,10 +6685,14 @@ async fn download_with_ytdlp(
         })
         .arg("-o")
         .arg(if wants_audio_only(&opts.quality_pref) {
-            // The audio arrives as m4a/webm and becomes .mp3 afterwards:
-            // yt-dlp names each step's extension itself.
-            let stem = dest.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "audio".into());
-            format!("{}.%(ext)s", stem.replace('%', "%%"))
+            if is_pl {
+                "%(playlist_title)s/%(playlist_index)02d - %(title)s.%(ext)s".to_string()
+            } else {
+                let stem = dest.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "audio".into());
+                format!("{}.%(ext)s", stem.replace('%', "%%"))
+            }
+        } else if is_pl {
+            "%(playlist_title)s/%(playlist_index)02d - %(title)s [%(resolution)s].%(ext)s".to_string()
         } else {
             ytdlp_out_name(dest).replace('%',"%%")
         });
@@ -6895,6 +6923,155 @@ async fn download_with_ytdlp(
         }
         shared.set_resolution(r);
     }
+    Ok(())
+}
+
+/// Check if a URL points to a BitTorrent file or Magnet link.
+pub fn is_torrent_target(url: &str) -> bool {
+    let lower = url.trim().to_ascii_lowercase();
+    lower.starts_with("magnet:")
+        || lower.ends_with(".torrent")
+        || lower.contains(".torrent?")
+}
+
+/// Check if a URL points to a playlist, series, or video/audio album.
+pub fn is_playlist_url_or_query(url: &str) -> bool {
+    let lower = url.trim().to_ascii_lowercase();
+    (lower.contains("list=") || lower.contains("/playlist") || lower.contains("/album/"))
+        && !lower.contains("list=ll")
+}
+
+pub fn aria2_path() -> Option<PathBuf> {
+    which::which("aria2c").ok().or_else(|| {
+        crate::model::config_dir().map(|d| d.join("tools").join(if cfg!(windows) { "aria2c.exe" } else { "aria2c" }))
+    }).filter(|p| p.is_file())
+}
+
+pub async fn ensure_aria2(client: &reqwest::Client) -> Result<PathBuf> {
+    if let Some(p) = aria2_path() {
+        return Ok(p);
+    }
+    let tools_dir = crate::model::config_dir()
+        .ok_or_else(|| anyhow!("no config directory"))?
+        .join("tools");
+    tokio::fs::create_dir_all(&tools_dir).await?;
+    let dst = tools_dir.join(if cfg!(windows) { "aria2c.exe" } else { "aria2c" });
+    if dst.is_file() {
+        return Ok(dst);
+    }
+
+    #[cfg(windows)]
+    {
+        let url = "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip";
+        if let Ok(resp) = client.get(url).send().await {
+            if resp.status().is_success() {
+                if let Ok(bytes) = resp.bytes().await {
+                    let cursor = std::io::Cursor::new(bytes);
+                    if let Ok(mut archive) = zip::ZipArchive::new(cursor) {
+                        for i in 0..archive.len() {
+                            if let Ok(mut file) = archive.by_index(i) {
+                                if file.name().ends_with("aria2c.exe") {
+                                    if let Ok(mut out) = std::fs::File::create(&dst) {
+                                        if std::io::copy(&mut file, &mut out).is_ok() {
+                                            return Ok(dst);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[cfg(unix)]
+    {
+        if let Ok(p) = which::which("aria2c") {
+            return Ok(p);
+        }
+    }
+
+    Err(anyhow!(
+        "aria2c engine is needed for BitTorrent and magnet links. Please place aria2c.exe in your SA2 Downloader tools folder or install aria2 on your system."
+    ))
+}
+
+pub async fn download_with_torrent(
+    exe: &std::path::Path,
+    url: &str,
+    dest: &std::path::Path,
+    connections: usize,
+    opts: &EngineOpts,
+    shared: &std::sync::Arc<SharedState>,
+) -> Result<()> {
+    shared.set_phase("Connecting to BitTorrent peers");
+    let mut cmd = tokio::process::Command::new(exe);
+    let out_dir = dest.parent().unwrap_or(std::path::Path::new("."));
+    let file_name = dest.file_name().and_then(|s| s.to_str()).unwrap_or("download");
+
+    cmd.arg("--enable-dht=true")
+        .arg("--bt-enable-lpd=true")
+        .arg("--enable-peer-exchange=true")
+        .arg("--seed-time=0")
+        .arg("--summary-interval=1")
+        .arg("--file-allocation=none")
+        .arg("--max-connection-per-server")
+        .arg(connections.clamp(1, 16).to_string())
+        .arg("-d")
+        .arg(out_dir);
+
+    if !url.starts_with("magnet:") {
+        cmd.arg("-o").arg(file_name);
+    }
+
+    if opts.speed_limit_bps > 0 {
+        cmd.arg(format!("--max-download-limit={}", opts.speed_limit_bps));
+    }
+
+    cmd.arg(url);
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    #[cfg(unix)]
+    cmd.process_group(0);
+
+    let mut child = cmd.spawn().map_err(|e| anyhow!("aria2c launch: {e}"))?;
+    let stdout = child.stdout.take().ok_or_else(|| anyhow!("aria2c stdout unavailable"))?;
+
+    let shared_c = Arc::clone(shared);
+    let out_task = tokio::spawn(async move {
+        use tokio::io::AsyncBufReadExt;
+        let mut lines = tokio::io::BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if line.contains("DL:") || line.contains("CN:") {
+                shared_c.set_phase("Downloading Torrent");
+                let cn = line.find("CN:").and_then(|p| line[p + 3..].split_whitespace().next());
+                let sd = line.find("SD:").and_then(|p| line[p + 3..].split_whitespace().next());
+                if let (Some(c), Some(s)) = (cn, sd) {
+                    shared_c.set_note(format!("Peers: {c} | Seeders: {s}"));
+                }
+                if let Some(pct_start) = line.find('(') {
+                    if let Some(pct_end) = line[pct_start..].find("%)") {
+                        let pct_str = &line[pct_start + 1..pct_start + pct_end];
+                        if let Ok(pct) = pct_str.parse::<u64>() {
+                            let simulated_total = 100_000_000u64;
+                            shared_c.total.store(simulated_total, Ordering::SeqCst);
+                            shared_c.has_total.store(true, Ordering::SeqCst);
+                            shared_c.downloaded.store(simulated_total * pct / 100, Ordering::SeqCst);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    let status = child.wait().await?;
+    let _ = out_task.await;
+    if !status.success() {
+        return Err(anyhow!("aria2c exited with status {status}"));
+    }
+    shared.set_phase("Completed");
     Ok(())
 }
 

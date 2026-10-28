@@ -103,40 +103,32 @@ Full notes: [Release 0.9.10](https://github.com/hungry-detective/downloadcraft/r
 
 ## 🚀 Features
 
-**Downloading**
+**Downloading & BitTorrent**
 - **Dynamic segmentation** (1–32 connections): a free connection takes over half of whatever would finish
   last, so no connection idles while another crawls. Crash-safe resume, self-healing connections and
-  automatic link refresh. See [the engine](#-the-engine).
+  automatic link refresh.
+- **BitTorrent & Magnet Links:** Native support for `magnet:?xt=urn:btih:...` and `.torrent` files. High-speed DHT, peer exchange (PEX), seed tracking, and live connection telemetry without requiring an external torrent client.
 - A global speed limit, per-download connections and a per-server connection cap.
 - Queue with concurrency limit, scheduler, retry-all-failed and finish actions (shutdown / sleep / hibernate).
 - Smart names from the server or the video title; safe auto-rename or overwrite; optional SHA-256 check.
 - HLS and DASH streams (live recording, AES-128), video + audio merged with FFmpeg.
 
-**Video sites & Ultra HD (2K / 4K / 8K)**
-- **Ultra High-Definition Video:** Up to **8K Ultra HD (4320p)**, **4K Ultra HD (2160p)**, **2K Quad HD (1440p)**, and 1080p Full HD with high-framerate 60fps AV1 and VP9 modern streams.
+**Video sites, Playlists & Ultra HD (2K / 4K / 8K)**
+- **Dynamic Max Resolution Auto-Detection:** Automatically probes and selects the absolute highest available resolution for any video (8K 4320p, 4K 2160p, 2K 1440p, 1080p FHD, 60fps AV1/VP9).
+- **Full Playlist & Album Downloading:** One-click download for complete YouTube playlists, channel batches, albums, and series with auto-indexing (`01 - Title.mp4`) and unified quality selection.
 - **Auto-Merged Audio & Video:** High-res video tracks automatically merge with best available audio codecs (Opus, AAC, M4A) via managed FFmpeg.
 - **Universal Site Coverage:** YouTube, Facebook & Instagram Reels, TikTok, Vimeo, Bilibili, X (Twitter), Reddit, and over 1,000+ streaming sites detected on-the-fly.
-- **Automated Fallback Ladder:** If a site restricts direct resolution queries, an automatic fallback probing ladder resolves the highest possible resolution available.
 
 **Browser extension (Chrome, Edge, Brave, Firefox)**
-- Catches videos from network traffic, manifests and page data — HLS, DASH, MP4/WebM, subtitles.
-- *Download this video* bar on players, quality menus with sizes, right-click *Download all links*.
+- Catches videos from network traffic, manifests, and page data — HLS, DASH, MP4/WebM, torrents, magnets, and playlists.
+- Floating glassmorphism *Download this video* player bar with instant 8K/4K/2K resolution badges and a dedicated **Playlist** download button.
 - Works **without the app**: downloads, joins and saves videos in the browser.
-- **IDM-style hand-off.** A browser download is *paused*, handed to the app, and resumed in the browser
-  if the app can't take it, so nothing is lost. Form (POST) downloads, the browser's own request headers,
-  its proxy and the server it used all go along. Hold **Alt** while clicking to keep a download in the
-  browser.
-- **A live connection to the app.** Capture settings (file types, excluded sites, minimum size) are
-  edited in the app and pushed to the browser, with notifications when downloads finish. Site rules
-  update from the project without a new extension release.
-- **Safety net.** YouTube runs the app's own engine or yt-dlp first (your choice in Settings), and the
-  other one takes over if it fails. A file the server refuses to the app is fetched inside the open
-  page instead. A video the app can't get is downloaded in the browser.
+- **IDM-style hand-off.** A browser download is *paused*, handed to the app, and resumed in the browser if the app can't take it. Form (POST) downloads, browser request headers, proxy, and auth cookies all go along.
 
-**App**
-- System / Dark / Light themes, status sidebar, search, sortable and resizable columns, bulk actions.
-- File names in any script (Bangla, Arabic, CJK …) with proper Indic shaping.
-- Clipboard detection, notifications, tray icon, antivirus hook, and a CLI that shares the same queue.
+**Desktop App**
+- IDM-style Categories sidebar: All, Pictures, Videos, Music, Documents, Compressed, Apps, **Torrents**, and **Playlists**.
+- System / Dark / Light themes, status sidebar, search, sortable and resizable columns, speed graphs, and bulk actions.
+- Clipboard detection for both direct links and magnet URIs.
 
 ---
 

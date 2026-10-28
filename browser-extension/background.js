@@ -306,6 +306,7 @@ async function sendToHost(url, filename, extra) {
       quality: (extra && extra.quality) || null,
       dur: (extra && extra.dur) || null,
       audioExpected: !!(extra && extra.audioExpected),
+      is_playlist: !!(extra && extra.is_playlist),
     });
     return !!res && (res.type === "ok" || res.type === "pong");
   } catch (e) {
@@ -1396,8 +1397,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return {ok:true};
     }
     if (msg.type === "download" && msg.url) {
-      if (!/^https?:\/\//i.test(msg.url) || msg.url.length > 4000) {
-        return { ok: false, error: "only http(s) links up to 4000 chars can be sent" };
+      if ((!/^https?:\/\//i.test(msg.url) && !msg.url.startsWith("magnet:")) || msg.url.length > 8000) {
+        return { ok: false, error: "only http(s) and magnet links up to 8000 chars can be sent" };
       }
       if (msg.ver && msg.ver !== EXT_VER) {
         // Stale tab script (extension reloaded without a tab refresh):
@@ -1435,6 +1436,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           quality: msg.quality || null,
           dur: msg.dur || null,
           audioExpected: !!msg.audioExpected,
+          is_playlist: !!msg.is_playlist,
         });
         hostOk = ok;
         setBadge();

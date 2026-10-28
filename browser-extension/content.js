@@ -1840,9 +1840,32 @@
     const more=document.createElement("button");more.type="button";more.className="more";more.hidden=true;
     more.title=dcT("barMoreQualities","Other qualities");more.setAttribute("aria-label","Other qualities");
     more.appendChild(svgIcon(12,"M6 9l6 6 6-6",2.4));
-    bar.append(grip,main,more,close);root.append(style,bar);
+
+    const hasPl = location.href.includes("list=") || location.href.includes("/playlist") || location.href.includes("/album/");
+    const plBtn = document.createElement("button"); plBtn.type = "button"; plBtn.className = "playlist-btn";
+    plBtn.title = "Download Entire Playlist (All Videos)";
+    plBtn.setAttribute("aria-label", "Download Entire Playlist");
+    plBtn.style.cssText = `all:unset;box-sizing:border-box;display:${hasPl ? "inline-flex" : "none"};align-items:center;gap:3px;height:24px;padding:0 7px;margin:0 2px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font:700 11px system-ui;cursor:pointer;box-shadow:0 2px 6px rgba(139,92,246,.35);white-space:nowrap;`;
+    plBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 6h16M4 12h10M4 18h7M17 14l5 3-5 3v-6z"/></svg><span>Playlist</span>';
+    plBtn.onclick = (e) => {
+      e.stopPropagation();
+      chrome.runtime.sendMessage({
+        type: "download",
+        url: location.href,
+        filename: "playlist.mp4",
+        pageUrl: location.href,
+        quality: "best",
+        is_playlist: true
+      });
+      plBtn.textContent = "✓ Queued";
+      setTimeout(() => {
+        plBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 6h16M4 12h10M4 18h7M17 14l5 3-5 3v-6z"/></svg><span>Playlist</span>';
+      }, 3000);
+    };
+
+    bar.append(grip,main,plBtn,more,close);root.append(style,bar);
     installBarDrag(host,main,grip);
-    host.__dcMain=main;host.__dcClose=close;host.__dcLabel=label;host.__dcMore=more;
+    host.__dcMain=main;host.__dcClose=close;host.__dcLabel=label;host.__dcMore=more;host.__dcPl=plBtn;
     host.setAttribute("data-dc-bar","1");
     paintBar(host);
     wakeBar(host);
@@ -3079,7 +3102,12 @@
       host.__dcQuick = q;
       const lab = host.__dcLabel;
       const word = dcT("barDownload", "Download");
-      const text = q ? `${word} ${q.label}` : word;
+      let text = word;
+      if (q && q.label) {
+        text = `${word} ${q.label}`;
+      } else {
+        text = `${word} (Max Quality)`;
+      }
       if (lab && !host.__dcBusy && lab.textContent !== text) {
         lab.textContent = text;
         host.__dcIdleText = undefined;

@@ -484,6 +484,10 @@ impl ProgressApp {
                 it.speed_bps = self.snap.speed;
             }
         }
+        let lang = crate::model::ui_pref_str("language", "en");
+        if lang != crate::i18n::current_language() {
+            crate::i18n::set_language(&lang);
+        }
         self.last_poll = Instant::now();
         // A finished transfer hands over to the standalone "Download complete"
         // dialog, so this window has done its job (IDM closes it the same way).
@@ -713,6 +717,7 @@ impl ProgressApp {
             )
             .drag_started()
         {
+            self.initial_centered = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
         }
         for (i, cx, icon, id, tip) in [
@@ -749,7 +754,7 @@ impl ProgressApp {
     fn paint(&mut self, ui: &mut egui::Ui, item: &DownloadItem, o: egui::Pos2) {
         let frac = self.frac(item);
         let pct = (frac * 100.0).floor() as u64;
-        let title = format!("Downloading {pct}%");
+        let title = format!("{} {pct}%", crate::i18n::t("Downloading"));
         self.chrome(ui, o, &title);
 
         let downloading = self.snap.live
@@ -798,10 +803,12 @@ impl ProgressApp {
             let col = if sel { pl().dm_txt } else if b.hovered() { pl().dm_txt } else { pl().dm_dim };
             let ic_r = egui::Rect::from_center_size(egui::pos2(tr.min.x + 14.0, tr.center().y), egui::Vec2::splat(11.0));
             dm_icon(&p, ic_r, *icon_kind, col, 1.6);
-            p.text(
+            let trans_label = crate::i18n::t(*label);
+            crate::shaped::draw(
+                &p,
                 egui::pos2(tr.min.x + 24.0, tr.center().y),
                 egui::Align2::LEFT_CENTER,
-                *label,
+                trans_label,
                 if sel { semi(11.0) } else { reg(11.0) },
                 col,
             );
@@ -1538,8 +1545,8 @@ impl ProgressApp {
         for (x, align, text) in [
             (o.x + PAD_X + 16.0, egui::Align2::LEFT_TOP, crate::i18n::t("#")),
             (o.x + PAD_X + COL_NUM_W + 16.0, egui::Align2::LEFT_TOP, crate::i18n::t("Status")),
-            (o.x + COL_DL_X + 90.0, egui::Align2::RIGHT_TOP, crate::i18n::t("Fragments")),
-            (o.x + COL_TOT_X + 80.0, egui::Align2::RIGHT_TOP, crate::i18n::t("Total")),
+            (o.x + IN_R - 100.0, egui::Align2::RIGHT_TOP, crate::i18n::t("Fragments")),
+            (o.x + IN_R - 20.0, egui::Align2::RIGHT_TOP, crate::i18n::t("Total")),
         ] {
             p.text(egui::pos2(x, hdr_y), align, text, reg(10.5), pl().dm_head);
         }
@@ -1563,14 +1570,14 @@ impl ProgressApp {
         p.text(egui::pos2(o.x + PAD_X + 16.0, y + TBL_PAD), egui::Align2::LEFT_TOP, "1", reg(10.5), pl().dm_lbl);
         p.text(egui::pos2(o.x + PAD_X + COL_NUM_W + 16.0, y + TBL_PAD), egui::Align2::LEFT_TOP, status, reg(10.5), col);
         p.text(
-            egui::pos2(o.x + COL_DL_X + 90.0, y + TBL_PAD),
+            egui::pos2(o.x + IN_R - 100.0, y + TBL_PAD),
             egui::Align2::RIGHT_TOP,
             i.to_string(),
             reg(10.5),
             pl().dm_dim,
         );
         p.text(
-            egui::pos2(o.x + COL_TOT_X + 80.0, y + TBL_PAD),
+            egui::pos2(o.x + IN_R - 20.0, y + TBL_PAD),
             egui::Align2::RIGHT_TOP,
             n.to_string(),
             reg(10.0),

@@ -119,13 +119,13 @@ pub const DARK_PAL: Palette = Palette {
     success: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
     warning: egui::Color32::from_rgb(0xFF, 0xC2, 0x25), // #FFC225 Lightning Yellow
     error: egui::Color32::from_rgb(255, 77, 79),
-    sel_bg: egui::Color32::from_rgba_premultiplied(96, 205, 56, 45),
+    sel_bg: egui::Color32::from_rgba_unmultiplied(96, 205, 56, 45),
     sel_bd: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
-    hover_bg: egui::Color32::from_rgba_premultiplied(255, 255, 255, 32),
+    hover_bg: egui::Color32::from_rgba_unmultiplied(255, 255, 255, 20),
     modal_bg: egui::Color32::from_rgb(0x24, 0x26, 0x30),
     modal_bd: egui::Color32::from_rgb(0x4E, 0x54, 0x68),
-    scrim: egui::Color32::from_rgba_premultiplied(0, 0, 0, 180),
-    bar_bd: egui::Color32::from_rgba_premultiplied(20, 20, 21, 35),
+    scrim: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180),
+    bar_bd: egui::Color32::from_rgba_unmultiplied(20, 20, 21, 35),
     track: egui::Color32::from_rgb(0x33, 0x36, 0x44),
     notice: egui::Color32::from_rgb(255, 150, 120),
     dm_card: egui::Color32::from_rgb(0x22, 0x24, 0x2D),
@@ -133,8 +133,8 @@ pub const DARK_PAL: Palette = Palette {
     dm_box_bd: egui::Color32::from_rgb(0x4C, 0x52, 0x66),
     dm_txt: egui::Color32::from_rgb(0xF5, 0xF6, 0xFA),
     dm_dim: egui::Color32::from_rgb(0xA6, 0xAC, 0xBE),
-    dm_hover: egui::Color32::from_rgb(0x38, 0x3C, 0x4C),
-    dm_hover2: egui::Color32::from_rgb(0x4A, 0x50, 0x66),
+    dm_hover: egui::Color32::from_rgb(0x2C, 0x30, 0x3D),
+    dm_hover2: egui::Color32::from_rgb(0x34, 0x39, 0x4A),
     dm_trough: egui::Color32::from_rgb(0x16, 0x17, 0x1E),
     dm_lbl: egui::Color32::from_rgb(0xA6, 0xAC, 0xBE),
     dm_head: egui::Color32::from_rgb(0x8C, 0x94, 0xA8),
@@ -165,13 +165,13 @@ pub const LIGHT_PAL: Palette = Palette {
     success: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
     warning: egui::Color32::from_rgb(0xFF, 0xC2, 0x25), // #FFC225 Lightning Yellow
     error: egui::Color32::from_rgb(0xD9, 0x2B, 0x1E),
-    sel_bg: egui::Color32::from_rgba_premultiplied(96, 205, 56, 35),
+    sel_bg: egui::Color32::from_rgba_unmultiplied(96, 205, 56, 35),
     sel_bd: egui::Color32::from_rgb(0x60, 0xCD, 0x38),
-    hover_bg: egui::Color32::from_rgba_premultiplied(1, 2, 3, 18),
+    hover_bg: egui::Color32::from_rgba_unmultiplied(1, 2, 3, 18),
     modal_bg: egui::Color32::from_rgb(0xFF, 0xFF, 0xFF),
     modal_bd: egui::Color32::from_rgb(0xD8, 0xDC, 0xE6),
-    scrim: egui::Color32::from_rgba_premultiplied(0, 0, 0, 90),
-    bar_bd: egui::Color32::from_rgba_premultiplied(2, 3, 5, 30),
+    scrim: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 90),
+    bar_bd: egui::Color32::from_rgba_unmultiplied(2, 3, 5, 30),
     track: egui::Color32::from_rgb(0xE2, 0xE5, 0xEE),
     notice: egui::Color32::from_rgb(0xB0, 0x4A, 0x08),
     dm_card: egui::Color32::from_rgb(0xFF, 0xFF, 0xFF),
@@ -7181,7 +7181,7 @@ impl eframe::App for sa2App {
                             } else {
                                 ""
                             };
-                            let txt = format!("{}{}", col.title().to_uppercase(), arrow);
+                            let txt = format!("{}{}", crate::i18n::t(col.title()), arrow);
                             let color = if self.man.hover(&r) || sorted {
                                 pl().txt
                             } else {
@@ -10261,10 +10261,11 @@ impl sa2App {
                                 }
                                 tx = r.min.x + 30.0;
                             }
-                            ui.painter().text(
+                            crate::shaped::draw(
+                                ui.painter(),
                                 egui::pos2(tx, r.center().y),
                                 egui::Align2::LEFT_CENTER,
-                                label,
+                                &label,
                                 egui::FontId::proportional(12.5),
                                 pl().txt,
                             );

@@ -2921,37 +2921,34 @@ fn resolve_generic(html: &str, page_url: &str) -> Option<(String, String)> {
         "twitter:player",
     ] {
         if let Some(u) = meta_content(html, prop) {
-            if u.starts_with("http") {
-                let e = if is_playlist_url(&u) { "mp4".to_string() } else { guess_ext(&u) };
+            if u.starts_with("http") && !is_playlist_url(&u) {
+                let e = guess_ext(&u);
                 return Some((with_ratebypass(&u), with_ext(&title, &e)));
             }
         }
     }
-    // ld+json VideoObject / stream configs
+    // ld+json VideoObject: {"@type":"VideoObject","contentUrl":"https://..."}
     for key in [
         "\"contentUrl\":\"",
         "\"contentURL\":\"",
         "\"embedUrl\":\"",
         "\"embedURL\":\"",
-        "\"manifest\":\"",
-        "\"stream_url\":\"",
-        "\"manifest_url\":\"",
-        "\"file\":\"",
     ] {
         let mut search = html;
         while let Some(p) = search.find(key) {
             let rest = &search[p + key.len()..];
             if let Some(end) = rest.find('"') {
                 let u = rest[..end].replace("\\/", "/");
-                if u.starts_with("http") && (looks_media_url(&u) || is_playlist_url(&u)) {
-                    let e = if is_playlist_url(&u) { "mp4".to_string() } else { guess_ext(&u) };
+                if u.starts_with("http") && !is_playlist_url(&u) {
+                    let e = guess_ext(&u);
                     return Some((with_ratebypass(&u), with_ext(&title, &e)));
                 }
             }
             search = &search[p + key.len()..];
         }
     }
-    // Progressive config or master stream URLs
+    // Vimeo-style progressive config: "url":"https://...mp4..." + quality tag.
+    // Only accepted when the URL itself carries a direct media extension.
     for key in ["\"url\":\"https://", "\"url\":\"http://"] {
         let mut search = html;
         let mut best: Option<String> = None;
@@ -2960,18 +2957,18 @@ fn resolve_generic(html: &str, page_url: &str) -> Option<(String, String)> {
             let rest = &search[p + 7..];
             let Some(end) = rest.find('"') else { break };
             let u = rest[..end].replace("\\/", "/");
-            if u.starts_with("http") && (has_direct_ext(&u) || is_playlist_url(&u)) {
+            if u.starts_with("http") && has_direct_ext(&u) && !is_playlist_url(&u) {
                 best = Some(u);
             }
             search = &search[p + key.len()..];
         }
         if let Some(u) = best {
-            let e = if is_playlist_url(&u) { "mp4".to_string() } else { guess_ext(&u) };
+            let e = guess_ext(&u);
             return Some((with_ratebypass(&u), with_ext(&title, &e)));
         }
     }
-    // bare https://....mp4/.m3u8/.mpd/.webm/.mkv/.mp3 links
-    for ext in [".m3u8", ".mpd", ".mp4", ".webm", ".mkv", ".mov", ".mp3", ".m4a"] {
+    // bare https://....mp4/.webm/.mkv/.mp3 links
+    for ext in [".mp4", ".webm", ".mkv", ".mov", ".mp3", ".m4a"] {
         let mut search = html;
         while let Some(p) = search.find(ext) {
             let before = &search[..p];
@@ -2996,14 +2993,13 @@ fn resolve_generic(html: &str, page_url: &str) -> Option<(String, String)> {
                     .trim_end_matches(['"', '\'', ')', '<'])
                     .to_string();
                 if u.len() < 3000 {
-                    let out_ext = if ext.ends_with("m3u8") || ext.ends_with("mpd") { "mp4" } else { ext.trim_start_matches('.') };
                     let name = u
                         .rsplit('/')
                         .next()
                         .and_then(|seg| seg.split('?').next())
-                        .filter(|s| !s.is_empty() && !s.contains("master") && !s.contains("playlist") && !s.contains("index"))
+                        .filter(|s| !s.is_empty())
                         .map(percent_decode_owned)
-                        .unwrap_or_else(|| with_ext(&title, out_ext));
+                        .unwrap_or_else(|| with_ext(&title, ext));
                     return Some((u, name));
                 }
             }

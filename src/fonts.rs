@@ -150,7 +150,7 @@ fn wanted_key(c: char) -> Option<&'static str> {
         Some(match u {
             0x0530..=0x058F | 0x10A0..=0x10FF => "sylfaen",
             0x07C0..=0x07FF | 0x1200..=0x139F | 0x2D80..=0x2DDF => "ebrima",
-            0x0900..=0x097F | 0x0A00..=0x0DFF => "nirmala",
+            0x0900..=0x0DFF => "nirmala",
             0x0E00..=0x0EFF => "leelawadee",
             0x0F00..=0x0FFF => "himalaya",
             0x1000..=0x109F => "myanmar",

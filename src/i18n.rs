@@ -31,10 +31,13 @@ fn state() -> &'static Mutex<Lang> {
     S.get_or_init(|| Mutex::new(load(&crate::model::ui_pref_str("language", "en"))))
 }
 
+static NEED_FONT_SYNC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
 /// Change active language at runtime across the whole app.
 pub fn set_language(code: &str) {
     if let Ok(mut l) = state().lock() {
         *l = load(code);
+        NEED_FONT_SYNC.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -104,8 +107,7 @@ pub fn t(english: &str) -> &str {
 /// Every translated text once (the first call only), so the fonts for its
 /// script can be loaded before it is drawn.
 pub fn take_font_text() -> Option<String> {
-    static DONE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if DONE.swap(true, std::sync::atomic::Ordering::SeqCst) {
+    if !NEED_FONT_SYNC.swap(false, std::sync::atomic::Ordering::SeqCst) {
         return None;
     }
     let l = state().lock().ok()?;

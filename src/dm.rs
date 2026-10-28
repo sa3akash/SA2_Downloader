@@ -144,31 +144,71 @@ pub fn dm_field(
     rect
 }
 
-/// Brand mark: faceted 3D green triangle arrow logo (Spring Breeze green faceted play/download arrow).
+/// Brand mark: shield with downward arrow logo matching the app icon.
 pub fn dm_mark(p: &egui::Painter, r: egui::Rect) {
     let s = r.width().min(r.height()) / 24.0;
     let m = |x: f32, y: f32| egui::pos2(r.min.x + x * s, r.min.y + y * s);
-    let p_left = m(3.5, 3.5);
-    let p_bottom = m(3.5, 20.5);
-    let p_right = m(21.0, 12.0);
-    let p_center = m(9.5, 12.0);
 
-    // Top facet (bright apple green)
+    // Outer shield border
+    let outer_shield = vec![
+        m(5.0, 3.5),
+        m(12.0, 4.8),
+        m(19.0, 3.5),
+        m(20.5, 9.0),
+        m(19.0, 15.0),
+        m(12.0, 21.5),
+        m(5.0, 15.0),
+        m(3.5, 9.0),
+    ];
     p.add(egui::Shape::convex_polygon(
-        vec![p_left, p_right, p_center],
+        outer_shield,
+        egui::Color32::from_rgb(0x15, 0x65, 0xC0), // Deep blue border
+        egui::Stroke::NONE,
+    ));
+
+    // Inner shield upper half (vibrant blue)
+    let inner_top = vec![
+        m(5.8, 4.6),
+        m(12.0, 5.8),
+        m(18.2, 4.6),
+        m(19.4, 9.2),
+        m(18.0, 13.5),
+        m(6.0, 13.5),
+        m(4.6, 9.2),
+    ];
+    p.add(egui::Shape::convex_polygon(
+        inner_top,
+        COLOR_BLEU_DE_FRANCE,
+        egui::Stroke::NONE,
+    ));
+
+    // Inner shield lower half (apple green gradient transition)
+    let inner_bottom = vec![
+        m(6.0, 13.5),
+        m(18.0, 13.5),
+        m(17.8, 14.5),
+        m(12.0, 20.2),
+        m(6.2, 14.5),
+    ];
+    p.add(egui::Shape::convex_polygon(
+        inner_bottom,
         COLOR_APPLE_GREEN,
         egui::Stroke::NONE,
     ));
-    // Bottom facet (deep forest green shadow)
+
+    // Center down-arrow stem (white)
+    let stem = egui::Rect::from_min_max(m(10.2, 7.0), m(13.8, 13.0));
+    p.rect_filled(stem, 0.5 * s, egui::Color32::WHITE);
+
+    // Center down-arrow head (white)
+    let head = vec![
+        m(7.2, 13.0),
+        m(16.8, 13.0),
+        m(12.0, 17.8),
+    ];
     p.add(egui::Shape::convex_polygon(
-        vec![p_center, p_right, p_bottom],
-        egui::Color32::from_rgb(0x23, 0x5E, 0x10),
-        egui::Stroke::NONE,
-    ));
-    // Left facet (medium green)
-    p.add(egui::Shape::convex_polygon(
-        vec![p_left, p_center, p_bottom],
-        egui::Color32::from_rgb(0x3E, 0x96, 0x1E),
+        head,
+        egui::Color32::WHITE,
         egui::Stroke::NONE,
     ));
 }

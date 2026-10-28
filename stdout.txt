@@ -1,0 +1,8 @@
+[youtube] Extracting URL: https://www.youtube.com/watch?v=F8YyP5wtvVw
+[youtube] F8YyP5wtvVw: Downloading webpage
+[youtube] F8YyP5wtvVw: Downloading initial data API JSON
+[youtube] F8YyP5wtvVw: Downloading iframe API JS
+[youtube] F8YyP5wtvVw: Downloading player 096efeec-main
+[youtube] F8YyP5wtvVw: Downloading tv samsung player API JSON
+[youtube] F8YyP5wtvVw: Downloading visionos player API JSON
+[youtube] F8YyP5wtvVw: Downloading web player API JSON

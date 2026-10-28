@@ -246,6 +246,8 @@ struct LinksApp {
     focused: bool,
     done: bool,
     exited: bool,
+    quality_pref: String,
+    q_open: bool,
 }
 
 impl LinksApp {

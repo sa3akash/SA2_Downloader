@@ -1174,13 +1174,27 @@ pub(crate) fn social_video_page(raw: &str) -> bool {
         }
         "reddit.com" => parts.len() >= 4 && parts[0] == "r" && parts[2] == "comments" && id(&parts[3]),
         "v.redd.it" => parts.len() == 1 && id(&parts[0]),
+        "facebook.com" | "fb.watch" => {
+            parts.windows(2).any(|w| matches!(w[0], "reel" | "reels" | "videos" | "video") && id(&w[1]))
+                || parts.iter().any(|p| *p == "watch")
+                || (host == "fb.watch" && !parts.is_empty() && id(&parts[0]))
+        }
+        "dailymotion.com" => parts.windows(2).any(|w| w[0] == "video" && id(&w[1])),
+        "twitch.tv" => {
+            parts.windows(2).any(|w| w[0] == "videos" && digits(&w[1]))
+                || (parts.len() >= 2 && parts[1] == "clip")
+        }
+        "clips.twitch.tv" => parts.len() == 1 && id(&parts[0]),
+        "bilibili.com" => parts.windows(2).any(|w| w[0] == "video" && id(&w[1])),
+        "soundcloud.com" => parts.len() >= 2 && id(&parts[0]) && id(&parts[1]),
         _ => false,
     }
 }
 
 /// The extension's "Audio only" choice: yt-dlp fetches the best audio.
 pub(crate) fn wants_audio_only(pref: &str) -> bool {
-    pref.trim().eq_ignore_ascii_case("audio")
+    let p = pref.trim().to_ascii_lowercase();
+    p == "audio" || p.starts_with("audio") || p.contains("mp3") || p.contains("m4a")
 }
 
 fn vimeo_needs_audio(raw: &str) -> bool {
@@ -7049,6 +7063,23 @@ pub async fn ensure_aria2(_client: &reqwest::Client) -> Result<PathBuf> {
     ))
 }
 
+fn parse_aria2_bytes(s: &str) -> Option<u64> {
+    let s = s.trim();
+    if s.is_empty() { return None; }
+    let num_end = s.find(|c: char| !c.is_ascii_digit() && c != '.').unwrap_or(s.len());
+    let (num_str, unit) = s.split_at(num_end);
+    let val: f64 = num_str.parse().ok()?;
+    let mult = match unit.trim().to_ascii_lowercase().as_str() {
+        "b" | "" => 1.0,
+        "k" | "kib" | "kb" => 1024.0,
+        "m" | "mib" | "mb" => 1024.0 * 1024.0,
+        "g" | "gib" | "gb" => 1024.0 * 1024.0 * 1024.0,
+        "t" | "tib" | "tb" => 1024.0 * 1024.0 * 1024.0 * 1024.0,
+        _ => 1.0,
+    };
+    Some((val * mult).round() as u64)
+}
+
 pub async fn download_with_torrent(
     exe: &std::path::Path,
     url: &str,
@@ -7104,8 +7135,27 @@ pub async fn download_with_torrent(
                 if let (Some(c), Some(s)) = (cn, sd) {
                     shared_c.set_note(format!("Peers: {c} | Seeders: {s}"));
                 }
+                if let Some(dl_pos) = line.find("DL:") {
+                    if let Some(dl_str) = line[dl_pos + 3..].split_whitespace().next() {
+                        if let Some(bps) = parse_aria2_bytes(dl_str) {
+                            shared_c.speed_bps.store(bps, Ordering::SeqCst);
+                        }
+                    }
+                }
                 if let Some(pct_start) = line.find('(') {
-                    if let Some(pct_end) = line[pct_start..].find("%)") {
+                    let before_pct = &line[..pct_start];
+                    if let Some(last_space) = before_pct.rfind(' ') {
+                        let size_part = &before_pct[last_space + 1..];
+                        if let Some(slash) = size_part.find('/') {
+                            let dl = parse_aria2_bytes(&size_part[..slash]);
+                            let tot = parse_aria2_bytes(&size_part[slash + 1..]);
+                            if let (Some(d), Some(t)) = (dl, tot) {
+                                shared_c.downloaded.store(d, Ordering::SeqCst);
+                                shared_c.total.store(t, Ordering::SeqCst);
+                                shared_c.has_total.store(true, Ordering::SeqCst);
+                            }
+                        }
+                    } else if let Some(pct_end) = line[pct_start..].find("%)") {
                         let pct_str = &line[pct_start + 1..pct_start + pct_end];
                         if let Ok(pct) = pct_str.parse::<u64>() {
                             let simulated_total = 100_000_000u64;

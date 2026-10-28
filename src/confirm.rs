@@ -221,6 +221,9 @@ struct ConfirmApp {
     new_cat: String,
     custom_cats: Vec<String>,
     is_playlist: bool,
+    quality_open: bool,
+    loading_playlist: bool,
+    playlist_rx: Option<Receiver<anyhow::Result<(String, Vec<(String, String)>)>>>,
 }
 
 const CATEGORIES: &[&str] = &[
@@ -334,7 +337,7 @@ fn options_menu(
 }
 
 /// Concept dropdown: field box, current value, trailing caret, option list.
-fn combo(
+pub(crate) fn combo(
     ui: &mut egui::Ui,
     rect: egui::Rect,
     id: &str,
@@ -821,6 +824,9 @@ pub fn run() -> eframe::Result<()> {
         new_cat: String::new(),
         custom_cats: Vec::new(),
         is_playlist,
+        quality_open: false,
+        loading_playlist: false,
+        playlist_rx: None,
     };
     // Prefill filename from server when the extension sent none useful.
     // A browser-known size skips probing entirely (server re-probes of
@@ -915,6 +921,29 @@ impl eframe::App for ConfirmApp {
                 }
             }
         }
+        if let Some(rx) = self.playlist_rx.as_ref() {
+            if let Ok(res) = rx.try_recv() {
+                self.loading_playlist = false;
+                match res {
+                    Ok((title, entries)) => {
+                        let links: Vec<crate::native_host::PageLink> = entries
+                            .into_iter()
+                            .map(|(u, t)| crate::native_host::PageLink { url: u, text: t })
+                            .collect();
+                        if !links.is_empty() {
+                            let _ = crate::native_host::open_links_window(&self.url, &title, &self.cookie, &links);
+                            self.done = true;
+                            return;
+                        } else {
+                            self.notice = "Playlist had no videos to load.".to_string();
+                        }
+                    }
+                    Err(e) => {
+                        self.notice = format!("Could not load playlist: {e:#}");
+                    }
+                }
+            }
+        }
         if self.probing {
             ctx.request_repaint();
         }
@@ -927,8 +956,13 @@ impl eframe::App for ConfirmApp {
             0.0
         };
         let adv_h = if self.show_adv { panel_h + 14.0 } else { 0.0 };
-        let is_pl_url = engine::is_playlist_url_or_query(&self.url);
-        let pl_h = if is_pl_url { 30.0 } else { 0.0 };
+        let is_media = engine::is_playlist_url_or_query(&self.url)
+            || self.category == "Video"
+            || self.category == "Music"
+            || engine::is_youtube_page(&self.url)
+            || engine::social_video_page(&self.url)
+            || !self.quality_pref.is_empty();
+        let pl_h = if is_media { 36.0 } else { 0.0 };
         let mut want_h = DM_H + adv_h + pl_h;
         if !self.notice.is_empty() {
             want_h += 16.0;
@@ -938,7 +972,7 @@ impl eframe::App for ConfirmApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(DM_W, want_h)));
         }
         // Esc closes, unless a menu is open (those close on the same key).
-        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) && !self.cat_open && !self.recent_open {
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) && !self.cat_open && !self.recent_open && !self.quality_open {
             self.done = true;
         }
 
@@ -1239,13 +1273,93 @@ impl eframe::App for ConfirmApp {
                 }
             }
 
-            // ---- playlist download toggle (when URL is a playlist or mix) ----
+            // ---- media options: Resolution selector and Playlist toggle ----
             let mut pl_offset = 0.0;
-            if engine::is_playlist_url_or_query(&self.url) {
-                pl_offset = 30.0;
-                let pl_rect = at(DM_X, DM_ACT + adv_h - 2.0, DM_W_IN, 24.0);
-                if check_row(ui, pl_rect, "popup_pl", self.is_playlist, "Download entire playlist / album").clicked() {
-                    self.is_playlist = !self.is_playlist;
+            if is_media {
+                pl_offset = 36.0;
+                let is_pl_query = engine::is_playlist_url_or_query(&self.url);
+                let row_y = DM_ACT + adv_h - 2.0;
+
+                let (q_x, q_w) = if is_pl_query {
+                    let pl_rect = at(DM_X, row_y, 205.0, 28.0);
+                    if check_row(ui, pl_rect, "popup_pl", self.is_playlist, "Download full playlist").clicked() {
+                        self.is_playlist = !self.is_playlist;
+                    }
+
+                    // Button to load all playlist items into the multi-file selector
+                    let view_r = at(DM_X + 210.0, row_y, 145.0, 28.0);
+                    let view_b = ui.interact(view_r, egui::Id::new("popup_pl_view"), egui::Sense::click());
+                    if view_b.hovered() {
+                        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+                    }
+                    let lbl = if self.loading_playlist { "Loading playlist…" } else { "📋 Select Videos" };
+                    btn_pill(&p, view_r, view_b.hovered(), lbl, pl().dm_line, pl().dm_box_bd, pl().dm_txt, None);
+                    if view_b.clicked() && !self.loading_playlist {
+                        if let Some(rt) = self.rt.clone() {
+                            let (tx, rx) = std::sync::mpsc::channel();
+                            self.playlist_rx = Some(rx);
+                            self.loading_playlist = true;
+                            let url = self.url.clone();
+                            let opts = EngineOpts {
+                                user_agent: self.user_agent.clone(),
+                                timeout_secs: self.timeout_secs,
+                                proxy_url: self.proxy_url.clone(),
+                                referer: self.referer.clone(),
+                                cookie: self.cookie.clone(),
+                                quality_pref: self.quality_pref.clone(),
+                                ..Default::default()
+                            };
+                            rt.spawn(async move {
+                                let res = engine::playlist_entries(&url, &opts).await;
+                                let _ = tx.send(res);
+                            });
+                        }
+                    }
+                    (DM_X + 365.0, DM_W_IN - 365.0)
+                } else {
+                    (DM_X, 220.0)
+                };
+
+                // Resolution / Quality dropdown
+                let q_rect = at(q_x, row_y, q_w, 28.0);
+                let cur_q_disp = match self.quality_pref.trim().to_ascii_lowercase().as_str() {
+                    "" | "best" | "max" | "highest" => "Best Quality".to_string(),
+                    "audio" => "Audio only (MP3)".to_string(),
+                    "2160p" | "4k" => "4K (2160p)".to_string(),
+                    "1440p" | "2k" => "2K (1440p)".to_string(),
+                    "1080p" => "1080p Full HD".to_string(),
+                    "720p" => "720p HD".to_string(),
+                    "480p" => "480p SD".to_string(),
+                    "360p" => "360p SD".to_string(),
+                    other => other.to_string(),
+                };
+
+                let q_opts = vec![
+                    "Best Quality".to_string(),
+                    "4K (2160p)".to_string(),
+                    "2K (1440p)".to_string(),
+                    "1080p Full HD".to_string(),
+                    "720p HD".to_string(),
+                    "480p SD".to_string(),
+                    "360p SD".to_string(),
+                    "Audio only (MP3)".to_string(),
+                ];
+
+                if let Some(pick) = combo(ui, q_rect, "quality_combo", &cur_q_disp, &q_opts, &mut self.quality_open) {
+                    match pick.as_str() {
+                        "Best Quality" => self.quality_pref = "best".to_string(),
+                        "4K (2160p)" => self.quality_pref = "2160p".to_string(),
+                        "2K (1440p)" => self.quality_pref = "1440p".to_string(),
+                        "1080p Full HD" => self.quality_pref = "1080p".to_string(),
+                        "720p HD" => self.quality_pref = "720p".to_string(),
+                        "480p SD" => self.quality_pref = "480p".to_string(),
+                        "360p SD" => self.quality_pref = "360p".to_string(),
+                        "Audio only (MP3)" => {
+                            self.quality_pref = "audio".to_string();
+                            self.category = "Music".to_string();
+                        }
+                        other => self.quality_pref = other.to_string(),
+                    }
                 }
             }
 

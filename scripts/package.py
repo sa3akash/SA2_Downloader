@@ -12,7 +12,16 @@ a=p.parse_args()
 repo=pathlib.Path(__file__).resolve().parents[1]
 version=(repo/'VERSION').read_text().strip()
 osname=a.platform or {'Windows':'windows','Darwin':'macos','Linux':'linux'}[platform.system()]
-binary=a.binary or repo/'target/release'/('sa2_download.exe' if osname=='windows' else 'sa2_download')
+cand_names = ['sa2_downloader.exe', 'sa2_download.exe', 'download_craft.exe'] if osname=='windows' else ['sa2_downloader', 'sa2_download', 'download_craft']
+binary = a.binary
+if not binary:
+    for name in cand_names:
+        cand = repo / 'target/release' / name
+        if cand.is_file():
+            binary = cand
+            break
+if not binary:
+    binary = repo / 'target/release' / cand_names[0]
 a.output.mkdir(parents=True,exist_ok=True)
 with tempfile.TemporaryDirectory() as temp:
     root=pathlib.Path(temp)/f'DownloadCraft-{version}-{osname}-{a.arch}'
@@ -29,6 +38,8 @@ with tempfile.TemporaryDirectory() as temp:
     else:
         dest=root/binary.name
     shutil.copy2(binary,dest)
+    if osname=='windows' and binary.name != 'sa2_download.exe':
+        shutil.copy2(binary, root/'sa2_download.exe')
     if osname!='windows': dest.chmod(0o755)
     stage_extensions(repo,root)
     if osname=='macos':

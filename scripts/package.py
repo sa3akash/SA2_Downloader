@@ -36,6 +36,8 @@ if not binary or not binary.is_file():
             break
 if not binary or not binary.is_file():
     binary = repo / 'target/release' / cand_names[0]
+if not binary.is_file():
+    raise FileNotFoundError(f"Binary not found at '{binary}'. Please run 'cargo build --release' first before packaging.")
 a.output.mkdir(parents=True,exist_ok=True)
 with tempfile.TemporaryDirectory() as temp:
     root=pathlib.Path(temp)/f'SA2Downloader-{version}-{osname}-{a.arch}'

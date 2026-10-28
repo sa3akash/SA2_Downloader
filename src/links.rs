@@ -350,19 +350,24 @@ impl LinksApp {
                 continue;
             }
             r.probe = Probe::Done;
-            if r.guessed_name {
-                if let Some(d) = disp.filter(|d| !d.trim().is_empty()) {
-                    r.name = engine::sanitize_filename(&d);
-                } else if !r.name.contains('.') {
-                    if let Some(ext) = ctype.as_deref().and_then(crate::model::ext_for_mime) {
-                        r.name.push_str(ext);
+            let is_vid = is_video_page_url(&r.url);
+            if !is_vid {
+                if r.guessed_name {
+                    if let Some(d) = disp.filter(|d| !d.trim().is_empty()) {
+                        r.name = engine::sanitize_filename(&d);
+                    } else if !r.name.contains('.') {
+                        if let Some(ext) = ctype.as_deref().and_then(crate::model::ext_for_mime) {
+                            r.name.push_str(ext);
+                        }
                     }
                 }
+                let (_, html, image) = type_of(&r.name, ctype.as_deref());
+                r.kind = Kind::of(&r.name, html, image);
+                // A page's length is its HTML, not a download size.
+                r.size = total.filter(|s| *s > 0 && !html);
+            } else {
+                r.kind = Kind::Video;
             }
-            let (_, html, image) = type_of(&r.name, ctype.as_deref());
-            r.kind = Kind::of(&r.name, html, image);
-            // A page's length is its HTML, not a download size.
-            r.size = total.filter(|s| *s > 0 && !html);
         }
     }
 
@@ -395,11 +400,21 @@ impl LinksApp {
                 &engine::sanitize_filename(r.name.trim()),
                 &r.url,
             );
+            let mut final_name = engine::sanitize_filename(&name);
+            if self.quality_pref == "audio" {
+                if !final_name.ends_with(".mp3") {
+                    let stem = std::path::Path::new(&final_name)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(&final_name);
+                    final_name = format!("{stem}.mp3");
+                }
+            }
             let mut item = DownloadItem::new(
                 0,
                 r.url.clone(),
-                engine::sanitize_filename(&name),
-                self.dir_for(&name),
+                final_name.clone(),
+                self.dir_for(&final_name),
                 self.prefs.connections,
             );
             item.referer = self.page_url.clone();
@@ -993,6 +1008,19 @@ fn save_cols(cols: &[f32; 3]) {
     }
 }
 
+pub fn is_video_page_url(url: &str) -> bool {
+    let Ok(u) = reqwest::Url::parse(url) else { return false };
+    let host = u.host_str().unwrap_or("").to_ascii_lowercase();
+    let path = u.path().to_ascii_lowercase();
+    if host.contains("youtube.com") || host.contains("youtu.be") {
+        return path.contains("/watch") || path.contains("/shorts/") || path.contains("/embed/") || path.contains("/v/") || u.query_pairs().any(|(k, _)| k == "v");
+    }
+    if host.contains("vimeo.com") || host.contains("dailymotion.com") || host.contains("twitch.tv") || host.contains("bilibili.com") || host.contains("soundcloud.com") {
+        return true;
+    }
+    crate::engine::social_video_page(url)
+}
+
 /// A name for a link whose URL names no file (a folder listing, a page):
 /// its link text, else the last part of the URL, as an .html page.
 fn page_name(url: &str, text: &str) -> String {
@@ -1037,15 +1065,37 @@ pub fn run() -> eframe::Result<()> {
         .links
         .into_iter()
         .map(|l| {
+            let is_vid = is_video_page_url(&l.url);
             let mut name = engine::sanitize_filename(&filename_from_url(&l.url));
-            if crate::model::is_fallback_filename(&name) {
+            if is_vid {
+                let t = l.text.trim();
+                let base = if !t.is_empty() && t.chars().count() <= 120 && !t.contains('{') {
+                    t.to_string()
+                } else if !crate::model::is_fallback_filename(&name) && name.contains('.') {
+                    name.clone()
+                } else {
+                    let from_u = reqwest::Url::parse(&l.url).ok()
+                        .and_then(|u| u.query_pairs().find(|(k, _)| k == "v").map(|(_, v)| v.into_owned()))
+                        .unwrap_or_else(|| "video".to_string());
+                    format!("video_{from_u}")
+                };
+                name = engine::sanitize_filename(&if base.ends_with(".mp4") || base.ends_with(".mkv") || base.ends_with(".webm") {
+                    base
+                } else {
+                    format!("{base}.mp4")
+                });
+            } else if crate::model::is_fallback_filename(&name) {
                 name = page_name(&l.url, &l.text);
             }
-            let (_, html, image) = type_of(&name, None);
-            let kind = Kind::of(&name, html, image);
-            // Files start checked; pages and links to other sites do not.
+            let (_, html, image) = if is_vid {
+                ("Video".to_string(), false, false)
+            } else {
+                type_of(&name, None)
+            };
+            let kind = if is_vid { Kind::Video } else { Kind::of(&name, html, image) };
+            // Files and videos start checked; pages and links to other sites do not.
             let checked = kind != Kind::Page && kind != Kind::Other && kind != Kind::Image;
-            Row { url: l.url, text: l.text, name, guessed_name: true, kind, size: None, checked, probe: Probe::Pending }
+            Row { url: l.url, text: l.text, name, guessed_name: !is_vid, kind, size: None, checked, probe: Probe::Pending }
         })
         .collect();
     let rt = std::sync::Arc::new(
@@ -1227,5 +1277,14 @@ mod tests {
         if let Some(dir) = config_dir() {
             assert!(read_batch(&dir.join("queue.json")).is_err());
         }
+    }
+
+    #[test]
+    fn video_page_urls_are_detected() {
+        assert!(is_video_page_url("https://www.youtube.com/watch?v=P7yRYiBiV3g"));
+        assert!(is_video_page_url("https://youtu.be/P7yRYiBiV3g"));
+        assert!(is_video_page_url("https://www.youtube.com/shorts/aqz-KE-bpKQ"));
+        assert!(is_video_page_url("https://vimeo.com/12345678"));
+        assert!(!is_video_page_url("https://example.com/index.html"));
     }
 }

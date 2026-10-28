@@ -1389,7 +1389,7 @@
     const parent = document.fullscreenElement || document.documentElement;
     if (panel.parentNode !== parent) parent.appendChild(panel);
     const r = host.getBoundingClientRect();
-    const width = Math.min(300, Math.max(0, window.innerWidth - 16));
+    const width = Math.min(380, Math.max(0, window.innerWidth - 16));
     panel.style.position = "fixed"; panel.style.width = width + "px";
     panel.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, r.right - width)) + "px";
     panel.style.right = "auto"; panel.style.bottom = "auto";
@@ -1894,7 +1894,8 @@
         filename: "playlist.mp4",
         pageUrl: location.href,
         quality: "best",
-        is_playlist: true
+        is_playlist: true,
+        ver: EXT_VER
       });
       plBtn.textContent = "✓ Queued";
       setTimeout(() => {
@@ -2083,38 +2084,48 @@
   }
 
   // One quality cell: two-toned capsule matching Image 3:
-  // dark format badge [WEBM] / [MP4] on left, resolution (1440p) on right.
+  // dark format badge [WEBM] / [MP4] / [8K] / [4K] on left, resolution on right.
   function dcQualityItem(o) {
     const T = dcPanelTokens();
     const el = document.createElement("div");
     el.setAttribute("data-dc-p", "item");
-    el.style.cssText = "display:flex;align-items:center;gap:8px;box-sizing:border-box;"
-      + "border:1px solid " + T.border + ";border-radius:9px;background:" + T.card + ";cursor:pointer;padding:6px 10px;"
+    el.style.cssText = "display:flex;align-items:center;gap:6px;box-sizing:border-box;min-width:0;overflow:hidden;"
+      + "border:1px solid " + T.border + ";border-radius:9px;background:" + T.card + ";cursor:pointer;padding:5px 8px;"
       + "transition:all .15s ease;";
     if (o.tip) el.title = o.tip;
 
-    // Format container badge e.g. [WEBM], [MKV], [MP4]
+    // Format container badge e.g. [8K], [4K], [2K], [1080P], [720P], [480P], [MP4]
     const rawFmt = String(o.format || "MP4").trim();
-    const tag = (rawFmt.split(/[\s+]/)[0] || "MP4").toUpperCase();
+    let tag = (rawFmt.split(/[\s+]/)[0] || "MP4").toUpperCase();
+    if (o.h === 4320 || /4320|8k/i.test(o.res || rawFmt)) tag = "8K";
+    else if (o.h === 2160 || /2160|4k/i.test(o.res || rawFmt)) tag = "4K";
+    else if (o.h === 1440 || /1440|2k/i.test(o.res || rawFmt)) tag = "2K";
+    else if (o.h === 1080 || /1080/i.test(o.res || rawFmt)) tag = "1080P";
+    else if (o.h === 720 || /720/i.test(o.res || rawFmt)) tag = "720P";
+    else if (o.h === 480 || /480/i.test(o.res || rawFmt)) tag = "480P";
+    else if (o.h === 360 || /360/i.test(o.res || rawFmt)) tag = "MP4";
+    else if (o.h === 240 || /240/i.test(o.res || rawFmt)) tag = "240P";
+    else if (o.h === 144 || /144/i.test(o.res || rawFmt)) tag = "144P";
+
     const badge = document.createElement("span");
     badge.setAttribute("data-dc-p", "badge-pill");
-    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;padding:3px 7px;border-radius:5px;"
-      + "background:#4d4d4d;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;flex:none;line-height:1.1;";
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;padding:2px 5px;border-radius:5px;"
+      + "background:#3f414a;color:#ffffff;font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;flex:none;line-height:1.1;";
     badge.textContent = tag;
     el.appendChild(badge);
 
-    // Resolution label: e.g. 1440p, 1080p, 720p
+    // Resolution label: e.g. 7680×4320 (8K), 1920×1080
     const resTxt = o.res || (o.h ? `${o.h}p` : "");
     const resEl = document.createElement("span");
     resEl.setAttribute("data-dc-p", "res-txt");
-    resEl.style.cssText = "font-size:12px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;";
+    resEl.style.cssText = "font-size:11px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;";
     resEl.textContent = resTxt;
     el.appendChild(resEl);
 
-    // Optional size tag
+    // Optional size tag e.g. 785 MB
     const size = document.createElement("span");
     size.setAttribute("data-dc-p", "size-txt");
-    size.style.cssText = "font-size:10px;color:" + T.dim + ";white-space:nowrap;flex:none;margin-left:auto;";
+    size.style.cssText = "font-size:9.5px;color:" + T.dim + ";white-space:nowrap;flex:none;margin-left:auto;padding-left:2px;";
     size.textContent = o.size || "";
     if (o.size) el.appendChild(size);
 
@@ -2148,25 +2159,25 @@
     const T = dcPanelTokens();
     const el = document.createElement("div");
     el.setAttribute("data-dc-p", "chip");
-    el.style.cssText = "display:flex;align-items:center;gap:8px;box-sizing:border-box;padding:6px 10px;"
+    el.style.cssText = "display:flex;align-items:center;gap:6px;box-sizing:border-box;min-width:0;overflow:hidden;padding:5px 8px;"
       + "border:1px solid " + T.border + ";border-radius:9px;background:" + T.card + ";cursor:pointer;"
       + "transition:all .15s ease;";
     if (f.tip) el.title = f.tip;
 
     // Detect format tag & clean name
-    const raw = String(f.label || "file").replace(/^[📄♪\s]+/g, "");
+    const raw = String(f.label || "file").replace(/^[📄♪🎵📋\s]+/g, "");
     const parts = raw.split(/\s+/);
     const tag = (parts[0] || "FILE").toUpperCase();
     const desc = parts.slice(1).join(" ") || tag;
 
     const badge = document.createElement("span");
-    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;padding:3px 7px;border-radius:5px;"
-      + "background:#4d4d4d;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;flex:none;line-height:1.1;";
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;padding:2px 5px;border-radius:5px;"
+      + "background:#4d4d4d;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;flex:none;line-height:1.1;";
     badge.textContent = tag;
     el.appendChild(badge);
 
     const descEl = document.createElement("span");
-    descEl.style.cssText = "font-size:11.5px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;";
+    descEl.style.cssText = "font-size:11px;font-weight:600;color:" + T.text + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;";
     descEl.textContent = desc;
     el.appendChild(descEl);
 
@@ -2194,7 +2205,7 @@
     const panel = document.createElement("div");
     panel.setAttribute("data-dc-panel", "1");
     panel.style.cssText = [
-      "display:none", "position:relative", "width:320px", "max-width:96vw",
+      "display:none", "position:relative", "width:380px", "max-width:96vw",
       "box-sizing:border-box", "padding:12px", "margin:0", "text-align:left",
       "border:1px solid " + T.border, "border-radius:18px",
       "background:" + T.bg, "color:" + T.text, "box-shadow:" + T.shadow,
@@ -2321,6 +2332,13 @@
       if (selected && selected.el) selected.el.removeAttribute("data-dc-sel");
       selected = it || null;
       if (selected && selected.el) selected.el.setAttribute("data-dc-sel", "1");
+      if (selected && selected.q) {
+        const q = selected.q;
+        const resTxt = q.res || (q.h ? `${q.h}p` : "");
+        if (resTxt && primary && primary.firstChild) {
+          primary.firstChild.textContent = `${dcT("panelDownload", "Download")} ${resTxt}`;
+        }
+      }
       paintDcPanel(panel);
     }
     function sync() {
@@ -2801,6 +2819,16 @@
           send: () => sendDownload(location.href, `${fname.replace(/\.mp4$/i, "")} [${label}].mp4`, "video/mp4", sz || null, null, label, ladderDur || null),
         });
       }
+      entries.push({
+        h: 0,
+        size: sizeByQ["audio"] || sizeByQ["128k"] || 0,
+        dur: ladderDur,
+        st: null,
+        format: "MP3 Audio",
+        res: "Audio only (MP3)",
+        tip: "Download only the audio track as high quality MP3",
+        send: () => sendDownload(location.href, `${fname.replace(/\.[a-z0-9]+$/i, "")}.mp3`, "audio/mp3", null, null, "audio", ladderDur || null),
+      });
     }
     entries.sort((a, b) => (b.h - a.h) || (b.size - a.size));
     // "Direct" means at least one row the browser already holds a real URL
@@ -2844,12 +2872,24 @@
       });
       if (e.st) sizePairs.push({ item: it, sizeEl: it.sizeEl, st: e.st });
     });
-    // "Other Files": playlist, subtitle tracks and audio-only streams as chips.
+    // "Other Files": playlist (video + audio), subtitle tracks and audio-only streams as chips.
     if (/[?&]list=([^&]+)/i.test(location.href)) {
       api.addChip({
-        label: `📋 ${dcT("panelPlaylist", "Download Entire Playlist")}`,
+        label: `📋 ${dcT("panelPlaylist", "Download Entire Playlist (Video)")}`,
         tip: "Download all videos in this playlist or album with SA2 Downloader",
-        send: () => sendDownload(location.href, fname, "video/mp4", null, null, null, null, true),
+        send: () => sendDownload(location.href, fname, "video/mp4", null, null, "best", null, true),
+      });
+      api.addChip({
+        label: `🎵 ${dcT("panelPlaylistAudio", "Download Entire Playlist (Audio MP3)")}`,
+        tip: "Download all tracks in this playlist as high quality MP3 audio",
+        send: () => sendDownload(location.href, `${fname.replace(/\.[a-z0-9]+$/i, "")}.mp3`, "audio/mp3", null, null, "audio", null, true),
+      });
+    }
+    if (!info.audio || !info.audio.length) {
+      api.addChip({
+        label: `🎵 MP3 320k Audio`,
+        tip: "Download audio track as MP3 via SA2 Downloader",
+        send: () => { rememberQuality("audio"); sendDownload(location.href, `${fname.replace(/\.[a-z0-9]+$/i, "")}.mp3`, "audio/mp3", null, null, "audio", null); },
       });
     }
     for (const sb of (info.subs || [])) {
@@ -3018,6 +3058,22 @@
     return "";
   }
 
+  function positionPillOnVideo(pill, v) {
+    if (!pill || !v || !v.isConnected) return;
+    try {
+      const r = v.getBoundingClientRect();
+      if (r.width < 100 || r.height < 60 || r.bottom < 0 || r.top > window.innerHeight) {
+        pill.style.display = "none";
+        return;
+      }
+      pill.style.display = "block";
+      pill.style.position = "fixed";
+      pill.style.top = Math.max(8, r.top + 8) + "px";
+      pill.style.left = "auto";
+      pill.style.right = Math.max(8, window.innerWidth - r.right + 8) + "px";
+    } catch (e) { /* ignore */ }
+  }
+
   function ensureUniversalButtons() {
     if (!alive()) return;
     if (!detectionOn) {
@@ -3040,7 +3096,10 @@
         if (dismissedVideos.has(key)) continue;
         if (v.__dcBtn) {
           if (!v.__dcBtn.isConnected) v.__dcBtn = null;
-          else if (v.__dcKey === key) continue;
+          else if (v.__dcKey === key) {
+            positionPillOnVideo(v.__dcBtn, v);
+            continue;
+          }
           else { if (v.__dcBtn.__dcClose) v.__dcBtn.__dcClose.remove(); v.__dcBtn.remove(); v.__dcBtn = null; }
         }
         // Skip anything inside YouTube's player (covered by its own button).
@@ -3051,10 +3110,9 @@
         const pill = videoDownloadBar(dcT("barDownloadVideo", "Download this video with SA2 Downloader"));
         pill.setAttribute("data-dc-pill", "1");
         pill.dataset.gen = String(GEN);
-        pill.style.position = "absolute";
-        pill.style.top = "8px";
-        pill.style.right = "8px";
+        pill.style.position = "fixed";
         pill.style.zIndex = "2147483646";
+        positionPillOnVideo(pill, v);
         pill.onclick = (ev) => {
           ev.stopPropagation(); ev.preventDefault();
           // Facebook reels: open the IDM-style quality menu (title + HD/SD
@@ -3116,6 +3174,14 @@
         }
         try {
           pill.__dcVideo = v;
+          v.addEventListener("mouseenter", () => {
+            positionPillOnVideo(pill, v);
+            wakeBar(pill);
+          }, { passive: true });
+          v.addEventListener("play", () => {
+            positionPillOnVideo(pill, v);
+            wakeBar(pill);
+          }, { passive: true });
           document.documentElement.appendChild(pill);
           v.__dcBtn = pill; v.__dcKey = key;
           addDismissControl(pill, () => dismissalKey(v, null), null);
@@ -3739,4 +3805,39 @@
     try { youtubeSelfCheck(); } catch (e) { /* ignore */ }
   }, 1000);
   __dcTimers.push(watcher);
+
+  // Universal video hover and play detection (IDM-style):
+  // When a video starts playing or when the pointer moves over any video/player,
+  // ensure the download pill is placed and awaken immediately.
+  try {
+    document.addEventListener("play", () => {
+      if (!alive() || !detectionOn) return;
+      ensureUniversalButtons();
+      if (ytVideoId()) refreshYouTube();
+    }, true);
+    document.addEventListener("playing", () => {
+      if (!alive() || !detectionOn) return;
+      ensureUniversalButtons();
+      if (ytVideoId()) refreshYouTube();
+    }, true);
+    document.addEventListener("pointerover", (ev) => {
+      if (!alive() || !detectionOn) return;
+      const target = ev.target;
+      if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, .html5-video-player, shreddit-player, [data-dc-shadow-player]")))) {
+        ensureUniversalButtons();
+        if (ytVideoId()) {
+          const btn = document.getElementById("dc-yt-btn");
+          if (btn) wakeBar(btn);
+          else refreshYouTube();
+        }
+      }
+    }, { capture: true, passive: true });
+    window.addEventListener("scroll", () => {
+      try {
+        document.querySelectorAll("[data-dc-pill]").forEach((p) => {
+          if (p.__dcVideo && typeof positionPillOnVideo === "function") positionPillOnVideo(p, p.__dcVideo);
+        });
+      } catch (e) { }
+    }, { passive: true });
+  } catch (e) { /* ignore */ }
 })();

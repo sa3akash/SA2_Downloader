@@ -5511,7 +5511,7 @@ fn ytdlp_preferred(opts: &EngineOpts) -> bool {
 pub fn is_youtube_list(url: &str) -> bool {
     let Ok(u) = reqwest::Url::parse(url) else { return false };
     let host = u.host_str().unwrap_or("").trim_start_matches("www.").trim_start_matches("m.");
-    if host != "youtube.com" {
+    if host != "youtube.com" && host != "youtu.be" {
         return false;
     }
     let path = u.path().trim_end_matches('/');
@@ -5520,6 +5520,7 @@ pub fn is_youtube_list(url: &str) -> bool {
         || path.starts_with("/channel/")
         || path.starts_with("/c/")
         || path.starts_with("/user/")
+        || (u.query_pairs().any(|(k, v)| k == "list" && !v.eq_ignore_ascii_case("ll")))
 }
 
 /// The videos of a playlist / channel: (watch URL, title), via yt-dlp's
@@ -5540,6 +5541,14 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
     }
     if let Some(p) = opts.effective_proxy(url) {
         cmd.arg("--proxy").arg(p);
+    }
+    let jar = if !opts.cookie.trim().is_empty() {
+        write_cookie_jar(&opts.cookie, &cookie_domain(url)).await.ok().flatten()
+    } else {
+        None
+    };
+    if let Some(j) = &jar {
+        cmd.arg("--cookies").arg(&j.0);
     }
     cmd.arg(url).stdin(std::process::Stdio::null());
     let out = tokio::time::timeout(std::time::Duration::from_secs(120), cmd.output())
@@ -5571,6 +5580,11 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
                 let t = e.get("title").and_then(|x| x.as_str()).unwrap_or(id).to_string();
                 list.push((link, t));
             }
+        }
+    }
+    if list.is_empty() {
+        if let Some(t) = v.get("title").and_then(|t| t.as_str()) {
+            list.push((url.to_string(), t.to_string()));
         }
     }
     list.truncate(5000);
@@ -7198,86 +7212,6 @@ pub fn is_playlist_url_or_query(url: &str) -> bool {
     let lower = url.trim().to_ascii_lowercase();
     (lower.contains("list=") || lower.contains("/playlist") || lower.contains("/album/"))
         && !lower.contains("list=ll")
-}
-
-/// Check if a URL points to a YouTube playlist or channel video list.
-pub fn is_youtube_list(url: &str) -> bool {
-    let u = url.trim().to_ascii_lowercase();
-    (u.contains("youtube.com") || u.contains("youtu.be"))
-        && (u.contains("list=") || u.contains("/playlist") || u.contains("/channel/") || u.contains("/c/") || u.contains("/@"))
-        && !u.contains("list=ll")
-}
-
-/// Extract entries from a media playlist (e.g. YouTube playlist) using yt-dlp.
-/// Returns (playlist_title, vec of (item_url, item_title)).
-pub async fn playlist_entries(
-    url: &str,
-    opts: &EngineOpts,
-) -> Result<(String, Vec<(String, String)>)> {
-    let client = opts.build_client()?;
-    let exe = ensure_ytdlp(&client).await?;
-    let mut cmd = tokio::process::Command::new(exe);
-    cmd.kill_on_drop(true);
-    #[cfg(windows)]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    cmd.arg("-J")
-        .arg("--flat-playlist")
-        .arg("--no-warnings")
-        .arg("--socket-timeout").arg("15");
-    if let Some((name, path)) = js_runtime_path() {
-        cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
-    }
-    if let Some(p) = opts.effective_proxy(url) {
-        cmd.arg("--proxy").arg(p);
-    }
-    if !opts.cookie.trim().is_empty() {
-        if let Ok(Some(jar)) = write_cookie_jar(&opts.cookie, &cookie_domain(url)).await {
-            cmd.arg("--cookies").arg(&jar.0);
-        }
-    }
-    cmd.arg(url).stdin(std::process::Stdio::null());
-    let out = tokio::time::timeout(std::time::Duration::from_secs(30), cmd.output())
-        .await
-        .map_err(|_| anyhow!("yt-dlp playlist timed out after 30 seconds"))?
-        .map_err(|e| anyhow!("yt-dlp failed to run: {e}"))?;
-    if !out.status.success() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        return Err(anyhow!("yt-dlp failed to retrieve playlist: {}", err.trim()));
-    }
-    let v: serde_json::Value = serde_json::from_slice(&out.stdout)
-        .map_err(|e| anyhow!("invalid JSON from yt-dlp: {e}"))?;
-    let title = v.get("title").and_then(|t| t.as_str()).unwrap_or("Playlist").trim().to_string();
-    let mut entries_vec = Vec::new();
-    if let Some(entries) = v.get("entries").and_then(|e| e.as_array()) {
-        for e in entries {
-            let entry_title = e.get("title").and_then(|t| t.as_str()).unwrap_or("Untitled").trim().to_string();
-            let entry_url = if let Some(u) = e.get("webpage_url").and_then(|u| u.as_str()).filter(|s| s.starts_with("http")) {
-                u.to_string()
-            } else if let Some(u) = e.get("url").and_then(|u| u.as_str()).filter(|s| s.starts_with("http")) {
-                u.to_string()
-            } else if let Some(id) = e.get("id").and_then(|i| i.as_str()) {
-                if url.contains("youtube.com") || url.contains("youtu.be") {
-                    format!("https://www.youtube.com/watch?v={id}")
-                } else {
-                    format!("{url}#{id}")
-                }
-            } else if let Some(u) = e.get("url").and_then(|u| u.as_str()) {
-                u.to_string()
-            } else {
-                continue;
-            };
-            entries_vec.push((entry_url, entry_title));
-        }
-    }
-    if entries_vec.is_empty() {
-        if let Some(entry_title) = v.get("title").and_then(|t| t.as_str()) {
-            entries_vec.push((url.to_string(), entry_title.to_string()));
-        }
-    }
-    Ok((title, entries_vec))
 }
 
 pub fn aria2_on_path() -> Option<PathBuf> {

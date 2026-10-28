@@ -1411,27 +1411,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { ok: false, error: "only http(s) and magnet links up to 8000 chars can be sent" };
       }
       if (msg.ver && msg.ver !== EXT_VER) {
-        // Stale tab script (extension reloaded without a tab refresh):
-        // push the current script into the tab so the *next* click works.
+        // Tab script version differs (e.g. extension was updated while tab was open):
+        // asynchronously re-inject the updated script in the background so future interactions are updated,
+        // but NEVER block or reject this download request. Proceed immediately to start downloading.
         try {
           if (sender && sender.tab && sender.tab.id !== undefined &&
             chrome.scripting && chrome.scripting.executeScript) {
-            await api.scripting.executeScript({
+            api.scripting.executeScript({
               target: { tabId: sender.tab.id },
               files: ["rank.js", "content.js"],
-            });
-            return {
-              ok: false,
-              error: "page script refreshed itself — click once more",
-            };
+            }).catch(() => {});
           }
         } catch (e) {
-          /* fall through to the reload hint */
+          /* best effort script update */
         }
-        return {
-          ok: false,
-          error: `page runs script v${msg.ver}, app expects v${EXT_VER} — reload this tab (Ctrl+R), then click again`,
-        };
       }
       markSeen(msg.url, msg.filename);
       try {

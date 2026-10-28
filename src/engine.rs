@@ -1277,7 +1277,7 @@ pub fn normalize_media_url(url: &str) -> String {
     u.to_string()
 }
 
-fn is_youtube_page(url: &str) -> bool {
+pub fn is_youtube_page(url: &str) -> bool {
     url.contains("youtube.com") || url.contains("youtu.be")
 }
 

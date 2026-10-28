@@ -2086,6 +2086,7 @@ enum ZipMsg {
     Done(String),
 }
 
+#[allow(non_camel_case_types)]
 pub struct sa2App {
     rt: Arc<tokio::runtime::Runtime>,
     downloads: Vec<DownloadItem>,
@@ -7909,9 +7910,9 @@ impl eframe::App for sa2App {
                                     let _ = tx.send(res);
                                 });
                             }
-                            (DM_X + 365.0, DM_W_IN - 365.0)
+                            (DM_X + 340.0, DM_W_IN - 340.0)
                         } else {
-                            (DM_X, 220.0)
+                            (DM_X, DM_W_IN)
                         };
 
                         // Resolution / Quality dropdown
@@ -9751,11 +9752,16 @@ impl sa2App {
         item.checksum_sha256 = csum;
         item.overwrite_existing = self.add_overwrite;
         item.quality_pref = self.add_quality.trim().to_string();
-        item.category = self.add_category.clone();
         item.is_playlist = self.add_is_playlist;
         if self.add_quality.eq_ignore_ascii_case("audio") {
             item.expects_audio = true;
-            item.category = "Music".to_string();
+            if !item.filename.ends_with(".mp3") {
+                let stem = std::path::Path::new(&item.filename)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(&item.filename);
+                item.filename = format!("{stem}.mp3");
+            }
         }
         // Probed (or browser-measured) size survives queueing so the engine
         // and progress UI know the total even if a re-probe would 403.

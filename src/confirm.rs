@@ -304,11 +304,16 @@ fn options_menu(
         *open = false;
         return None;
     }
+    let align = if resp.rect.left() > 200.0 || resp.rect.right() > 380.0 {
+        egui::RectAlign::BOTTOM_END
+    } else {
+        egui::RectAlign::BOTTOM_START
+    };
     let mut picked = None;
     egui::Popup::from_response(resp)
         .open_bool(&mut *open)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-        .align(egui::RectAlign::BOTTOM_START)
+        .align(align)
         .gap(6.0)
         .frame(
             egui::Frame::new()
@@ -318,12 +323,14 @@ fn options_menu(
                 .inner_margin(egui::Margin::symmetric(4, 4)),
         )
         .show(|ui| {
-            ui.set_min_width(280.0);
+            let menu_w = resp.rect.width().clamp(240.0, 360.0);
+            ui.set_min_width(menu_w);
+            ui.set_max_width(380.0);
             egui::ScrollArea::vertical()
-                .max_height(220.0)
+                .max_height(240.0)
                 .show(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::vec2(0.0, 2.0);
-                    let w = ui.available_width().max(272.0);
+                    let w = ui.available_width().max(menu_w - 8.0);
                     for o in options {
                         let (r, ir) =
                             ui.allocate_exact_size(egui::vec2(w, 24.0), egui::Sense::click());
@@ -337,7 +344,7 @@ fn options_menu(
                             ui.painter().text(
                                 egui::pos2(r.left() + 28.0, r.center().y),
                                 egui::Align2::LEFT_CENTER,
-                                elide_left(o, 48),
+                                o.as_str(),
                                 reg(11.0),
                                 if o.as_str() == selected { DM_ACC } else { pl().dm_txt },
                             );
@@ -345,7 +352,7 @@ fn options_menu(
                             ui.painter().text(
                                 egui::pos2(r.left() + 8.0, r.center().y),
                                 egui::Align2::LEFT_CENTER,
-                                elide_left(o, 52),
+                                o.as_str(),
                                 reg(11.0),
                                 if o.as_str() == selected { DM_ACC } else { pl().dm_txt },
                             );
@@ -560,6 +567,7 @@ impl ConfirmApp {
             browser: self.browser.clone(),
             ..Default::default()
         };
+        let f_opts = opts.clone();
         rt.spawn(async move {
             let out = match opts.build_client() {
                 Ok(client) => {
@@ -625,7 +633,6 @@ impl ConfirmApp {
         let (ftx, frx) = std::sync::mpsc::channel();
         self.formats_rx = Some(frx);
         let f_url = self.url.clone();
-        let f_opts = opts;
         rt.spawn(async move {
             let info = if let Ok(client) = f_opts.build_client() {
                 engine::probe_real_video_formats(&client, &f_opts, &f_url).await
@@ -1397,9 +1404,9 @@ impl eframe::App for ConfirmApp {
                             });
                         }
                     }
-                    (DM_X + 365.0, DM_W_IN - 365.0)
+                    (DM_X + 340.0, DM_W_IN - 340.0)
                 } else {
-                    (DM_X, 220.0)
+                    (DM_X, DM_W_IN)
                 };
 
                 // Resolution / Quality dropdown

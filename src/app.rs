@@ -1808,7 +1808,7 @@ fn tool_button(
     let label_w = if label.is_empty() {
         0.0
     } else {
-        ui.painter().layout_no_wrap(label.to_owned(), font.clone(), pl().txt).size().x
+        crate::shaped::width(ui.painter(), label, &font)
     };
     let w = if label.is_empty() { TOOL_H } else { 10.0 + 16.0 + 7.0 + label_w + 12.0 };
     let (rect, _) = ui.allocate_exact_size(egui::vec2(w, TOOL_H), egui::Sense::hover());
@@ -1822,7 +1822,7 @@ fn tool_button(
     } else if hov {
         pl().txt
     } else {
-        pl().txt.gamma_multiply(0.75)
+        pl().txt.gamma_multiply(0.85)
     };
     if label.is_empty() {
         p.text(rect.center(), egui::Align2::CENTER_CENTER, icon.to_string(), crate::fonts::icon(17.0), c);
@@ -1834,10 +1834,11 @@ fn tool_button(
             crate::fonts::icon(16.0),
             c,
         );
-        p.text(
+        crate::shaped::draw(
+            p,
             egui::pos2(rect.min.x + 33.0, rect.center().y),
             egui::Align2::LEFT_CENTER,
-            label.to_string(),
+            label,
             font,
             c,
         );
@@ -1861,9 +1862,10 @@ fn tool_button(
 /// matching the master theme UI reference. When a download link is sitting on the
 /// clipboard it breathes with an Apple Green glow.
 fn add_url_button(ui: &mut egui::Ui, man: &ManState, hot: bool) -> egui::Rect {
-    let label = crate::i18n::t("Add URL").to_string();
+    let label = crate::i18n::t("Add URL");
     let font = crate::fonts::semi(12.0);
-    let label_w = ui.painter().layout_no_wrap(label.clone(), font.clone(), egui::Color32::WHITE).size().x;
+    let display_text = format!("+ {label}");
+    let label_w = crate::shaped::width(ui.painter(), &display_text, &font);
     let w = 12.0 + 22.0 + 8.0 + label_w + 14.0;
     let (rect, _) = ui.allocate_exact_size(egui::vec2(w, TOOL_H), egui::Sense::hover());
     let hov = man.hover(&rect);
@@ -1897,10 +1899,11 @@ fn add_url_button(ui: &mut egui::Ui, man: &ManState, hot: bool) -> egui::Rect {
     p.circle_filled(badge_rect.center(), 10.0, if hot || hov { pl().primary.gamma_multiply(0.2) } else { pl().surface_lt });
     dm_icon(p, egui::Rect::from_center_size(badge_rect.center(), egui::vec2(12.0, 12.0)), DmIcon::Cloud, if hot || hov { pl().primary } else { pl().txt }, 1.5);
 
-    p.text(
+    crate::shaped::draw(
+        p,
         egui::pos2(rect.min.x + 34.0, rect.center().y),
         egui::Align2::LEFT_CENTER,
-        format!("+ {label}"),
+        &display_text,
         font,
         if hov { pl().txt } else { pl().txt.gamma_multiply(0.9) },
     );
@@ -7004,15 +7007,21 @@ impl eframe::App for sa2App {
                     ui.spacing_mut().item_spacing = egui::vec2(TOOL_GAP, 2.0);
                     let room = ui.available_width() - 8.0;
                     let font = egui::FontId::proportional(12.0);
-                    let label_w = |l: &str| ui.painter().layout_no_wrap(l.to_owned(), font.clone(), pl().txt).size().x;
-                    let add_w = 12.0 + 22.0 + 8.0 + label_w(crate::i18n::t("Add URL")) + 14.0;
+                    let label_w = |l: &str| crate::shaped::width(ui.painter(), l, &font);
+                    let add_label = format!("+ {}", crate::i18n::t("Add URL"));
+                    let add_w = 12.0 + 22.0 + 8.0 + crate::shaped::width(ui.painter(), &add_label, &crate::fonts::semi(12.0)) + 14.0;
                     let sep_w = 13.0 + TOOL_GAP;
-                    let full: f32 = tools.iter().map(|t| 10.0 + 16.0 + 7.0 + label_w(t.2) + 12.0 + TOOL_GAP).sum();
-                    let icons_only = add_w + TOOL_GAP + sep_w + full > room;
+                    let primary_count = 4.min(tools.len());
+                    let primary_w: f32 = tools[..primary_count].iter().map(|t| 10.0 + 16.0 + 7.0 + label_w(t.2) + 12.0 + TOOL_GAP).sum();
+                    let secondary_full: f32 = tools[primary_count..].iter().map(|t| 10.0 + 16.0 + 7.0 + label_w(t.2) + 12.0 + TOOL_GAP).sum();
+                    let secondary_icons_only = add_w + TOOL_GAP + sep_w + primary_w + secondary_full > room;
                     let mut fit = tools.len();
-                    if icons_only {
-                        while fit > 0 && add_w + TOOL_GAP + sep_w + fit as f32 * (TOOL_H + TOOL_GAP) > room {
-                            fit -= 1;
+                    if secondary_icons_only {
+                        let sec_icons_w = (tools.len() - primary_count) as f32 * (TOOL_H + TOOL_GAP);
+                        if add_w + TOOL_GAP + sep_w + primary_w + sec_icons_w > room {
+                            let extra = (room - (add_w + TOOL_GAP + sep_w + primary_w)).max(0.0);
+                            let sec_fit = (extra / (TOOL_H + TOOL_GAP)).floor() as usize;
+                            fit = (primary_count + sec_fit).min(tools.len());
                         }
                     }
                     let r = add_url_button(ui, &self.man, self.clipboard_url.is_some());
@@ -7023,7 +7032,9 @@ impl eframe::App for sa2App {
                             let (sep, _) = ui.allocate_exact_size(egui::vec2(13.0, TOOL_H), egui::Sense::hover());
                             ui.painter().vline(sep.center().x, (sep.min.y + 6.0)..=(sep.max.y - 6.0), egui::Stroke::new(1.0_f32, pl().card_bd));
                         }
-                        let (label, tip) = if icons_only { ("", label) } else { (label, tip) };
+                        // Primary action buttons (Resume, Stop, Stop All, Delete) ALWAYS show their title!
+                        // Secondary tools collapse to icon-only when horizontal room is tight.
+                        let (label, tip) = if i >= primary_count && secondary_icons_only { ("", label) } else { (label, tip) };
                         let r = tool_button(ui, &self.man, icon, label, enabled, tip);
                         self.hits.push((HitKind::Tool(id), r));
                         i += 1;

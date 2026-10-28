@@ -1504,11 +1504,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       // page on a local host may name local media). Other URLs were a way
       // to make the extension and app send credentialed requests anywhere.
       const pageHost = (() => { try { return new URL(sender.url).hostname; } catch (e) { return ""; } })();
-      const http = (u) => typeof u === "string" && u.length <= 4000 && /^https?:\/\//i.test(u)
-        && /\.(?:m3u8|mpd|mp4|webm|m4s)(?:[?#]|$)/i.test(u.split(/[?#]/)[0] + "?")
+      const http = (u, mime) => typeof u === "string" && u.length <= 4000 && /^https?:\/\//i.test(u)
+        && (/\.(?:m3u8|mpd|mp4|webm|m4s|m4v|ts|mov|mkv|flv|avi|mp3|m4a)(?:[?#]|$)/i.test(u)
+            || /(?:manifest|playlist|master|stream|hls|dash)/i.test(u.split(/[?#]/)[0])
+            || (typeof mime === "string" && (mime.startsWith("video/") || mime.startsWith("audio/") || /mpegurl|dash\+xml/i.test(mime))))
         && (!privateHost(u) || privateHost(sender.url || "") || (() => { try { return new URL(u).hostname === pageHost; } catch (e) { return false; } })());
       for (const it of msg.items.slice(0, 30)) {
-        if (!it || !http(it.url) || hostBlocked(it.url, cfg.blockHosts)) continue;
+        if (!it || !http(it.url, it.mime) || hostBlocked(it.url, cfg.blockHosts)) continue;
         const mime = typeof it.mime === "string" && it.mime.length < 100 ? it.mime : "";
         const dur = Number(it.dur);
         noteMedia(tabId, {

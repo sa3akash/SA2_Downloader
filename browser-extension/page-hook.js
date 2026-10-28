@@ -34,6 +34,20 @@
   // Media URLs inside JSON/text, including JSON-escaped slashes.
   const MEDIA_RE = /https?:\/\/[^\s"'<>\\]+?\.(m3u8|mpd|mp4|webm)(\?[^\s"'<>\\]*)?(?=[\s"'<>\\,)\]}]|$)/gi;
   const MIME = { m3u8: "application/vnd.apple.mpegurl", mpd: "application/dash+xml", mp4: "video/mp4", webm: "video/webm" };
+  const STREAM_HINT_RE = /^https?:\/\/[^\s"'<>\\]+?(?:hls|dash|manifest|playlist|master|vod)[^/]*\.(?:m3u8|mpd)(?:[?#]|$)/i;
+
+  function checkUrl(u) {
+    if (typeof u !== "string" || !/^https?:\/\//i.test(u) || u.length > 4000) return;
+    const m = u.match(/\.(m3u8|mpd|mp4|webm|m4s|m4v)(?:[?#]|$)/i);
+    if (m) {
+      const ext = m[1].toLowerCase();
+      const mime = MIME[ext] || (ext === "m4s" || ext === "m4v" ? "video/mp4" : "");
+      post([{ url: u, mime }]);
+    } else if (STREAM_HINT_RE.test(u)) {
+      post([{ url: u, mime: u.includes(".mpd") ? MIME.mpd : MIME.m3u8 }]);
+    }
+  }
+
   // Facebook: its GraphQL answers describe each video whole (every quality,
   // audio, duration), which content.js turns into one entry per video. The
   // generic scan below would instead post every quality of every preloaded
@@ -67,6 +81,10 @@
   const origFetch = window.fetch;
   if (typeof origFetch === "function") {
     window.fetch = function (...args) {
+      try {
+        const reqUrl = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url);
+        checkUrl(reqUrl);
+      } catch (e) {}
       const p = origFetch.apply(this, args);
       p.then((res) => {
         try {
@@ -81,22 +99,67 @@
   }
 
   const XHR = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
-  if (XHR && typeof XHR.send === "function") {
-    const origSend = XHR.send;
-    XHR.send = function (...args) {
-      try {
-        this.addEventListener("load", function () {
-          try {
-            const ct = this.getResponseHeader("content-type") || "";
-            if (SKIP.test(ct)) return;
-            if (this.responseType === "" || this.responseType === "text") scanText(this.responseText);
-            else if (this.responseType === "json" && this.response) scanText(JSON.stringify(this.response));
-          } catch (e) { /* opaque or binary response */ }
-        });
-      } catch (e) {}
-      return origSend.apply(this, args);
-    };
+  if (XHR) {
+    if (typeof XHR.open === "function") {
+      const origOpen = XHR.open;
+      XHR.open = function (method, url, ...args) {
+        try { checkUrl(url); } catch (e) {}
+        return origOpen.call(this, method, url, ...args);
+      };
+    }
+    if (typeof XHR.send === "function") {
+      const origSend = XHR.send;
+      XHR.send = function (...args) {
+        try {
+          this.addEventListener("load", function () {
+            try {
+              const ct = this.getResponseHeader("content-type") || "";
+              if (SKIP.test(ct)) return;
+              if (this.responseType === "" || this.responseType === "text") scanText(this.responseText);
+              else if (this.responseType === "json" && this.response) scanText(JSON.stringify(this.response));
+            } catch (e) { /* opaque or binary response */ }
+          });
+        } catch (e) {}
+        return origSend.apply(this, args);
+      };
+    }
   }
+
+  // Hook HTMLMediaElement for HTML5 video/audio players
+  try {
+    const proto = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
+    if (proto) {
+      const origPlay = proto.play;
+      if (typeof origPlay === "function") {
+        proto.play = function (...args) {
+          try {
+            const u = this.currentSrc || this.src;
+            if (typeof u === "string" && /^https?:\/\//i.test(u) && !/^blob:/i.test(u)) {
+              checkUrl(u);
+            }
+          } catch (e) {}
+          return origPlay.apply(this, args);
+        };
+      }
+      const desc = Object.getOwnPropertyDescriptor(proto, "src");
+      if (desc && desc.set) {
+        const origSet = desc.set;
+        Object.defineProperty(proto, "src", {
+          set: function (val) {
+            try {
+              if (typeof val === "string" && /^https?:\/\//i.test(val) && !/^blob:/i.test(val)) {
+                checkUrl(val);
+              }
+            } catch (e) {}
+            return origSet.call(this, val);
+          },
+          get: desc.get,
+          configurable: true,
+          enumerable: true,
+        });
+      }
+    }
+  } catch (e) {}
 
   // Player state that sites keep in globals instead of a request.
   function bilibili() {

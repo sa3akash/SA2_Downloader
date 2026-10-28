@@ -1297,10 +1297,18 @@
     if (!list.length) return null;
     // What the page's players really requested beats URLs a page only
     // mentioned in its JSON (a feed lists every post's .mp4).
-    if (list.some((m) => m.via !== "page")) list = list.filter((m) => m.via !== "page");
+    if (list.some((m) => m.via !== "page" && (R ? R.kindOf(m) !== "segment" : true))) {
+      const nonPage = list.filter((m) => m.via !== "page");
+      if (nonPage.length) list = nonPage;
+    }
     if (opts && opts.streamPlayer && R) {
       const streams = list.filter((m) => R.kindOf(m) === "playlist");
-      if (streams.length) list = streams;
+      if (streams.length) {
+        list = streams;
+      } else {
+        const allStreams = (items || []).filter((m) => m && /^https?:\/\//i.test(m.url) && R.kindOf(m) === "playlist");
+        if (allStreams.length) list = allStreams;
+      }
     }
     // P4: when the tab already holds a playlist, loose segments are its
     // children (the engine assembles them) — never pick a part. Without
@@ -3344,11 +3352,11 @@
   function pageVideos() {
     const out = [...document.querySelectorAll("video")];
     try {
-      for (const host of document.querySelectorAll("shreddit-player, shreddit-player-2, [data-dc-shadow-player]")) {
+      for (const host of document.querySelectorAll("shreddit-player, shreddit-player-2, [data-dc-shadow-player], [class*='player'], [id*='player']")) {
         if (host.shadowRoot) out.push(...host.shadowRoot.querySelectorAll("video"));
       }
     } catch (e) { /* light DOM only */ }
-    return out;
+    return [...new Set(out)];
   }
   function isSocialPage() {
     try { return !!(typeof DCRank !== "undefined" && DCRank.socialSite && DCRank.socialSite(location.hostname)); } catch (e) { return false; }
@@ -3874,15 +3882,29 @@
       lastMoveCheck = now;
       const target = ev.target;
       let isVideoZone = false;
-      if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, .html5-video-player, #movie_player, #shorts-player, [data-dc-bar], [data-dc-panel], [data-dc-pill], shreddit-player, [data-dc-shadow-player]")))) {
+      let targetVideo = null;
+      if (target && target.tagName === "VIDEO") {
         isVideoZone = true;
-      } else {
+        targetVideo = target;
+      } else if (target && target.closest) {
+        targetVideo = target.closest("video") || target.closest("[class*='player'], [id*='player'], [class*='video'], [id*='video'], .html5-video-player, #movie_player, #shorts-player, [data-dc-bar], [data-dc-panel], [data-dc-pill], shreddit-player, [data-dc-shadow-player]")?.querySelector?.("video") || null;
+        if (targetVideo || target.closest("[data-dc-bar], [data-dc-panel], [data-dc-pill], .html5-video-player, #movie_player, #shorts-player, shreddit-player, [data-dc-shadow-player]")) {
+          isVideoZone = true;
+        }
+      }
+      if (!isVideoZone) {
         const els = document.elementsFromPoint ? document.elementsFromPoint(ev.clientX, ev.clientY) : [];
         for (const el of els) {
           if (!el) continue;
-          if (el.tagName === "VIDEO" || (el.closest && el.closest("video, [data-dc-bar], [data-dc-panel], [data-dc-pill]")) || (el.querySelector && el.querySelector("video"))) {
+          if (el.tagName === "VIDEO") { isVideoZone = true; targetVideo = el; break; }
+          if (el.closest && (el.closest("video, [data-dc-bar], [data-dc-panel], [data-dc-pill]") || el.querySelector("video"))) {
             isVideoZone = true;
+            targetVideo = el.tagName === "VIDEO" ? el : el.querySelector("video");
             break;
+          }
+          if (el.closest && el.closest("[class*='player'], [id*='player'], [class*='video'], [id*='video']")) {
+            const pv = el.closest("[class*='player'], [id*='player'], [class*='video'], [id*='video']").querySelector("video");
+            if (pv) { isVideoZone = true; targetVideo = pv; break; }
           }
         }
       }
@@ -3893,6 +3915,9 @@
           else refreshYouTube();
         } else {
           ensureUniversalButtons();
+          if (targetVideo && targetVideo.__dcBtn) {
+            wakeBar(targetVideo.__dcBtn);
+          }
           document.querySelectorAll("[data-dc-pill]").forEach((p) => {
             if (p.__dcVideo) {
               const vr = p.__dcVideo.getBoundingClientRect();
@@ -3909,13 +3934,15 @@
     document.addEventListener("pointerover", (ev) => {
       if (!alive() || !detectionOn) return;
       const target = ev.target;
-      if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, .html5-video-player, #movie_player, #shorts-player, shreddit-player, [data-dc-shadow-player]")))) {
+      if (target && (target.tagName === "VIDEO" || (target.closest && target.closest("video, [class*='player'], [id*='player'], [class*='video'], [id*='video'], .html5-video-player, #movie_player, #shorts-player, shreddit-player, [data-dc-shadow-player]")))) {
         if (ytVideoId()) {
           const btn = document.getElementById("dc-yt-btn");
           if (btn) wakeBar(btn);
           else refreshYouTube();
         } else {
           ensureUniversalButtons();
+          const v = target.tagName === "VIDEO" ? target : target.closest("video") || target.closest("[class*='player'], [id*='player'], [class*='video'], [id*='video']")?.querySelector?.("video");
+          if (v && v.__dcBtn) wakeBar(v.__dcBtn);
         }
       }
     }, { capture: true, passive: true });

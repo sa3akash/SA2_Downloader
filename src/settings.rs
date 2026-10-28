@@ -1332,7 +1332,7 @@ fn theme_tile(
         8.0,
         t.input,
         Stroke::new(
-            1.0,
+            1.0_f32,
             if active {
                 t.accent
             } else if resp.hovered() {

@@ -4334,6 +4334,7 @@ impl CraftApp {
             mirrors: item.mirrors.clone(),
             http2: false,
             any_ip: false,
+            is_playlist: false,
             digest: Default::default(),
         };
         let shared2 = shared.clone();
@@ -10196,7 +10197,7 @@ impl CraftApp {
                             ToolId::Share => {
                                 if let Some(id) = self.selected_ids().first() {
                                     if let Some(d) = self.downloads.iter().find(|d| d.id == *id) {
-                                        ctx.output_mut(|o| o.copied_text = d.url.clone());
+                                        ctx.copy_text(d.url.clone());
                                     }
                                 }
                             }

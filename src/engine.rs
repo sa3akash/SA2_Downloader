@@ -1006,8 +1006,15 @@ fn is_final_http_error(e: &anyhow::Error) -> bool {
 /// Saturating counter decrement (plain `fetch_sub` wraps to u64::MAX on
 /// underflow — which once painted a stuck-full progress bar).
 fn sub_saturating(a: &std::sync::atomic::AtomicU64, n: u64) {
-    a.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |v| Some(v.saturating_sub(n)))
-        .ok();
+    let mut cur = a.load(Ordering::Relaxed);
+    while let Err(actual) = a.compare_exchange_weak(
+        cur,
+        cur.saturating_sub(n),
+        Ordering::SeqCst,
+        Ordering::Relaxed,
+    ) {
+        cur = actual;
+    }
 }
 
 fn is_googlevideo_url(url: &str) -> bool {
@@ -6965,7 +6972,7 @@ pub fn aria2_path() -> Option<PathBuf> {
     }).filter(|p| p.is_file())
 }
 
-pub async fn ensure_aria2(client: &reqwest::Client) -> Result<PathBuf> {
+pub async fn ensure_aria2(_client: &reqwest::Client) -> Result<PathBuf> {
     if let Some(p) = aria2_path() {
         return Ok(p);
     }
@@ -6981,7 +6988,7 @@ pub async fn ensure_aria2(client: &reqwest::Client) -> Result<PathBuf> {
     #[cfg(windows)]
     {
         let url = "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip";
-        if let Ok(resp) = client.get(url).send().await {
+        if let Ok(resp) = _client.get(url).send().await {
             if resp.status().is_success() {
                 if let Ok(bytes) = resp.bytes().await {
                     let cursor = std::io::Cursor::new(bytes);

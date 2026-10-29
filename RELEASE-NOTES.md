@@ -1,3 +1,20 @@
+# Download SA2 1.2.0 — Delete Completed Files, Segment Cleanup & Developer Profile
+
+## What's new in 1.2.0
+
+### Delete Completed Files & Temp Segment Cleanup
+- **"Delete Completed File" Option**: Added dedicated options in both the right-click context menu and the **Downloads** menubar menu to delete completed files directly from disk (`Shift+Del`), alongside **"Remove from list"** (`Del`) to safely unlist items while keeping files on disk.
+- **Thorough Segment Cleanup on Delete**: Deleting paused, failed, active, or stopped downloads now sweeps and purges all leftover temporary segment files (`.hls*`, `.hls*tmp`, `.hlsmap`, `.hlstmp`, `.dcpart*`, `.dcmeta`, `.dcftp*`, `.part`, `.ytdl`, `.tmp`), preventing orphaned files from consuming storage space.
+
+### Developer Info Section & Author Portrait
+- **Developer Information Card**: Added an author section in the **About** modal and a dedicated **About & Developer** tab in **Settings** featuring:
+  - Portrait photo of **Shakil Ahmed**.
+  - Name and role: **Shakil Ahmed — Creator & Lead Developer**.
+  - Bio details and direct clickable button to [GitHub (@sa3akash)](https://github.com/sa3akash).
+- **Windows Executable & Package Metadata**: Added official Company and Copyright properties to Windows binaries and `Cargo.toml`.
+
+---
+
 # Download SA2 1.1.9 — Advanced Universal Stream Downloader, Dynamic HLS/DASH Resolutions & Large Media Engine
 
 ## What's new in 1.1.9

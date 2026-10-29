@@ -3846,11 +3846,11 @@ impl SettingsApp {
                         Color32::WHITE,
                     );
                 }
-                ui.painter().rect_stroke(rect, 8.0, Stroke::new(1.5, t.accent), StrokeKind::Inside);
+                ui.painter().rect_stroke(rect, 8.0_f32, Stroke::new(1.5_f32, t.accent), StrokeKind::Inside);
 
                 ui.add_space(12.0);
                 ui.vertical(|ui| {
-                    txt(ui, "Shakil Ahmed", semi(16.0), t.fg);
+                    txt(ui, "Shakil Ahmed", semi(16.0), t.text);
                     ui.add_space(2.0);
                     txt(ui, "Creator & Lead Developer", semi(11.5), t.accent);
                     ui.add_space(4.0);

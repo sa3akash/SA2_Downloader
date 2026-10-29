@@ -1,17 +1,22 @@
-# Download SA2 1.2.0 — Delete Completed Files, Segment Cleanup & Developer Profile
+# Download SA2 1.2.0 — Anti-Bot IP Bypass, 100GB+ Stream Engine, Segment Cleanup & Developer Profile
 
 ## What's new in 1.2.0
 
+### Advanced Anti-Bot & IP Block Bypass (YouTube & Streaming Sites)
+- **Automatic Player Client Rotation**: Bypasses YouTube's "Sign in to confirm you're not a bot" and HTTP 429 rate-limiting by automatically rotating through alternative client profiles (`android`, `ios`, `mweb`) where SABR web bot checks are not enforced.
+- **Bun, Node & Deno JS Challenge Solver**: Extended JavaScript runtime detection to include **Bun** (`~/.bun/bin/bun.exe`), Node.js (16+), Deno, and QuickJS to solve YouTube n-sig player challenges and unlock all formats (1080p, 4K, 8K, high-bitrate audio).
+- **100GB+ & Multi-Hour Video Resilience**: Optimized yt-dlp arguments with infinite network and fragment retries, 16MB socket buffer, and 10MB chunking, ensuring multi-hour 100GB+ transfers continue uninterrupted.
+- **Instant HLS Segment Sampling**: Replaced sequential HEAD probes with intelligent 16-sample estimation, eliminating minutes of freeze and CDN 429 rate-limits on 3,896+ segment playlists.
+
+### Dedicated About Software & Developer Info (Zero-Overflow UI)
+- **Separated Dialog Tabs & Panes**: Completely separated **Software Information** and **Developer Information** into distinct, purpose-built views with dynamic height calculation to eliminate UI overflow.
+  - **About Software**: App version (1.2.0), MIT license, system architecture specs, check for updates, and GitHub project link.
+  - **Developer Info**: Antialiased portrait of creator **Shakil Ahmed**, Lead Developer & Architect badge, engineering focus, and direct profile links.
+- **Split Settings Rail**: Settings now features independent panes for **About Software** (`info`) and **Developer Info** (`account_circle`).
+
 ### Delete Completed Files & Temp Segment Cleanup
 - **"Delete Completed File" Option**: Added dedicated options in both the right-click context menu and the **Downloads** menubar menu to delete completed files directly from disk (`Shift+Del`), alongside **"Remove from list"** (`Del`) to safely unlist items while keeping files on disk.
-- **Thorough Segment Cleanup on Delete**: Deleting paused, failed, active, or stopped downloads now sweeps and purges all leftover temporary segment files (`.hls*`, `.hls*tmp`, `.hlsmap`, `.hlstmp`, `.dcpart*`, `.dcmeta`, `.dcftp*`, `.part`, `.ytdl`, `.tmp`), preventing orphaned files from consuming storage space.
-
-### Developer Info Section & Author Portrait
-- **Developer Information Card**: Added an author section in the **About** modal and a dedicated **About & Developer** tab in **Settings** featuring:
-  - Portrait photo of **Shakil Ahmed**.
-  - Name and role: **Shakil Ahmed — Creator & Lead Developer**.
-  - Bio details and direct clickable button to [GitHub (@sa3akash)](https://github.com/sa3akash).
-- **Windows Executable & Package Metadata**: Added official Company and Copyright properties to Windows binaries and `Cargo.toml`.
+- **Thorough Segment Cleanup on Delete**: Deleting paused, failed, active, or stopped downloads sweeps and purges all leftover temporary segment files (`.hls*`, `.hls*tmp`, `.hlsmap`, `.hlstmp`, `.dcpart*`, `.dcmeta`, `.dcftp*`, `.part`, `.ytdl`, `.tmp`), preventing orphaned files from consuming storage space.
 
 ---
 
@@ -123,91 +128,6 @@ All packages are compiled with full optimizations and attached directly to the G
   - Chrome / Edge / Brave: Download `SA2Downloader-Chrome-1.1.6.zip`, extract, go to `chrome://extensions`, enable *Developer mode*, click *Load unpacked*, and select the extension folder.
   - Firefox: Download `SA2Downloader-Firefox-1.1.6.xpi`, open `about:debugging#/runtime/this-firefox`, and click *Load Temporary Add-on…*.
 
-## Media helpers
-
-Settings → Plugins downloads and keeps **yt-dlp**, **FFmpeg + ffprobe** and a portable **JavaScript runtime** (Deno) automatically up to date into the app's own folder — no manual installers, no PATH changes, no administrator privileges needed.
-System copies on PATH or custom executable paths can be chosen instead.
-
-RAR archives are read with the UnRAR source code (freeware licence, extraction only); see `NOTICE.md`.
-
-
----
-
-Analyzed VERSION:L1
-Ran check APP_VERSION in model.rs
-Analyzed manifest.json:L1-10
-Analyzed app.rs:L1-15
-Analyzed rank.js:L1-150
-Analyzed popup.js:L1-150
-Analyzed popup.js:L350-520
-Analyzed confirm.rs:L880-940
-Analyzed confirm.rs:L941-990
-Analyzed confirm.rs:L530-600
-Analyzed confirm.rs:L630-670
-Ran search probe_rx in confirm.rs
-Analyzed confirm.rs:L655-720
-Ran search probe/fetch/formats in popup.js
-Analyzed popup.js:L150-250
-Analyzed popup.js:L251-349
-Analyzed confirm.rs:L1500-1545
-Analyzed confirm.rs:L1546-1570
-Ran search video detection in extension
-Analyzed popup.js:L550-650
-Analyzed native_host.rs:L855-885
-Analyzed popup.html:L1-100
-Ran search quality_pref in links.rs
-Analyzed links.rs:L870-935
-Analyzed links.rs:L115-135
-Ran find Row { in links.rs
-Analyzed confirm.rs:L530-570
-Analyzed popup.js:L435-495
-Analyzed popup.js:L500-555
-Ran search rank.js
-Edited popup.js
-Edited popup.js
-Analyzed popup.js:L510-570
-Edited popup.js
-Analyzed confirm.rs:L533-560
-Analyzed confirm.rs:L1030-1055
-Edited confirm.rs
-Edited confirm.rs
-Analyzed links.rs:L115-160
-Edited links.rs
-Analyzed links.rs:L310-350
-Edited links.rs
-Analyzed links.rs:L450-500
-Analyzed links.rs:L500-550
-Edited links.rs
-Edited links.rs
-Analyzed links.rs:L760-860
-Edited links.rs
-Analyzed links.rs:L940-1010
-Analyzed links.rs:L1030-1090
-Analyzed links.rs:L1080-1110
-Edited links.rs
-Analyzed links.rs:L1140-1250
-Analyzed links.rs:L1300-1420
-Analyzed links.rs:L1421-1475
-Edited links.rs
-Analyzed links.rs:L1475-1520
-Edited links.rs
-Ran cargo check project · Exited with code 1
-Ran cargo check using user .cargo path · Exited with code 1
-Ran find cargo executable · Exited with code 1
-Canceled search for cargo.exe in user directory
-Checked task Search for cargo.exe in user directory
-Killed task Search for cargo.exe in user directory
-Ran check git status
-Ran check version diffs
-Analyzed VERSION:L1
-Ran check RELEASE-NOTES.md diff
-Ran check popup.js diff
-Ran check engine.rs diff
-Ran check native_host.rs diff
-Ran check confirm.rs diff
-Ran check links.rs diff
-
-All requested improvements and fixes have been implemented:
 
 ### 1. Global Store & One-Time Format/Size Discovery (Like IDM)
 - **Eliminated Repeated Fetching**:

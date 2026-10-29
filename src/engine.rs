@@ -211,6 +211,8 @@ pub struct EngineOpts {
     pub ytdlp_visitor_data: String,
     /// Browser name to load cookies from for yt-dlp (e.g. "chrome", "firefox", "edge", "brave").
     pub ytdlp_cookies_browser: String,
+    /// Custom extractor arguments for yt-dlp (e.g. client rotation, PoToken bypass).
+    pub ytdlp_extractor_args: String,
     /// Name of this download's log (the queue id); empty = no log.
     pub log_key: String,
     /// Mirrors of the file (other URLs serving the same bytes).
@@ -410,6 +412,7 @@ impl Default for EngineOpts {
             browser: None,
             ytdlp_visitor_data: String::new(),
             ytdlp_cookies_browser: String::new(),
+            ytdlp_extractor_args: String::new(),
             log_key: String::new(),
             mirrors: Vec::new(),
             http2: false,
@@ -3573,7 +3576,17 @@ async fn download_hls(
         let mut total_known: u64 = 0;
         let mut any_known = false;
         let mut probes = Vec::new();
-        for s in &segs {
+        // For large playlists (movies, multi-hour series, 3000+ segments), sampling avoids
+        // thousands of serial probes which cause connection timeouts, 429 rate-limits, or long freezes.
+        let sample_step = if segs.len() > 32 {
+            (segs.len() / 16).max(1)
+        } else {
+            1
+        };
+        let probe_indices: Vec<usize> = (0..segs.len()).step_by(sample_step).collect();
+        let sampled_count = probe_indices.len();
+        for &idx in &probe_indices {
+            let s = &segs[idx];
             let client = client.clone();
             let opts = opts.clone();
             let u = s.clone();
@@ -3592,13 +3605,22 @@ async fn download_hls(
                 cr.split('/').next_back()?.parse::<u64>().ok()
             }));
         }
+        let mut sampled_total: u64 = 0;
+        let mut sampled_hits = 0u64;
         for h in probes {
             if let Ok(Some(n)) = h.await {
-                total_known = total_known.saturating_add(n);
+                sampled_total = sampled_total.saturating_add(n);
+                sampled_hits += 1;
                 any_known = true;
             }
         }
-        if any_known {
+        if any_known && sampled_hits > 0 {
+            if sampled_count == segs.len() {
+                total_known = sampled_total;
+            } else {
+                let avg = sampled_total / sampled_hits;
+                total_known = avg.saturating_mul(segs.len() as u64);
+            }
             shared.total.store(total_known, Ordering::SeqCst);
             shared.has_total.store(true, Ordering::SeqCst);
         }
@@ -4260,11 +4282,28 @@ async fn fallback_chain(
             }
         }
         // A bot check ("Sign in to confirm you're not a bot") can clear with
-        // the page's own visitor id when there are no cookies to send.
+        // player client rotation (Android/iOS API bypasses web SABR bot verification),
+        // or the page's own visitor id when there are no cookies to send.
         let visitor = opts.browser.as_ref().map(|b| b.visitor_data.clone()).unwrap_or_default();
         let bot = format!("{err:#}").to_ascii_lowercase();
         if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") || bot.contains("exit code: 1") || bot.contains("failed") {
             if let Ok(exe) = ensure_ytdlp(&client).await {
+                // Strategy 1: Rotate player clients to bypass YouTube IP/bot check without needing cookies
+                for client_profile in [
+                    "youtube:player_client=android,ios,web;player_skip=configs",
+                    "youtube:player_client=mweb,android;player_skip=configs",
+                    "youtube:player_client=ios,web;player_skip=configs",
+                    "youtube:player_client=android;player_skip=configs",
+                ] {
+                    if shared.cancelled.load(Ordering::SeqCst) { break; }
+                    job_log(&opts.log_key, format!("retrying with player client profile to bypass verification"));
+                    let mut o2 = opts.clone();
+                    o2.ytdlp_extractor_args = client_profile.to_string();
+                    reset_counters(shared);
+                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
+                        return Ok(());
+                    }
+                }
                 if !visitor.is_empty() && opts.cookie.trim().is_empty() {
                     let mut o2 = opts.clone();
                     o2.ytdlp_visitor_data = visitor;
@@ -5127,6 +5166,25 @@ fn tool_dirs() -> Vec<std::path::PathBuf> {
                 paths.push(p);
             }
         }
+        if let Some(h) = dirs::home_dir() {
+            let bun_dir = h.join(".bun").join("bin");
+            if bun_dir.is_dir() && !paths.contains(&bun_dir) {
+                paths.push(bun_dir);
+            }
+            let deno_dir = h.join(".deno").join("bin");
+            if deno_dir.is_dir() && !paths.contains(&deno_dir) {
+                paths.push(deno_dir);
+            }
+        }
+        for node_dir in [
+            r"C:\Program Files\nodejs",
+            r"C:\Program Files (x86)\nodejs",
+        ] {
+            let p = std::path::PathBuf::from(node_dir);
+            if p.is_dir() && !paths.contains(&p) {
+                paths.push(p);
+            }
+        }
     }
     #[cfg(unix)]
     {
@@ -5466,7 +5524,14 @@ fn js_runtime_path() -> Option<(&'static str, std::path::PathBuf)> {
     if let Some(p) = deno_local_path().filter(|p| crate::platform::executable_file(p)) {
         return Some(("deno", p));
     }
-    for name in ["deno", "node"] {
+    // Bun (installed in user profile ~/.bun/bin)
+    if let Some(h) = dirs::home_dir() {
+        let bun = h.join(".bun").join("bin").join(if cfg!(windows) { "bun.exe" } else { "bun" });
+        if crate::platform::executable_file(&bun) {
+            return Some(("bun", bun));
+        }
+    }
+    for name in ["deno", "bun", "node", "quickjs", "qjs"] {
         let file = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
         for dir in tool_dirs() {
             let path=dir.join(&file);
@@ -5483,7 +5548,13 @@ fn runtime_version_supported(name:&str,version:&str)->bool {
     let word=version.split_whitespace().find(|w|w.chars().next().map(|c|c.is_ascii_digit()||c=='v').unwrap_or(false)).unwrap_or("");
     let parts:Vec<u32>=word.trim_start_matches('v').split('.').map(|s|s.parse().unwrap_or(0)).collect();
     let major=parts.first().copied().unwrap_or(0);let minor=parts.get(1).copied().unwrap_or(0);
-    match name {"node"=>major>=22,"deno"=>major>2||(major==2&&minor>=3),_=>false}
+    match name {
+        "node" => major >= 16,
+        "deno" => major >= 1,
+        "bun" => major >= 1,
+        "quickjs" | "qjs" => true,
+        _ => false,
+    }
 }
 fn js_runtime() -> Option<&'static str> { js_runtime_path().map(|(name,_)| name) }
 
@@ -6988,13 +7059,19 @@ async fn download_with_ytdlp(
         .arg("--progress-template")
         .arg(ytdlp_progress_template())
         .arg("--retries")
-        .arg(opts.max_retries.max(50).to_string())
+        .arg("infinite")
         .arg("--fragment-retries")
-        .arg("50")
+        .arg("infinite")
+        .arg("--file-access-retries")
+        .arg("10")
         .arg("--socket-timeout")
-        .arg(opts.timeout_secs.max(15).to_string())
+        .arg(opts.timeout_secs.max(30).to_string())
         .arg("--concurrent-fragments")
         .arg(connections.clamp(1, 16).to_string())
+        .arg("--buffersize")
+        .arg("16M")
+        .arg("--http-chunk-size")
+        .arg("10M")
         .arg("-f")
         .arg(if wants_audio_only(&opts.quality_pref) {
             "ba[ext=m4a]/ba/b".to_string()
@@ -7050,6 +7127,18 @@ async fn download_with_ytdlp(
     if let Some((name,path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}",path.display()));
     }
+    if !opts.ytdlp_extractor_args.trim().is_empty() {
+        cmd.arg("--extractor-args").arg(opts.ytdlp_extractor_args.trim());
+    } else if is_youtube_page(url) || is_googlevideo_url(url) || url.contains("youtube.com") || url.contains("youtu.be") {
+        if !opts.ytdlp_visitor_data.is_empty() {
+            cmd.arg("--extractor-args").arg(format!(
+                "youtube:visitor_data={};player_skip=configs,webpage;player_client=android,ios,web",
+                opts.ytdlp_visitor_data
+            ));
+        } else {
+            cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
+        }
+    }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
         opts.ytdlp_cookies_browser.clone()
     } else {
@@ -7059,13 +7148,6 @@ async fn download_with_ytdlp(
         cmd.arg("--cookies").arg(&jar.0);
     } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
         cmd.arg("--cookies-from-browser").arg(b_cookie.trim());
-    } else if !opts.ytdlp_visitor_data.is_empty() && is_youtube_page(url) {
-        // Retry after a bot check: the page's own visitor id (yt-dlp wants the
-        // web page skipped with it, and no cookies).
-        cmd.arg("--extractor-args").arg(format!(
-            "youtube:visitor_data={};player_skip=webpage,configs",
-            opts.ytdlp_visitor_data
-        ));
     }
     if !opts.referer.trim().is_empty() {
         cmd.arg("--referer").arg(opts.referer.trim());

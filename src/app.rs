@@ -898,6 +898,9 @@ enum ButtonId {
     DMove,
     DVerify,
     DevGithub,
+    DevRepo,
+    AbTabSoftware,
+    AbTabDeveloper,
     AbClose,
     ThemeSystem,
     ThemeDark,
@@ -2171,6 +2174,7 @@ pub struct sa2App {
     show_add: bool,
     show_queues: bool,
     show_about: bool,
+    about_tab: usize,
     author_tex: Option<egui::TextureHandle>,
     add_url: String,
     add_dir: String,
@@ -2414,6 +2418,7 @@ impl sa2App {
             show_add: false,
             show_queues: false,
             show_about: false,
+            about_tab: 0,
             author_tex: None,
             add_url: String::new(),
             add_dir: dl_dir,
@@ -3222,10 +3227,16 @@ impl sa2App {
                     self.push_log(format!("Deleted {n} completed file(s) from disk."));
                 }
             }
-            16 => self.show_about = true,
+            10 => {
+                self.about_tab = 0;
+                self.show_about = true;
+            }
+            16 => {
+                self.about_tab = 1;
+                self.show_about = true;
+            }
             8 => self.show_queues = true,
             9 => Self::open_settings_window(),
-            10 => self.show_about = true,
             11 => self.import_list(),
             12 => self.export_list(),
             13 => self.retry_all_failed(),
@@ -9501,21 +9512,24 @@ impl eframe::App for sa2App {
                 None
             };
 
-            let dev_card_h = 104.0;
-            let brand_h = g_name.size().y.max(46.0) + 4.0 + g_ver.size().y;
-            let credit_h = credit.size().y.max(14.0) + 18.0;
-            let mut body_h = 18.0 + brand_h + 16.0 + 1.0 + 14.0;
-            body_h += desc1.size().y + 10.0 + desc2.size().y + 10.0 + desc3.size().y + 14.0;
-            body_h += dev_card_h + 14.0;
-            body_h += credit_h + 14.0 + btn_h;
-            if let Some(g) = &status_g {
-                body_h += 8.0 + g.size().y;
-            }
-            if let Some(g) = &hint_g {
-                body_h += 8.0 + g.size().y;
-            }
-            body_h += 16.0;
-            // Natural height: sized to fit comfortably with plenty of room.
+            let sw_body_h = {
+                let brand_h = g_name.size().y.max(46.0) + 4.0 + g_ver.size().y;
+                let credit_h = credit.size().y.max(14.0) + 18.0;
+                let mut h = 18.0 + brand_h + 16.0 + 1.0 + 14.0;
+                h += desc1.size().y + 10.0 + desc2.size().y + 10.0 + desc3.size().y + 14.0;
+                h += credit_h + 14.0 + btn_h;
+                if let Some(g) = &status_g {
+                    h += 8.0 + g.size().y;
+                }
+                if let Some(g) = &hint_g {
+                    h += 8.0 + g.size().y;
+                }
+                h + 16.0
+            };
+
+            let dev_body_h = 248.0_f32;
+
+            let body_h = if self.about_tab == 0 { sw_body_h } else { dev_body_h };
             let ab_h = (header_h + body_h + footer_h).min(ctx.screen_rect().height() - 32.0);
 
             let mut open = true;
@@ -9557,24 +9571,55 @@ impl eframe::App for sa2App {
                         egui::Stroke::new(1.0_f32, wash(accent, 110)),
                     );
 
-                    // ---- header: centered title + close ----
+                    // ---- header: title + tab switcher + close ----
                     let head = egui::Rect::from_min_size(card.min, egui::vec2(ab_w, header_h));
                     pf.hline(
                         card.x_range(),
                         head.bottom() - 0.5,
                         egui::Stroke::new(1.0_f32, soft),
                     );
-                    let title_g = pf.layout_no_wrap("About".to_owned(), f_title.clone(), p.txt);
+                    let title_text = if self.about_tab == 0 { "Software Information" } else { "Developer Information" };
+                    let title_g = pf.layout_no_wrap(title_text.to_owned(), f_title.clone(), p.txt);
                     pf.galley(
-                        egui::pos2(
-                            head.center().x - title_g.size().x / 2.0,
-                            head.center().y - title_g.size().y / 2.0,
-                        ),
+                        egui::pos2(bx, head.center().y - title_g.size().y / 2.0),
                         title_g,
                         p.txt,
                     );
+
+                    // Tab switcher buttons: [ Software ] [ Developer ]
+                    let tab_w = 88.0_f32;
+                    let tab_h = 26.0_f32;
+                    let tabs_x = head.right() - 44.0 - tab_w * 2.0 - 6.0;
+                    let tab0_r = egui::Rect::from_min_size(egui::pos2(tabs_x, head.center().y - tab_h / 2.0), egui::vec2(tab_w, tab_h));
+                    let tab1_r = egui::Rect::from_min_size(egui::pos2(tab0_r.right() + 6.0, head.center().y - tab_h / 2.0), egui::vec2(tab_w, tab_h));
+
+                    let tab0_active = self.about_tab == 0;
+                    let tab1_active = self.about_tab == 1;
+                    let tab0_hov = self.man.hover(&tab0_r);
+                    let tab1_hov = self.man.hover(&tab1_r);
+
+                    if tab0_active {
+                        pf.rect(tab0_r, 6.0, wash(accent, 35), egui::Stroke::new(1.0_f32, wash(accent, 90)), egui::StrokeKind::Inside);
+                    } else if tab0_hov {
+                        pf.rect_filled(tab0_r, 6.0, p.dm_hover);
+                    }
+                    let t0_col = if tab0_active { p.txt } else if tab0_hov { p.txt } else { p.dim };
+                    let t0_lbl = pf.layout_no_wrap("Software".to_owned(), f_small.clone(), t0_col);
+                    pf.galley(tab0_r.center() - t0_lbl.size() / 2.0, t0_lbl, t0_col);
+                    self.hits.push((HitKind::Btn(ButtonId::AbTabSoftware), tab0_r));
+
+                    if tab1_active {
+                        pf.rect(tab1_r, 6.0, wash(accent, 35), egui::Stroke::new(1.0_f32, wash(accent, 90)), egui::StrokeKind::Inside);
+                    } else if tab1_hov {
+                        pf.rect_filled(tab1_r, 6.0, p.dm_hover);
+                    }
+                    let t1_col = if tab1_active { p.txt } else if tab1_hov { p.txt } else { p.dim };
+                    let t1_lbl = pf.layout_no_wrap("Developer".to_owned(), f_small.clone(), t1_col);
+                    pf.galley(tab1_r.center() - t1_lbl.size() / 2.0, t1_lbl, t1_col);
+                    self.hits.push((HitKind::Btn(ButtonId::AbTabDeveloper), tab1_r));
+
                     let xr = egui::Rect::from_center_size(
-                        egui::pos2(head.right() - 24.0, head.center().y),
+                        egui::pos2(head.right() - 22.0, head.center().y),
                         egui::vec2(28.0, 28.0),
                     );
                     let xh = self.man.hover(&xr);
@@ -9593,189 +9638,216 @@ impl eframe::App for sa2App {
                     // ---- body ----
                     let bx = card.left() + pad;
                     let mut y = head.bottom() + 18.0;
-                    // brand tile
-                    let tile = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(46.0, 46.0));
-                    pf.rect(
-                        tile,
-                        12.0,
-                        wash(accent, 26),
-                        egui::Stroke::new(1.0_f32, wash(accent, 72)),
-                        egui::StrokeKind::Inside,
-                    );
-                    pf.text(
-                        tile.center(),
-                        egui::Align2::CENTER_CENTER,
-                        "\u{e92d}".to_string(),
-                        crate::fonts::icon(26.0),
-                        accent,
-                    );
-                    // name + MIT tag, version under it
-                    let tx = tile.right() + 14.0;
-                    let block_h = g_name.size().y + 4.0 + g_ver.size().y;
-                    let ty = tile.center().y - block_h / 2.0;
-                    pf.galley(egui::pos2(tx, ty), g_name.clone(), p.txt);
-                    let tag_g = pf.layout_no_wrap("MIT".to_owned(), f_tag.clone(), green);
-                    let tag = egui::Rect::from_min_size(
-                        egui::pos2(
-                            tx + g_name.size().x + 8.0,
-                            ty + g_name.size().y / 2.0 - 8.5,
-                        ),
-                        egui::vec2(tag_g.size().x + 16.0, 17.0),
-                    );
-                    pf.rect(
-                        tag,
-                        8.5,
-                        wash(green, 30),
-                        egui::Stroke::new(1.0_f32, wash(green, 64)),
-                        egui::StrokeKind::Inside,
-                    );
-                    pf.galley(tag.center() - tag_g.size() / 2.0, tag_g, green);
-                    pf.galley(
-                        egui::pos2(tx, ty + g_name.size().y + 4.0),
-                        g_ver.clone(),
-                        p.dim,
-                    );
-                    y += brand_h + 16.0;
-                    // divider
-                    pf.hline(bx..=card.right() - pad, y, egui::Stroke::new(1.0_f32, soft));
-                    y += 1.0 + 14.0;
-                    // copy
-                    for g in [&desc1, &desc2, &desc3] {
-                        pf.galley(egui::pos2(bx, y), g.clone(), p.dim);
-                        y += g.size().y + 10.0;
-                    }
-                    y += 4.0; // the last paragraph's 14 px margin
 
-                    // ---- Developer info card ----
-                    let dev_card = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(body_w, dev_card_h));
-                    pf.rect(
-                        dev_card,
-                        10.0,
-                        mix(p.modal_bg, p.surface_lt, 0.40),
-                        egui::Stroke::new(1.0_f32, mix(p.modal_bd, accent, 0.25)),
-                        egui::StrokeKind::Inside,
-                    );
-
-                    let pic_w = 64.0_f32;
-                    let pic_h = 80.0_f32;
-                    let pic_r = egui::Rect::from_min_size(
-                        egui::pos2(dev_card.left() + 12.0, dev_card.center().y - pic_h / 2.0),
-                        egui::vec2(pic_w, pic_h),
-                    );
-                    if let Some(tex) = &self.author_tex {
-                        pf.image(
-                            tex.id(),
-                            pic_r,
-                            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                            egui::Color32::WHITE,
+                    if self.about_tab == 0 {
+                        // ---- Tab 0: Software Information ----
+                        let tile = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(46.0, 46.0));
+                        pf.rect(
+                            tile,
+                            12.0,
+                            wash(accent, 26),
+                            egui::Stroke::new(1.0_f32, wash(accent, 72)),
+                            egui::StrokeKind::Inside,
                         );
-                    }
-                    pf.rect_stroke(
-                        pic_r,
-                        8.0,
-                        egui::Stroke::new(1.0_f32, wash(accent, 140)),
-                        egui::StrokeKind::Inside,
-                    );
-
-                    let dx = pic_r.right() + 14.0;
-                    let dy = pic_r.top() + 2.0;
-
-                    let f_dev_name = crate::fonts::semi(14.0);
-                    let g_dev_name = pf.layout_no_wrap("Shakil Ahmed".to_owned(), f_dev_name, p.txt);
-                    pf.galley(egui::pos2(dx, dy), g_dev_name.clone(), p.txt);
-
-                    let role_g = pf.layout_no_wrap("Creator & Lead Developer".to_owned(), f_small.clone(), accent_hi);
-                    let role_tag = egui::Rect::from_min_size(
-                        egui::pos2(dx + g_dev_name.size().x + 8.0, dy + 1.0),
-                        egui::vec2(role_g.size().x + 10.0, 16.0),
-                    );
-                    pf.rect(
-                        role_tag,
-                        4.0,
-                        wash(accent, 25),
-                        egui::Stroke::new(1.0_f32, wash(accent, 60)),
-                        egui::StrokeKind::Inside,
-                    );
-                    pf.galley(role_tag.center() - role_g.size() / 2.0, role_g, accent_hi);
-
-                    let bio_g = pf.layout_no_wrap(
-                        "Passionate software engineer building high-speed, lightweight download tools in Rust.".to_owned(),
-                        f_small.clone(),
-                        p.dim,
-                    );
-                    pf.galley(egui::pos2(dx, dy + 21.0), bio_g, p.dim);
-
-                    let gh_btn_r = about_btn(
-                        &pf,
-                        &self.man,
-                        dx,
-                        dy + 46.0,
-                        "GitHub: sa3akash",
-                        Some("\u{e80b}"),
-                        true,
-                    );
-                    self.hits.push((HitKind::Btn(ButtonId::DevGithub), gh_btn_r));
-
-                    y += dev_card_h + 14.0;
-
-                    // credit box
-                    let cb = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(body_w, credit_h));
-                    pf.rect(
-                        cb,
-                        9.0,
-                        mix(p.modal_bg, p.surface_lt, 0.30),
-                        egui::Stroke::new(1.0_f32, soft),
-                        egui::StrokeKind::Inside,
-                    );
-                    pf.text(
-                        egui::pos2(bx + 13.0 + 7.0, y + 9.0 + 7.0),
-                        egui::Align2::CENTER_CENTER,
-                        "\u{e88e}".to_string(),
-                        crate::fonts::icon(14.0),
-                        p.dm_lbl,
-                    );
-                    pf.galley(egui::pos2(bx + 13.0 + 14.0 + 9.0, y + 9.0), credit.clone(), p.dm_lbl);
-                    y += credit_h + 14.0;
-                    // ---- update buttons (opt-in; the asset queues like any
-                    // other file, never a silent self-replace) ----
-                    let b1 = about_btn(
-                        &pf,
-                        &self.man,
-                        bx,
-                        y,
-                        if self.update_busy {
-                            "Checking…"
-                        } else {
-                            "Check for updates"
-                        },
-                        Some("\u{e5d5}"),
-                        false,
-                    );
-                    self.hits.push((HitKind::Btn(ButtonId::UpdCheck), b1));
-                    if self.update_restart_ready {
-                        let b2 = about_btn(&pf, &self.man, b1.right() + 8.0, y, "Restart now", Some("\u{e5d5}"), true);
-                        self.hits.push((HitKind::Btn(ButtonId::UpdRestart), b2));
-                    } else if self.update_asset.is_some() && !self.update_busy {
-                        let b2 = about_btn(
+                        pf.text(
+                            tile.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "\u{e92d}".to_string(),
+                            crate::fonts::icon(26.0),
+                            accent,
+                        );
+                        let tx = tile.right() + 14.0;
+                        let block_h = g_name.size().y + 4.0 + g_ver.size().y;
+                        let ty = tile.center().y - block_h / 2.0;
+                        pf.galley(egui::pos2(tx, ty), g_name.clone(), p.txt);
+                        let tag_g = pf.layout_no_wrap("MIT".to_owned(), f_tag.clone(), green);
+                        let tag = egui::Rect::from_min_size(
+                            egui::pos2(
+                                tx + g_name.size().x + 8.0,
+                                ty + g_name.size().y / 2.0 - 8.5,
+                            ),
+                            egui::vec2(tag_g.size().x + 16.0, 17.0),
+                        );
+                        pf.rect(
+                            tag,
+                            8.5,
+                            wash(green, 30),
+                            egui::Stroke::new(1.0_f32, wash(green, 64)),
+                            egui::StrokeKind::Inside,
+                        );
+                        pf.galley(tag.center() - tag_g.size() / 2.0, tag_g, green);
+                        pf.galley(
+                            egui::pos2(tx, ty + g_name.size().y + 4.0),
+                            g_ver.clone(),
+                            p.dim,
+                        );
+                        y += brand_h + 16.0;
+                        pf.hline(bx..=card.right() - pad, y, egui::Stroke::new(1.0_f32, soft));
+                        y += 1.0 + 14.0;
+                        for g in [&desc1, &desc2, &desc3] {
+                            pf.galley(egui::pos2(bx, y), g.clone(), p.dim);
+                            y += g.size().y + 10.0;
+                        }
+                        y += 4.0;
+                        let cb = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(body_w, credit_h));
+                        pf.rect(
+                            cb,
+                            9.0,
+                            mix(p.modal_bg, p.surface_lt, 0.30),
+                            egui::Stroke::new(1.0_f32, soft),
+                            egui::StrokeKind::Inside,
+                        );
+                        pf.text(
+                            egui::pos2(bx + 13.0 + 7.0, y + 9.0 + 7.0),
+                            egui::Align2::CENTER_CENTER,
+                            "\u{e88e}".to_string(),
+                            crate::fonts::icon(14.0),
+                            p.dm_lbl,
+                        );
+                        pf.galley(egui::pos2(bx + 13.0 + 14.0 + 9.0, y + 9.0), credit.clone(), p.dm_lbl);
+                        y += credit_h + 14.0;
+                        let b1 = about_btn(
                             &pf,
                             &self.man,
-                            b1.right() + 8.0,
+                            bx,
                             y,
-                            "Update now",
-                            Some("\u{e171}"),
+                            if self.update_busy {
+                                "Checking…"
+                            } else {
+                                "Check for updates"
+                            },
+                            Some("\u{e5d5}"),
+                            false,
+                        );
+                        self.hits.push((HitKind::Btn(ButtonId::UpdCheck), b1));
+                        if self.update_restart_ready {
+                            let b2 = about_btn(&pf, &self.man, b1.right() + 8.0, y, "Restart now", Some("\u{e5d5}"), true);
+                            self.hits.push((HitKind::Btn(ButtonId::UpdRestart), b2));
+                        } else if self.update_asset.is_some() && !self.update_busy {
+                            let b2 = about_btn(
+                                &pf,
+                                &self.man,
+                                b1.right() + 8.0,
+                                y,
+                                "Update now",
+                                Some("\u{e171}"),
+                                true,
+                            );
+                            self.hits.push((HitKind::Btn(ButtonId::UpdDownload), b2));
+                        }
+                        y += btn_h;
+                        if let Some(g) = &status_g {
+                            y += 8.0;
+                            pf.galley(egui::pos2(bx, y), g.clone(), p.dim);
+                            y += g.size().y;
+                        }
+                        if let Some(g) = &hint_g {
+                            y += 8.0;
+                            pf.galley(egui::pos2(bx, y), g.clone(), p.dm_lbl);
+                        }
+                    } else {
+                        // ---- Tab 1: Developer Information ----
+                        let dev_card_h = 108.0_f32;
+                        let dev_card = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(body_w, dev_card_h));
+                        pf.rect(
+                            dev_card,
+                            10.0,
+                            mix(p.modal_bg, p.surface_lt, 0.40),
+                            egui::Stroke::new(1.0_f32, mix(p.modal_bd, accent, 0.25)),
+                            egui::StrokeKind::Inside,
+                        );
+
+                        let pic_w = 68.0_f32;
+                        let pic_h = 85.0_f32;
+                        let pic_r = egui::Rect::from_min_size(
+                            egui::pos2(dev_card.left() + 12.0, dev_card.center().y - pic_h / 2.0),
+                            egui::vec2(pic_w, pic_h),
+                        );
+                        if let Some(tex) = &self.author_tex {
+                            pf.image(
+                                tex.id(),
+                                pic_r,
+                                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                                egui::Color32::WHITE,
+                            );
+                        }
+                        pf.rect_stroke(
+                            pic_r,
+                            8.0,
+                            egui::Stroke::new(1.5_f32, wash(accent, 160)),
+                            egui::StrokeKind::Inside,
+                        );
+
+                        let dx = pic_r.right() + 14.0;
+                        let dy = pic_r.top() + 3.0;
+
+                        let f_dev_name = crate::fonts::semi(16.5);
+                        let g_dev_name = pf.layout_no_wrap("Shakil Ahmed".to_owned(), f_dev_name, p.txt);
+                        pf.galley(egui::pos2(dx, dy), g_dev_name.clone(), p.txt);
+
+                        let role_g = pf.layout_no_wrap("Creator & Lead Developer".to_owned(), f_small.clone(), accent_hi);
+                        let role_tag = egui::Rect::from_min_size(
+                            egui::pos2(dx + g_dev_name.size().x + 8.0, dy + 2.0),
+                            egui::vec2(role_g.size().x + 10.0, 17.0),
+                        );
+                        pf.rect(
+                            role_tag,
+                            4.0,
+                            wash(accent, 25),
+                            egui::Stroke::new(1.0_f32, wash(accent, 60)),
+                            egui::StrokeKind::Inside,
+                        );
+                        pf.galley(role_tag.center() - role_g.size() / 2.0, role_g, accent_hi);
+
+                        let role_sub = pf.layout_no_wrap(
+                            "Software Engineer • Systems & Desktop Architecture".to_owned(),
+                            f_small.clone(),
+                            p.dim,
+                        );
+                        pf.galley(egui::pos2(dx, dy + 25.0), role_sub, p.dim);
+
+                        let loc_sub = pf.layout_no_wrap(
+                            "Specializing in high-performance networking, concurrency & Rust desktop tools.".to_owned(),
+                            f_small.clone(),
+                            mix(p.txt, p.dim, 0.3),
+                        );
+                        pf.galley(egui::pos2(dx, dy + 45.0), loc_sub, mix(p.txt, p.dim, 0.3));
+
+                        y += dev_card_h + 14.0;
+
+                        pf.hline(bx..=card.right() - pad, y, egui::Stroke::new(1.0_f32, soft));
+                        y += 1.0 + 14.0;
+
+                        let dev_bio = lay(
+                            "Shakil Ahmed is the creator and lead architect of SA2 Downloader (DownloadCraft) and its browser extension ecosystem. Dedicated to engineering robust multi-stream engines, resilient media parsers, and intuitive native tools.",
+                            f_body.clone(),
+                            p.dim,
+                            body_w,
+                        );
+                        pf.galley(egui::pos2(bx, y), dev_bio.clone(), p.dim);
+                        y += dev_bio.size().y + 16.0;
+
+                        let b_gh = about_btn(
+                            &pf,
+                            &self.man,
+                            bx,
+                            y,
+                            "GitHub Profile: sa3akash",
+                            Some("\u{e80b}"),
                             true,
                         );
-                        self.hits.push((HitKind::Btn(ButtonId::UpdDownload), b2));
-                    }
-                    y += btn_h;
-                    if let Some(g) = &status_g {
-                        y += 8.0;
-                        pf.galley(egui::pos2(bx, y), g.clone(), p.dim);
-                        y += g.size().y;
-                    }
-                    if let Some(g) = &hint_g {
-                        y += 8.0;
-                        pf.galley(egui::pos2(bx, y), g.clone(), p.dm_lbl);
+                        self.hits.push((HitKind::Btn(ButtonId::DevGithub), b_gh));
+
+                        let b_repo = about_btn(
+                            &pf,
+                            &self.man,
+                            b_gh.right() + 10.0,
+                            y,
+                            "GitHub Repository",
+                            Some("\u{e879}"),
+                            false,
+                        );
+                        self.hits.push((HitKind::Btn(ButtonId::DevRepo), b_repo));
                     }
 
                     // ---- footer ----
@@ -9789,6 +9861,19 @@ impl eframe::App for sa2App {
                         foot.top() + 0.5,
                         egui::Stroke::new(1.0_f32, soft),
                     );
+
+                    let foot_note = if self.about_tab == 0 {
+                        format!("SA2 Downloader v{}", crate::model::APP_VERSION)
+                    } else {
+                        "Developer: Shakil Ahmed (@sa3akash)".to_string()
+                    };
+                    let foot_g = pf.layout_no_wrap(foot_note, f_small.clone(), p.dim);
+                    pf.galley(
+                        egui::pos2(bx, foot.center().y - foot_g.size().y / 2.0),
+                        foot_g,
+                        p.dim,
+                    );
+
                     let cw = {
                         let g = pf.layout_no_wrap("Close".to_owned(), f_body.clone(), egui::Color32::WHITE);
                         30.0 + g.size().x
@@ -10356,9 +10441,15 @@ impl sa2App {
                 }
             }
             ButtonId::AbClose => self.show_about = false,
+            ButtonId::AbTabSoftware => self.about_tab = 0,
+            ButtonId::AbTabDeveloper => self.about_tab = 1,
             ButtonId::DevGithub => {
                 crate::platform::open_url("https://github.com/sa3akash");
                 self.push_log("Opened Shakil Ahmed's GitHub profile: https://github.com/sa3akash");
+            }
+            ButtonId::DevRepo => {
+                crate::platform::open_url("https://github.com/sa3akash/SA2_Downloader");
+                self.push_log("Opened repository: https://github.com/sa3akash/SA2_Downloader");
             }
         }
     }

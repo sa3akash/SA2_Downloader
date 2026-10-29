@@ -18,13 +18,14 @@ use egui::{Align2, Color32, FontId, Rect, Response, Sense, Stroke, StrokeKind, U
 /// Rail entries: Material Icons glyph + label. The concept's YouTube pane is
 /// the helper ("plugin") page, so it is labelled Plugins.
 const PANES: &[(&str, &str)] = &[
-    ("\u{e3dc}", "Appearance"),         // filter_center_focus
-    ("\u{ea0b}", "Download Engine"),    // bolt
-    ("\u{e9b0}", "Plugins"),            // grid_view
+    ("\u{e3dc}", "Appearance"),          // filter_center_focus
+    ("\u{ea0b}", "Download Engine"),     // bolt
+    ("\u{e9b0}", "Plugins"),             // grid_view
     ("\u{e80b}", "Browser Integration"), // public
     ("\u{e871}", "Categories & Rules"), // dashboard
-    ("\u{e863}", "Updates"),            // autorenew
-    ("\u{e853}", "About & Developer"),  // account_circle
+    ("\u{e863}", "Updates"),             // autorenew
+    ("\u{e88e}", "About Software"),     // info
+    ("\u{e853}", "Developer Info"),     // account_circle
 ];
 
 /// Rail index of the Plugins pane (the helper's status is probed when it is
@@ -833,7 +834,8 @@ impl eframe::App for SettingsApp {
                             3 => self.pane_browser(ui),
                             4 => self.pane_rules(ui),
                             5 => self.pane_updates(ui),
-                            _ => self.pane_developer(ui),
+                            6 => self.pane_about_software(ui),
+                            _ => self.pane_developer_info(ui),
                         }
                         ui.add_space(16.0);
                     });
@@ -3816,11 +3818,77 @@ impl SettingsApp {
         }
     }
 
-    // ---------- About & Developer ----------
-    fn pane_developer(&mut self, ui: &mut Ui) {
+    // ---------- About Software ----------
+    fn pane_about_software(&mut self, ui: &mut Ui) {
         let t = tok();
-        h2(ui, "About & Developer");
-        hint(ui, "Creator profile and application information.");
+        h2(ui, "About Software");
+        hint(ui, "Core system architecture, versioning, and open-source licensing.");
+        ui.add_space(10.0);
+
+        let mut open_about = true;
+        card(ui, "SA2 Downloader", Some(&format!("v{}", crate::model::APP_VERSION)), &mut open_about, |ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(8.0, 8.0);
+            wrapped(
+                ui,
+                "A high-performance, lightweight multi-threaded download manager written in pure Rust and egui. Engineered for maximum throughput, low memory footprint, and seamless media extraction.",
+                reg(11.0),
+                t.text,
+            );
+            ui.add_space(4.0);
+            bullet(
+                ui,
+                "Multi-threaded segment engine with dynamic TCP connection pooling and resume support.",
+                t.muted,
+            );
+            bullet(
+                ui,
+                "Universal video capture supporting HLS (up to 100,000 segments), DASH manifests, and dynamic streams.",
+                t.muted,
+            );
+            bullet(
+                ui,
+                "Direct browser integration with Chrome, Firefox, Edge, and Brave via native messaging.",
+                t.muted,
+            );
+            bullet(
+                ui,
+                "Free, privacy-respecting, and open source under the MIT License.",
+                t.muted,
+            );
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if btn_icon(ui, "\u{e863}", "Check for Updates", true).clicked() {
+                    self.pane = 5;
+                }
+                if btn_icon(ui, "\u{e879}", "GitHub Repository", false).clicked() {
+                    crate::platform::open_url("https://github.com/sa3akash/SA2_Downloader");
+                }
+            });
+        });
+
+        let mut open_tech = true;
+        card(ui, "System & Architecture", None, &mut open_tech, |ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(8.0, 6.0);
+            ui.horizontal(|ui| {
+                txt(ui, "Architecture:", semi(11.0), t.text);
+                txt(ui, "64-bit / 32-bit Native PE Windows Binary", reg(11.0), t.muted);
+            });
+            ui.horizontal(|ui| {
+                txt(ui, "UI Framework:", semi(11.0), t.text);
+                txt(ui, "egui immediate-mode GUI with DirectX/OpenGL rendering", reg(11.0), t.muted);
+            });
+            ui.horizontal(|ui| {
+                txt(ui, "Async Runtime:", semi(11.0), t.text);
+                txt(ui, "tokio asynchronous I/O engine with parallel chunk streaming", reg(11.0), t.muted);
+            });
+        });
+    }
+
+    // ---------- Developer Info ----------
+    fn pane_developer_info(&mut self, ui: &mut Ui) {
+        let t = tok();
+        h2(ui, "Developer Information");
+        hint(ui, "Creator and principal systems engineer of SA2 Downloader.");
         ui.add_space(10.0);
 
         let mut open_dev = true;
@@ -3828,7 +3896,7 @@ impl SettingsApp {
             ui.spacing_mut().item_spacing = Vec2::new(8.0, 8.0);
 
             ui.horizontal(|ui| {
-                let (rect, _) = ui.allocate_exact_size(Vec2::new(72.0, 90.0), Sense::hover());
+                let (rect, _) = ui.allocate_exact_size(Vec2::new(76.0, 96.0), Sense::hover());
                 if self.author_tex.is_none() {
                     let img_bytes = include_bytes!("../assets/author.png");
                     if let Ok(dynamic_img) = image::load_from_memory(img_bytes) {
@@ -3848,44 +3916,40 @@ impl SettingsApp {
                 }
                 ui.painter().rect_stroke(rect, 8.0_f32, Stroke::new(1.5_f32, t.accent), StrokeKind::Inside);
 
-                ui.add_space(12.0);
+                ui.add_space(14.0);
                 ui.vertical(|ui| {
-                    txt(ui, "Shakil Ahmed", semi(16.0), t.text);
+                    txt(ui, "Shakil Ahmed", semi(17.0), t.text);
                     ui.add_space(2.0);
-                    txt(ui, "Creator & Lead Developer", semi(11.5), t.accent);
-                    ui.add_space(4.0);
+                    txt(ui, "Creator & Lead Architect", semi(12.0), t.accent);
+                    ui.add_space(6.0);
                     wrapped(
                         ui,
-                        "Passionate software engineer building high-performance, lightweight download tools in Rust.",
+                        "Systems programmer specializing in high-performance download engines, asynchronous I/O architectures, network protocol tooling, and intuitive desktop experiences.",
                         reg(11.0),
                         t.muted,
                     );
-                    ui.add_space(8.0);
-                    if btn_icon(ui, "\u{e80b}", "Visit GitHub: sa3akash", true).clicked() {
-                        crate::platform::open_url("https://github.com/sa3akash");
-                    }
+                    ui.add_space(10.0);
+                    ui.horizontal(|ui| {
+                        if btn_icon(ui, "\u{e80b}", "GitHub: @sa3akash", true).clicked() {
+                            crate::platform::open_url("https://github.com/sa3akash");
+                        }
+                        if btn_icon(ui, "\u{e879}", "Repository", false).clicked() {
+                            crate::platform::open_url("https://github.com/sa3akash/SA2_Downloader");
+                        }
+                    });
                 });
             });
         });
 
-        let mut open_about = true;
-        card(ui, "SA2 Downloader", Some(&format!("v{}", crate::model::APP_VERSION)), &mut open_about, |ui| {
+        let mut open_bio = true;
+        card(ui, "Engineering Philosophy", None, &mut open_bio, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(8.0, 6.0);
             wrapped(
                 ui,
-                "A lightweight, multi-threaded download manager written in Rust + egui. Free and open source under the MIT License.",
+                "Dedicated to engineering software that is clean, fast, memory-safe, and completely respectful of user privacy and hardware resources. Free from tracking, ads, and bloatware.",
                 reg(11.0),
                 t.muted,
             );
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                if btn_icon(ui, "\u{e863}", "Check for Updates", false).clicked() {
-                    self.pane = 5;
-                }
-                if btn_icon(ui, "\u{e879}", "GitHub Repository", false).clicked() {
-                    crate::platform::open_url("https://github.com/sa3akash");
-                }
-            });
         });
     }
 }

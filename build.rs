@@ -103,9 +103,16 @@ VALUE "Translation", 0x0, 0x04b0
     std::fs::write(scratch.join("main.rc"), rc).map_err(|e| format!("writing the .rc: {e}"))?;
 
     let windres = find_windres()?;
-    let output = Command::new(&windres)
-        .current_dir(&scratch)
-        .args(["main.rc", "-o", "main.o"])
+    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let mut cmd = Command::new(&windres);
+    cmd.current_dir(&scratch)
+        .args(["main.rc", "-o", "main.o"]);
+    if target_arch == "x86" || target_arch == "i686" {
+        cmd.arg("--target=pe-i386");
+    } else if target_arch == "x86_64" {
+        cmd.arg("--target=pe-x86-64");
+    }
+    let output = cmd
         .output()
         .map_err(|e| format!("running {}: {e}", windres.display()))?;
     if !output.status.success() {

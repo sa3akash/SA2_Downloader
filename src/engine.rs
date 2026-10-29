@@ -5567,7 +5567,7 @@ async fn ytdlp_stale(path: &std::path::Path) -> bool {
         return true;
     };
     match meta.modified().ok().and_then(|t| t.elapsed().ok()) {
-        Some(age) => age.as_secs() > 30 * 24 * 3600,
+        Some(age) => age.as_secs() > 7 * 24 * 3600,
         None => false,
     }
 }
@@ -6326,6 +6326,62 @@ pub fn ytdlp_refresh_blocking() -> Result<std::path::PathBuf> {
         fetch_ytdlp(&client, &dst).await?;
         Ok(dst)
     })
+}
+
+/// Check for updates to yt-dlp (and managed ffmpeg) in the background.
+/// If `force` is false, runs at most once every 24 hours.
+/// Returns a list of human-readable notification strings if any component was updated.
+pub fn daily_helpers_update(force: bool) -> Vec<String> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    if !force {
+        if !crate::model::ui_pref_bool("helper_auto_update", true) {
+            return Vec::new();
+        }
+        let last_check = crate::model::ui_pref_u64("last_helper_update_check", 0);
+        if now.saturating_sub(last_check) < 24 * 3600 {
+            return Vec::new();
+        }
+    }
+
+    let mut updates = Vec::new();
+
+    // 1. yt-dlp auto-update check
+    let ytdlp_source = YtdlpSource::from_settings();
+    if ytdlp_source == YtdlpSource::Managed {
+        let info = ytdlp_info();
+        if info.version.is_some() {
+            let msg = ytdlp_update_check_blocking();
+            if msg.starts_with("Updated yt-dlp") {
+                updates.push(msg);
+            }
+        } else if info.path.as_ref().map_or(true, |p| !p.exists()) {
+            if let Ok(p) = ytdlp_refresh_blocking() {
+                let v = ytdlp_version(&p).unwrap_or_else(|| "latest".to_string());
+                updates.push(format!("Installed latest yt-dlp {v}."));
+            }
+        }
+    }
+
+    // 2. ffmpeg auto-update check (managed builds)
+    let ff_source = FfmpegSource::from_settings();
+    if ff_source == FfmpegSource::Managed {
+        let ff_info = ffmpeg_info();
+        if ff_info.managed && ff_info.version.is_some() {
+            let msg = ffmpeg_update_check_blocking();
+            if msg.starts_with("Updated ffmpeg") {
+                updates.push(msg);
+            }
+        }
+    }
+
+    // Update the check timestamp so we don't repeat today
+    crate::model::ui_pref_set_u64("last_helper_update_check", now);
+
+    updates
 }
 
 /// Write the row's captured browser cookies as a Netscape cookie jar (what

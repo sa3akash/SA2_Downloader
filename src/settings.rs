@@ -111,6 +111,7 @@ struct Settings {
     logins: Vec<crate::model::SiteLogin>,
     // Updates
     update_check_on: bool,
+    helper_auto_update: bool,
 }
 
 impl Default for Settings {
@@ -168,6 +169,7 @@ impl Default for Settings {
             browser_cookies: "none".to_string(),
             logins: Vec::new(),
             update_check_on: true,
+            helper_auto_update: true,
         }
     }
 }
@@ -229,6 +231,9 @@ fn load() -> Settings {
     }
     if let Some(b) = g("update_check_on").and_then(|x| x.as_bool()) {
         s.update_check_on = b;
+    }
+    if let Some(b) = g("helper_auto_update").and_then(|x| x.as_bool()) {
+        s.helper_auto_update = b;
     }
     if let Some(b) = g("ytdlp_prefer_path").and_then(|x| x.as_bool()) {
         s.ytdlp_prefer_path = b;
@@ -427,6 +432,7 @@ fn save(s: &Settings) -> bool {
     set(obj, "youtube_engine", s.youtube_engine.clone().into());
     set(obj, "browser_cookies", s.browser_cookies.clone().into());
     set(obj, "update_check_on", s.update_check_on.into());
+    set(obj, "helper_auto_update", s.helper_auto_update.into());
     set(obj, "folder_rules", serde_json::to_value(&s.folder_rules).unwrap_or_default());
     set(
         obj,
@@ -2757,7 +2763,17 @@ impl SettingsApp {
             ui,
             "Each plugin is its own card. Name, version and date sit on one row.",
         );
-        ui.add_space(12.0);
+        ui.add_space(8.0);
+        let s = &mut self.s;
+        checkbox(
+            ui,
+            &mut s.helper_auto_update,
+            "Keep yt-dlp and FFmpeg automatically updated daily in background",
+            14.0,
+            11.5,
+            true,
+        );
+        ui.add_space(10.0);
 
         self.plugin_card_ytdlp(ui);
         ui.add_space(10.0);
@@ -3767,11 +3783,20 @@ impl SettingsApp {
 
         let mut open_version = self.open_version;
         let mut go_plugins = false;
+        let mut helper_auto = self.s.helper_auto_update;
         card(ui, "Helpers", None, &mut open_version, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(8.0, 6.0);
+            switch_row(
+                ui,
+                "helper_auto_update",
+                &mut helper_auto,
+                "Auto-update helpers daily in the background",
+                "Keeps yt-dlp and FFmpeg up to date automatically once a day without blocking the app.",
+            );
+            ui.add_space(4.0);
             wrapped(
                 ui,
-                "yt-dlp and ffmpeg are checked against their latest releases whenever Plugins opens; the copies this app keeps are updated in place, your own copies are only reported.",
+                "yt-dlp and ffmpeg are checked against their latest releases; the copies this app keeps are updated in place, your own copies are only reported.",
                 reg(9.5),
                 t.muted,
             );
@@ -3781,6 +3806,7 @@ impl SettingsApp {
             }
         });
         self.open_version = open_version;
+        self.s.helper_auto_update = helper_auto;
         if go_plugins {
             self.pane = PANE_YTDLP;
         }

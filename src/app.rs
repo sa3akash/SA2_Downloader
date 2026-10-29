@@ -2317,6 +2317,8 @@ pub struct sa2App {
     /// chip. (An asset URL can be missing while an update still exists.)
     update_found: bool,
     update_auto_done: bool,
+    helper_update_rx: Option<std::sync::mpsc::Receiver<Vec<String>>>,
+    helper_update_auto_done: bool,
     // ---- P5: per-download speed history (EWMA input + Details graph) ----
     // Last ≤60 half-second samples per download id, pruned with tasks.
     speed_hist: std::collections::HashMap<u64, std::collections::VecDeque<f64>>,
@@ -2527,6 +2529,8 @@ impl sa2App {
             update_restart_ready: false,
             update_found: false,
             update_auto_done: false,
+            helper_update_rx: None,
+            helper_update_auto_done: false,
             speed_hist: std::collections::HashMap::new(),
             phases: std::collections::HashMap::new(),
             diag_lines: Vec::new(),
@@ -3957,6 +3961,19 @@ impl sa2App {
         self.update_found = false;
         self.rt.spawn(async move {
             let _ = tx.send(update_check_async().await);
+        });
+    }
+
+    /// Check and auto-update yt-dlp and ffmpeg in the background (once daily or forced).
+    fn start_helper_update_check(&mut self, force: bool) {
+        if self.helper_update_rx.is_some() {
+            return;
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.helper_update_rx = Some(rx);
+        std::thread::spawn(move || {
+            let res = crate::engine::daily_helpers_update(force);
+            let _ = tx.send(res);
         });
     }
 
@@ -6221,6 +6238,19 @@ impl eframe::App for sa2App {
             if self.update_check_on && !self.update_auto_done {
                 self.update_auto_done = true;
                 self.start_update_check();
+            }
+            // Daily background helper update (yt-dlp, ffmpeg)
+            if !self.helper_update_auto_done {
+                self.helper_update_auto_done = true;
+                self.start_helper_update_check(false);
+            }
+            if let Some(rx) = self.helper_update_rx.as_ref() {
+                if let Ok(updates) = rx.try_recv() {
+                    for msg in updates {
+                        self.push_log(format!("Auto-update: {msg}"));
+                    }
+                    self.helper_update_rx = None;
+                }
             }
             self.poll_self_update();
             if let Some(rx) = self.update_rx.as_ref() {
@@ -10013,7 +10043,10 @@ impl sa2App {
                     self.save_ui_state();
                 }
             }
-            ButtonId::UpdCheck => self.start_update_check(),
+            ButtonId::UpdCheck => {
+                self.start_update_check();
+                self.start_helper_update_check(true);
+            }
             ButtonId::UpdDownload => self.start_self_update(),
             ButtonId::UpdRestart => self.restart_for_update(),
             ButtonId::QStart => self.start_queue(),

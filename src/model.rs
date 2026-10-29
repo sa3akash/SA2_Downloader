@@ -847,6 +847,37 @@ pub fn ui_pref_set_str(key: &str, value: &str) {
     }
 }
 
+/// Read an unsigned integer preference out of ui.json with a default.
+pub fn ui_pref_u64(key: &str, default: u64) -> u64 {
+    config_dir()
+        .and_then(|p| std::fs::read_to_string(p.join("ui.json")).ok())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v.get(key).and_then(|x| x.as_u64()))
+        .unwrap_or(default)
+}
+
+/// Merge one unsigned integer into ui.json.
+pub fn ui_pref_set_u64(key: &str, value: u64) {
+    let _guard = fs_lock("ui-settings");
+    if !_guard.owned() {
+        return;
+    }
+    let Some(p) = config_dir().map(|d| d.join("ui.json")) else {
+        return;
+    };
+    let mut v: serde_json::Value = std::fs::read_to_string(&p)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let Some(obj) = v.as_object_mut() else {
+        return;
+    };
+    obj.insert(key.to_string(), serde_json::Value::Number(value.into()));
+    if let Ok(json) = serde_json::to_string_pretty(&v) {
+        let _ = atomic_write(&p, json.as_bytes());
+    }
+}
+
 /// One-time migration from the legacy `idm_rust` config dir: moves
 /// queue/settings/inbox files so existing installs keep their history.
 /// Safe to call on every startup (no-op once migrated).

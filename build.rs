@@ -58,7 +58,6 @@ fn main() {
                 ("_RARGetDllVersion", "_RARGetDllVersion@0"),
             ] {
                 println!("cargo:rustc-link-arg-bins=/ALTERNATENAME:{cdecl_sym}={stdcall_sym}");
-                println!("cargo:rustc-link-arg-tests=/ALTERNATENAME:{cdecl_sym}={stdcall_sym}");
             }
         }
     }

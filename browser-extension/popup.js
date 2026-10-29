@@ -355,7 +355,34 @@ function card(item, mode) {
     const o = options[Number(sel.value)];
     if (!o) return;
     if (inBrowser) sendBrowser({ ...o.browser, title: item.title, pageUrl: item.page });
-    else send(o.msg);
+    else {
+      const formatList = options
+        .filter((opt) => opt.h !== 10000)
+        .map((opt) => {
+          let qVal = "best";
+          if (opt.h === 9999) {
+            qVal = "best";
+          } else if (opt.h === -1) {
+            qVal = "audio";
+          } else if (opt.h && opt.h > 0) {
+            qVal = `${opt.h}p`;
+          } else if (opt.label) {
+            const m = String(opt.label).match(/(\d+)p/i);
+            if (m) qVal = `${m[1]}p`;
+            else if (/audio/i.test(opt.label)) qVal = "audio";
+          }
+          return {
+            label: opt.label,
+            quality_val: qVal,
+            size: opt.size > 0 ? opt.size : null,
+            is_audio: opt.h === -1 || /audio/i.test(opt.label || ""),
+          };
+        });
+      send({
+        ...o.msg,
+        formats: (o.msg && o.msg.formats) || (formatList.length ? formatList : undefined),
+      });
+    }
   };
   const more = document.createElement("button");
   more.className = "more"; more.innerHTML = SVG.dots; more.title = "More";
@@ -423,9 +450,17 @@ function youtubeItem(v, pageUrl) {
       approx: !exact && st._est > 0,
       url: st.url || null,
       browser,
-      msg: st.ciphered && !st.url
-        ? { type: "download", url: page, filename: name, pageUrl: page, quality: st.label, size: st._size || null, dur: st._dur || null, pairUrl: pair && pair.url, pairMime: pair && pair.mime }
-        : { type: "download", url: st.url, filename: name, pageUrl: page, quality: st.label, size: st._size || null, dur: st._dur || null, pairUrl: pair && pair.url, pairMime: pair && pair.mime },
+      msg: {
+        type: "download",
+        url: page,
+        filename: name,
+        pageUrl: page,
+        quality: st.label,
+        size: st._size || null,
+        dur: st._dur || null,
+        pairUrl: pair && pair.url,
+        pairMime: pair && pair.mime,
+      },
     });
   };
   (v.streams || []).forEach((st) => pushStream(st, "av"));
@@ -466,6 +501,19 @@ function youtubeItem(v, pageUrl) {
   }
   (v.audio || []).forEach((st) => pushStream(st, "a"));
   opts.sort((a, b) => b.h - a.h);
+  const ytFormatList = opts
+    .filter((o) => o.h !== 10000)
+    .map((o) => ({
+      label: o.label,
+      quality_val: o.h === 9999 ? "best" : o.h === -1 ? "audio" : `${o.h}p`,
+      size: o.size > 0 ? o.size : null,
+      is_audio: o.h === -1,
+    }));
+  for (const o of opts) {
+    if (o.msg) {
+      o.msg.formats = ytFormatList;
+    }
+  }
   const firstDur = (v.streams || []).concat(v.videoOnly || []).map((s) => s._dur).find((x) => x > 0) || dur;
   return { key: `yt:${v.videoId}`, kind: "videos", title: v.title || v.videoId, thumb: v.thumb, dur: firstDur, tag: "YOUTUBE", link: page, page, options: opts };
 }
@@ -486,6 +534,7 @@ function facebookItem(e, pageUrl) {
     seen.add(q);
     const filename = `${stem} [${q}p].mp4`;
     opts.push({
+      h: q,
       label: `${q}p${a ? " (+audio)" : ""}`,
       size: est(v.bw + (a ? a.bw : 0)), approx: true, url: v.url, pairUrl: a && a.url,
       browser: browserJob(v.url, filename, a ? { pairUrl: a.url, quality: `${q}p` } : { quality: `${q}p` }),
@@ -496,8 +545,10 @@ function facebookItem(e, pageUrl) {
     });
   }
   for (const p of (e.progressive || [])) {
+    const isHd = p.quality === "HD";
     opts.push({
-      label: `${p.quality === "HD" ? "HD" : "SD"} · MP4 (single file)`,
+      h: isHd ? 720 : 360,
+      label: `${isHd ? "HD" : "SD"} · MP4 (single file)`,
       size: est(p.bw), approx: true, url: p.url,
       browser: browserJob(p.url, `${stem}.mp4`),
       msg: { type: "download", url: p.url, filename: `${stem}.mp4`, pageUrl, dur: dur || null },
@@ -505,10 +556,23 @@ function facebookItem(e, pageUrl) {
   }
   if (a) {
     opts.push({
+      h: -1,
       label: "Audio · M4A", size: est(a.bw), approx: true, url: a.url,
       browser: browserJob(a.url, `${stem} [audio].m4a`),
       msg: { type: "download", url: a.url, filename: `${stem} [audio].m4a`, pageUrl, dur: dur || null },
     });
+  }
+  const fbFormatList = opts
+    .map((o) => ({
+      label: o.label,
+      quality_val: o.label.toLowerCase().includes("audio") ? "audio" : (o.label.match(/\d+p/i) ? o.label.match(/\d+p/i)[0] : "best"),
+      size: o.size > 0 ? o.size : null,
+      is_audio: o.label.toLowerCase().includes("audio"),
+    }));
+  for (const o of opts) {
+    if (o.msg) {
+      o.msg.formats = fbFormatList;
+    }
   }
   return { key: `fb:${e.id}`, kind: "videos", title: e.title || "Facebook video", thumb: e.thumb, dur, tag: "FACEBOOK", link: pageUrl, page: pageUrl, options: opts };
 }

@@ -122,6 +122,96 @@ struct Row {
     size: Option<u64>,
     checked: bool,
     probe: Probe,
+    pub quality_override: Option<String>,
+}
+
+fn estimated_video_size(quality: &str) -> u64 {
+    let q = quality.trim().to_ascii_lowercase();
+    let bps: u64 = if q == "audio" {
+        192 * 1024 / 8 // ~24 KB/s
+    } else if q.contains("4320") || q.contains("8k") {
+        35_000 * 1024 / 8 // ~4.3 MB/s
+    } else if q.contains("2160") || q.contains("4k") {
+        18_000 * 1024 / 8 // ~2.25 MB/s
+    } else if q.contains("1440") || q.contains("2k") {
+        9_000 * 1024 / 8 // ~1.1 MB/s
+    } else if q.contains("1080") {
+        4_500 * 1024 / 8 // ~560 KB/s
+    } else if q.contains("720") {
+        2_200 * 1024 / 8 // ~275 KB/s
+    } else if q.contains("480") {
+        1_200 * 1024 / 8 // ~150 KB/s
+    } else if q.contains("360") {
+        700 * 1024 / 8 // ~88 KB/s
+    } else {
+        3_500 * 1024 / 8
+    };
+    bps * 210 // ~3.5 min average video
+}
+
+fn cycle_quality(cur: &str) -> &'static str {
+    let c = cur.trim().to_ascii_lowercase();
+    if c.contains("1080") {
+        "720p"
+    } else if c.contains("720") {
+        "480p"
+    } else if c.contains("480") {
+        "360p"
+    } else if c.contains("360") {
+        "2160p"
+    } else if c.contains("2160") || c.contains("4k") {
+        "1440p"
+    } else if c.contains("1440") || c.contains("2k") {
+        "4320p"
+    } else if c.contains("4320") || c.contains("8k") {
+        "audio"
+    } else if c == "audio" {
+        "best"
+    } else {
+        "1080p"
+    }
+}
+
+fn quality_badge_text(cur: &str) -> &'static str {
+    let c = cur.trim().to_ascii_lowercase();
+    if c.contains("4320") || c.contains("8k") {
+        "8K"
+    } else if c.contains("2160") || c.contains("4k") {
+        "4K"
+    } else if c.contains("1440") || c.contains("2k") {
+        "2K"
+    } else if c.contains("1080") {
+        "1080p"
+    } else if c.contains("720") {
+        "720p"
+    } else if c.contains("480") {
+        "480p"
+    } else if c.contains("360") {
+        "360p"
+    } else if c == "audio" {
+        "MP3"
+    } else {
+        "BEST"
+    }
+}
+
+fn quality_badge_colors(cur: &str) -> (Color32, Color32) {
+    let c = cur.trim().to_ascii_lowercase();
+    if c.contains("4320") || c.contains("8k") {
+        (Color32::from_rgb(180, 40, 160), Color32::from_rgb(230, 80, 210))
+    } else if c.contains("2160") || c.contains("4k") {
+        (Color32::from_rgb(70, 50, 190), Color32::from_rgb(110, 90, 240))
+    } else if c.contains("1440") || c.contains("2k") {
+        (Color32::from_rgb(10, 120, 190), Color32::from_rgb(30, 160, 240))
+    } else if c.contains("1080") {
+        (Color32::from_rgb(20, 130, 80), Color32::from_rgb(40, 180, 110))
+    } else if c.contains("720") {
+        (Color32::from_rgb(50, 120, 60), Color32::from_rgb(70, 160, 80))
+    } else if c == "audio" {
+        (Color32::from_rgb(180, 100, 20), Color32::from_rgb(230, 140, 30))
+    } else {
+        (COLOR_CHARCOAL, COLOR_VAMPIRE_GREY)
+    }
 }
 
 /// What the file is, from its name and (once probed) its Content-Type:
@@ -248,6 +338,8 @@ struct LinksApp {
     exited: bool,
     quality_pref: String,
     q_open: bool,
+    loading_playlist: bool,
+    playlist_rx: Option<Receiver<anyhow::Result<(String, Vec<(String, String)>)>>>,
 }
 
 impl LinksApp {
@@ -366,13 +458,14 @@ impl LinksApp {
                 // A page's length is its HTML, not a download size.
                 r.size = total.filter(|s| *s > 0 && !html);
             } else {
-                r.kind = if self.quality_pref == "audio" { Kind::Audio } else { Kind::Video };
+                let eff_q = r.quality_override.as_deref().unwrap_or(&self.quality_pref);
+                r.kind = if eff_q == "audio" { Kind::Audio } else { Kind::Video };
                 if let Some(info) = engine::cached_real_video_formats(&r.url) {
                     if let Some(f) = info.formats.iter().find(|f| {
-                        if self.quality_pref == "audio" {
+                        if eff_q == "audio" {
                             f.is_audio
                         } else {
-                            f.quality_val.eq_ignore_ascii_case(&self.quality_pref)
+                            f.quality_val.eq_ignore_ascii_case(eff_q)
                         }
                     }) {
                         r.size = f.size;
@@ -406,13 +499,14 @@ impl LinksApp {
         let (mut added, mut already, mut failed) = (Vec::new(), 0usize, None);
         for i in picked {
             let r = &self.rows[i];
+            let eff_q = r.quality_override.clone().unwrap_or_else(|| self.quality_pref.clone());
             let name = crate::model::apply_rename_template(
                 &self.prefs.rename_template,
                 &engine::sanitize_filename(r.name.trim()),
                 &r.url,
             );
             let mut final_name = engine::sanitize_filename(&name);
-            if self.quality_pref == "audio" {
+            if eff_q == "audio" {
                 if !final_name.ends_with(".mp3") {
                     let stem = std::path::Path::new(&final_name)
                         .file_stem()
@@ -434,7 +528,7 @@ impl LinksApp {
             }
             item.description = r.text.clone();
             item.total_bytes = r.size;
-            item.quality_pref = self.quality_pref.clone();
+            item.quality_pref = eff_q;
             item.expects_audio = true;
             match crate::model::append_to_queue(&mut item) {
                 crate::model::AppendResult::Added(id) => added.push(id),
@@ -680,7 +774,32 @@ impl LinksApp {
         // ---- rows ----
         let body = Rect::from_min_max(Pos2::new(inner.min.x, hdr.max.y + 1.0), inner.max);
         if shown.is_empty() {
-            p.text(body.center(), Align2::CENTER_CENTER, "Nothing matches — clear the search or pick another type.", reg(12.0), t.dim);
+            if self.loading_playlist {
+                let time = ui.input(|i| i.time) as f32;
+                let center = body.center();
+                let spinner_r = 18.0;
+                let stroke = Stroke::new(3.0, t.primary);
+                let start_a = time * 5.0;
+                let end_a = start_a + std::f32::consts::PI * 1.4;
+                p.arc(center - Vec2::new(0.0, 20.0), spinner_r, start_a, end_a, stroke);
+                p.text(
+                    Pos2::new(center.x, center.y + 16.0),
+                    Align2::CENTER_CENTER,
+                    "⚡ Discovering playlist videos... (lazy loading)",
+                    semi(13.0),
+                    t.txt,
+                );
+                p.text(
+                    Pos2::new(center.x, center.y + 36.0),
+                    Align2::CENTER_CENTER,
+                    "Fetching playlist videos from server in the background. Items will appear instantly.",
+                    reg(11.0),
+                    t.dim,
+                );
+                ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
+            } else {
+                p.text(body.center(), Align2::CENTER_CENTER, "Nothing matches — clear the search or pick another type.", reg(12.0), t.dim);
+            }
             ui.allocate_rect(card, Sense::hover());
             return;
         }
@@ -709,13 +828,51 @@ impl LinksApp {
                     let dim = if row.kind == Kind::Page { 0.6 } else { 1.0 };
                     let cy = r.center().y;
                     paint_check(p, Rect::from_center_size(Pos2::new(r.min.x + CB_W / 2.0, cy), Vec2::splat(15.0)), row.checked, false, resp.hovered());
-                    // Column 0: File Type pill badge (matching playlist.PNG)
-                    let ext = row.name.rsplit_once('.').map(|(_, e)| e.to_ascii_uppercase()).unwrap_or_else(|| row.kind.labels().1.to_ascii_uppercase());
-                    let pw = (crate::shaped::width(p, &ext, &semi(11.0)) + 16.0).min(widths[0] - 16.0);
+                    // Column 0: File Type pill badge or Video Resolution badge
+                    let is_vid = is_video_page_url(&row.url) || row.kind == Kind::Video || row.kind == Kind::Audio;
+                    let eff_q = row.quality_override.as_deref().unwrap_or(&self.quality_pref);
+                    let (badge_text, bg_col, bd_col) = if is_vid {
+                        let txt = quality_badge_text(eff_q);
+                        let (bg, bd) = quality_badge_colors(eff_q);
+                        (txt.to_string(), bg, bd)
+                    } else {
+                        let ext = row.name.rsplit_once('.').map(|(_, e)| e.to_ascii_uppercase()).unwrap_or_else(|| row.kind.labels().1.to_ascii_uppercase());
+                        (ext, COLOR_CHARCOAL, COLOR_VAMPIRE_GREY)
+                    };
+                    let pw = (crate::shaped::width(p, &badge_text, &semi(11.0)) + 16.0).min(widths[0] - 16.0);
                     let pill = Rect::from_center_size(Pos2::new(xs[0] + widths[0] / 2.0, cy), Vec2::new(pw.max(52.0), 22.0));
-                    p.rect_filled(pill, 4.0, COLOR_CHARCOAL);
-                    p.rect_stroke(pill, 4.0, Stroke::new(1.0_f32, COLOR_VAMPIRE_GREY), egui::StrokeKind::Inside);
-                    p.text(pill.center(), Align2::CENTER_CENTER, &ext, semi(11.0), Color32::WHITE);
+                    p.rect_filled(pill, 4.0, bg_col);
+                    p.rect_stroke(pill, 4.0, Stroke::new(1.0_f32, bd_col), egui::StrokeKind::Inside);
+                    p.text(pill.center(), Align2::CENTER_CENTER, &badge_text, semi(11.0), Color32::WHITE);
+                    if is_vid {
+                        let pill_resp = ui.interact(pill, egui::Id::new(("q_pill", i)), Sense::click())
+                            .on_hover_cursor(egui::CursorIcon::PointingHand)
+                            .on_hover_text(format!("Resolution: {badge_text} (Click to switch resolution)"));
+                        if pill_resp.clicked() {
+                            let next_q = cycle_quality(eff_q);
+                            let new_is_audio = next_q == "audio";
+                            let r_mut = &mut self.rows[i];
+                            r_mut.quality_override = Some(next_q.to_string());
+                            let stem = std::path::Path::new(&r_mut.name)
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or(&r_mut.name);
+                            if new_is_audio {
+                                r_mut.name = format!("{stem}.mp3");
+                                r_mut.kind = Kind::Audio;
+                            } else {
+                                r_mut.name = format!("{stem}.mp4");
+                                r_mut.kind = Kind::Video;
+                            }
+                            if let Some(info) = engine::cached_real_video_formats(&r_mut.url) {
+                                if let Some(f) = info.formats.iter().find(|f| {
+                                    if new_is_audio { f.is_audio } else { f.quality_val.eq_ignore_ascii_case(next_q) }
+                                }) {
+                                    r_mut.size = f.size;
+                                }
+                            }
+                        }
+                    }
 
                     // Column 1: File Name + link text
                     let nx = xs[1] + 10.0;
@@ -750,13 +907,23 @@ impl LinksApp {
                             p.text(Pos2::new(sx, cy), Align2::RIGHT_CENTER, format_bytes(s), reg(12.0), t.txt.gamma_multiply(dim));
                         }
                         (None, Probe::Pending) => {
-                            let bar = Rect::from_min_size(Pos2::new(sx - 58.0, cy - 5.0), Vec2::new(58.0, 10.0));
-                            let a = 0.35 + 0.25 * (time * 3.0 + i as f32 * 0.4).sin().abs();
-                            p.rect_filled(bar, 4.0, t.surface_lt.gamma_multiply(a + 0.4));
-                            ui.ctx().request_repaint_after(std::time::Duration::from_millis(60));
+                            if is_vid {
+                                let est = estimated_video_size(eff_q);
+                                p.text(Pos2::new(sx, cy), Align2::RIGHT_CENTER, format!("~{}", format_bytes(est)), reg(12.0), t.dim);
+                            } else {
+                                let bar = Rect::from_min_size(Pos2::new(sx - 58.0, cy - 5.0), Vec2::new(58.0, 10.0));
+                                let a = 0.35 + 0.25 * (time * 3.0 + i as f32 * 0.4).sin().abs();
+                                p.rect_filled(bar, 4.0, t.surface_lt.gamma_multiply(a + 0.4));
+                                ui.ctx().request_repaint_after(std::time::Duration::from_millis(60));
+                            }
                         }
                         _ => {
-                            p.text(Pos2::new(sx, cy), Align2::RIGHT_CENTER, "—", reg(12.0), t.dim);
+                            if is_vid {
+                                let est = estimated_video_size(eff_q);
+                                p.text(Pos2::new(sx, cy), Align2::RIGHT_CENTER, format!("~{}", format_bytes(est)), reg(12.0), t.dim);
+                            } else {
+                                p.text(Pos2::new(sx, cy), Align2::RIGHT_CENTER, "—", reg(12.0), t.dim);
+                            }
                         }
                     }
                     if resp.on_hover_text(&row.url).clicked() {
@@ -909,19 +1076,30 @@ impl LinksApp {
                 other => self.quality_pref = other.to_string(),
             }
             let new_is_audio = self.quality_pref == "audio";
-            if old_is_audio != new_is_audio {
-                for r in &mut self.rows {
-                    if is_video_page_url(&r.url) || r.kind == Kind::Video || r.kind == Kind::Audio {
-                        let stem = std::path::Path::new(&r.name)
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or(&r.name);
-                        if new_is_audio {
-                            r.name = format!("{stem}.mp3");
-                            r.kind = Kind::Audio;
-                        } else {
-                            r.name = format!("{stem}.mp4");
-                            r.kind = Kind::Video;
+            for r in &mut self.rows {
+                if is_video_page_url(&r.url) || r.kind == Kind::Video || r.kind == Kind::Audio {
+                    // Reset per-row override so global choice updates everything cleanly
+                    r.quality_override = None;
+                    let stem = std::path::Path::new(&r.name)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(&r.name);
+                    if new_is_audio {
+                        r.name = format!("{stem}.mp3");
+                        r.kind = Kind::Audio;
+                    } else {
+                        r.name = format!("{stem}.mp4");
+                        r.kind = Kind::Video;
+                    }
+                    if let Some(info) = engine::cached_real_video_formats(&r.url) {
+                        if let Some(f) = info.formats.iter().find(|f| {
+                            if new_is_audio {
+                                f.is_audio
+                            } else {
+                                f.quality_val.eq_ignore_ascii_case(&self.quality_pref)
+                            }
+                        }) {
+                            r.size = f.size;
                         }
                     }
                 }
@@ -1177,7 +1355,7 @@ pub fn run() -> eframe::Result<()> {
             };
             // Files and videos start checked; pages and links to other sites do not.
             let checked = kind != Kind::Page && kind != Kind::Other && kind != Kind::Image;
-            Row { url: u_resolved, text: l.text, name, guessed_name: !is_vid, kind, size: None, checked, probe: Probe::Pending }
+            Row { url: u_resolved, text: l.text, name, guessed_name: !is_vid, kind, size: None, checked, probe: Probe::Pending, quality_override: None }
         })
         .collect();
     let rt = std::sync::Arc::new(
@@ -1187,6 +1365,62 @@ pub fn run() -> eframe::Result<()> {
             .build()
             .expect("tokio runtime"),
     );
+
+    let is_playlist_batch = batch.is_playlist
+        || engine::is_playlist_url_or_query(&batch.page_url)
+        || engine::is_pure_playlist_url(&batch.page_url);
+    if is_playlist_batch && rows.is_empty() {
+        if let Some((_, entries)) = engine::cached_playlist_entries(&batch.page_url) {
+            rows = entries
+                .into_iter()
+                .enumerate()
+                .map(|(idx, (u, t))| {
+                    let clean_t = if t.trim().is_empty() {
+                        format!("Video {:02}", idx + 1)
+                    } else {
+                        t.trim().to_string()
+                    };
+                    let ext = if is_audio_batch { ".mp3" } else { ".mp4" };
+                    let name = engine::sanitize_filename(&format!("{clean_t}{ext}"));
+                    Row {
+                        url: u,
+                        text: clean_t,
+                        name,
+                        guessed_name: false,
+                        kind: if is_audio_batch { Kind::Audio } else { Kind::Video },
+                        size: None,
+                        checked: true,
+                        probe: Probe::Pending,
+                        quality_override: None,
+                    }
+                })
+                .collect();
+        }
+    }
+    let (loading_playlist, playlist_rx) = if is_playlist_batch && rows.is_empty() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let p_url = batch.page_url.clone();
+        let p_opts = EngineOpts {
+            user_agent: if prefs.user_agent.trim().is_empty() {
+                format!("sa2_downloader/{}", crate::model::APP_VERSION)
+            } else {
+                prefs.user_agent.clone()
+            },
+            timeout_secs: prefs.timeout_secs.min(20),
+            proxy_url: prefs.proxy_url.clone(),
+            referer: p_url.clone(),
+            cookie: batch.cookie.clone(),
+            ..Default::default()
+        };
+        rt.spawn(async move {
+            let res = engine::playlist_entries(&p_url, &p_opts).await;
+            let _ = tx.send(res);
+        });
+        (true, Some(rx))
+    } else {
+        (false, None)
+    };
+
     let has_non_pages = rows.iter().any(|r| r.kind != Kind::Page);
     let mut app = LinksApp {
         page_url: batch.page_url,
@@ -1212,6 +1446,8 @@ pub fn run() -> eframe::Result<()> {
         exited: false,
         quality_pref,
         q_open: false,
+        loading_playlist,
+        playlist_rx,
     };
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("Download all links — SA2 Downloader")
@@ -1278,6 +1514,53 @@ impl eframe::App for LinksApp {
         if self.centered && !self.focused {
             self.focused = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        }
+        if let Some(rx) = self.playlist_rx.as_ref() {
+            if let Ok(res) = rx.try_recv() {
+                self.loading_playlist = false;
+                match res {
+                    Ok((title, entries)) => {
+                        if !title.is_empty()
+                            && (self.title.is_empty()
+                                || self.title == "Download all links"
+                                || self.title == "New Download Task")
+                        {
+                            self.title = title;
+                        }
+                        if !entries.is_empty() {
+                            let is_audio = self.quality_pref == "audio";
+                            self.rows = entries
+                                .into_iter()
+                                .enumerate()
+                                .map(|(idx, (u, t))| {
+                                    let clean_t = if t.trim().is_empty() {
+                                        format!("Video {:02}", idx + 1)
+                                    } else {
+                                        t.trim().to_string()
+                                    };
+                                    let ext = if is_audio { ".mp3" } else { ".mp4" };
+                                    let name = engine::sanitize_filename(&format!("{clean_t}{ext}"));
+                                    Row {
+                                        url: u,
+                                        text: clean_t,
+                                        name,
+                                        guessed_name: false,
+                                        kind: if is_audio { Kind::Audio } else { Kind::Video },
+                                        size: None,
+                                        checked: true,
+                                        probe: Probe::Pending,
+                                        quality_override: None,
+                                    }
+                                })
+                                .collect();
+                            self.start_probes(ctx.clone());
+                        }
+                    }
+                    Err(e) => {
+                        self.notice = format!("Playlist error: {e}");
+                    }
+                }
+            }
         }
         self.collect_probes();
         let frame = egui::Frame::new().fill(pl().bg).inner_margin(egui::Margin { left: 16, right: 16, top: 12, bottom: 12 });

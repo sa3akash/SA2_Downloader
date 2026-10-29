@@ -1,6 +1,6 @@
-# Download SA2 1.1.6 — Ultra HD 2K/4K/8K Dynamic Downloader, Single Instant Loading & Daily Background Helper Updates
+# Download SA2 1.1.8 — Ultra HD 2K/4K/8K Dynamic Downloader, Single Instant Loading & Daily Background Helper Updates
 
-## What's new in 1.1.6
+## What's new in 1.1.8
 
 ### Ultra HD (2K, 4K, 8K) Dynamic Downloads & Universal Site Support
 - **Fixed 360p Resolution Lock**: Resolved the issue where higher video qualities reverted to low-resolution streams. The downloader now honors and delivers full Ultra HD streams (8K 4320p, 4K 2160p, 2K 1440p, 1080p Full HD, 60fps AV1/VP9).

@@ -7288,24 +7288,59 @@ pub struct RealVideoInfo {
 
 static REAL_FORMAT_CACHE: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, RealVideoInfo)>>> = std::sync::OnceLock::new();
 
-/// Save discovered video formats to the cache for instant reuse across windows.
+fn global_formats_path() -> Option<std::path::PathBuf> {
+    crate::model::config_dir().map(|d| d.join("real_formats_cache.json"))
+}
+
+/// Save discovered video formats to the global cache for instant reuse across all windows and processes.
 pub fn store_real_video_formats(url: &str, info: RealVideoInfo) {
     let target = url.trim().to_string();
     if target.is_empty() { return; }
     let cache = REAL_FORMAT_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
     if let Ok(mut c) = cache.lock() {
-        c.insert(target, (std::time::Instant::now(), info));
+        if c.len() >= 200 {
+            c.retain(|_, (t, _)| t.elapsed() < std::time::Duration::from_secs(1800));
+        }
+        c.insert(target.clone(), (std::time::Instant::now(), info.clone()));
+    }
+    if let Some(path) = global_formats_path() {
+        let _guard = crate::model::fs_lock("real_formats_cache");
+        let mut map: std::collections::HashMap<String, RealVideoInfo> = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        map.insert(target, info);
+        if map.len() > 100 {
+            let keys: Vec<String> = map.keys().take(map.len() - 100).cloned().collect();
+            for k in keys { map.remove(&k); }
+        }
+        if let Ok(json) = serde_json::to_string(&map) {
+            let _ = crate::model::atomic_write(&path, json.as_bytes());
+        }
     }
 }
 
 /// Instant synchronous cache check for video formats (0ms delay).
 pub fn cached_real_video_formats(url: &str) -> Option<RealVideoInfo> {
     let target = url.trim();
-    let cache = REAL_FORMAT_CACHE.get()?;
+    if target.is_empty() { return None; }
+    let cache = REAL_FORMAT_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
     if let Ok(c) = cache.lock() {
         if let Some((t, info)) = c.get(target) {
-            if t.elapsed() < std::time::Duration::from_secs(600) {
+            if t.elapsed() < std::time::Duration::from_secs(1800) {
                 return Some(info.clone());
+            }
+        }
+    }
+    if let Some(path) = global_formats_path() {
+        if let Ok(s) = std::fs::read_to_string(&path) {
+            if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, RealVideoInfo>>(&s) {
+                if let Some(info) = map.get(target) {
+                    if let Ok(mut c) = cache.lock() {
+                        c.insert(target.to_string(), (std::time::Instant::now(), info.clone()));
+                    }
+                    return Some(info.clone());
+                }
             }
         }
     }

@@ -128,6 +128,8 @@ pub struct LinksBatch {
     #[serde(default)]
     pub quality: String,
     pub links: Vec<PageLink>,
+    #[serde(default)]
+    pub is_playlist: bool,
 }
 
 /// Validate a page's links and keep the downloadable ones (http/https,
@@ -174,8 +176,10 @@ pub fn open_links_window(page: &str, title: &str, cookie: &str, links: &[PageLin
 }
 
 pub fn open_links_window_with_quality(page: &str, title: &str, cookie: &str, quality: &str, links: &[PageLink]) -> Result<(), String> {
-    let batch = links_batch_with_quality(page, title, cookie, quality, links);
-    if batch.links.is_empty() {
+    let mut batch = links_batch_with_quality(page, title, cookie, quality, links);
+    let is_pl = crate::engine::is_playlist_url_or_query(page) || crate::engine::is_pure_playlist_url(page);
+    batch.is_playlist = is_pl;
+    if batch.links.is_empty() && !is_pl {
         return Err("no downloadable links on this page".into());
     }
     let dir = crate::model::config_dir().ok_or_else(|| "no config dir".to_string())?;

@@ -534,6 +534,41 @@ impl ConfirmApp {
         if !is_download_url(&self.url) {
             return;
         }
+        if self.real_formats.is_empty() {
+            if let Some(cached) = crate::engine::cached_real_video_formats(&self.url)
+                .or_else(|| {
+                    if !self.referer.is_empty() {
+                        crate::engine::cached_real_video_formats(&self.referer)
+                    } else {
+                        None
+                    }
+                })
+            {
+                self.real_formats = cached.formats;
+            }
+        }
+        if !self.real_formats.is_empty() {
+            self.probing = false;
+            if self.probe_size.is_none() || self.probe_size == Some(0) {
+                if let Some(rf) = self.real_formats.iter().find(|f| {
+                    if self.quality_pref == "audio" {
+                        f.is_audio
+                    } else {
+                        f.quality_val.eq_ignore_ascii_case(&self.quality_pref)
+                    }
+                }) {
+                    self.probe_size = rf.size;
+                } else if let Some(first_sz) = self.real_formats.first().and_then(|f| f.size) {
+                    self.probe_size = Some(first_sz);
+                }
+            }
+            if self.probe_size.is_none() && self.duration_secs > 0 {
+                let bps = bps_for_quality(&self.quality_pref);
+                self.probe_size = Some(self.duration_secs * bps);
+            }
+            // Formats and sizes already available in cache — do not re-probe!
+            return;
+        }
         let Some(rt) = self.rt.clone() else {
             return;
         };
@@ -757,6 +792,25 @@ pub(crate) fn wake_ids(targets: &[u64]) {
 
 /// Entry point for `--confirm-download`. Never returns normally
 /// (runs the dialog window until it closes).
+pub fn bps_for_quality(pref: &str) -> u64 {
+    let q = pref.trim().to_ascii_lowercase();
+    if q == "audio" {
+        20_000
+    } else if q.contains("4320") || q.contains("8k") {
+        5_000_000
+    } else if q.contains("2160") || q.contains("4k") {
+        2_250_000
+    } else if q.contains("1440") || q.contains("2k") {
+        1_125_000
+    } else if q.contains("1080") {
+        562_500
+    } else if q.contains("720") {
+        312_500
+    } else {
+        125_000
+    }
+}
+
 pub fn run() -> eframe::Result<()> {
     // Index-iterated flag parsing: a VALUE that looks like a flag (e.g. a
     // `Content-Disposition` filename of `--referer`) must not shift parsing.
@@ -823,6 +877,7 @@ pub fn run() -> eframe::Result<()> {
     // Claim the inbox entry first so the main window won't prompt too.
     let mut headers = std::collections::BTreeMap::new();
     let mut browser = None;
+    let mut inbox_formats = None;
     if let Some(item)=claim_inbox(url.trim()) {
         browser = item.browser.clone();
         // The native host leaves credentials in the private inbox, not the
@@ -836,6 +891,9 @@ pub fn run() -> eframe::Result<()> {
             if let Some(q) = item.quality {
                 quality_pref = q;
             }
+        }
+        if let Some(fmts) = item.formats {
+            inbox_formats = Some(fmts);
         }
     }
 
@@ -865,7 +923,18 @@ pub fn run() -> eframe::Result<()> {
                 None
             }
         });
-    let real_formats = cached_info.map(|info| info.formats).unwrap_or_default();
+    let real_formats = inbox_formats
+        .or_else(|| cached_info.map(|info| info.formats))
+        .unwrap_or_default();
+
+    if !real_formats.is_empty() {
+        crate::engine::store_real_video_formats(url.trim(), crate::engine::RealVideoInfo {
+            title: Some(filename.clone()),
+            duration_secs: duration_secs.filter(|s| *s > 0),
+            formats: real_formats.clone(),
+        });
+    }
+
     let mut probe_size = known_size;
     if probe_size.is_none() || probe_size == Some(0) {
         if let Some(rf) = real_formats.iter().find(|f| {
@@ -881,21 +950,7 @@ pub fn run() -> eframe::Result<()> {
         }
     }
     if probe_size.is_none() && duration_secs > 0 {
-        let bps: u64 = if quality_pref == "audio" {
-            20_000
-        } else if quality_pref.contains("4320") || quality_pref.contains("8k") {
-            5_000_000
-        } else if quality_pref.contains("2160") || quality_pref.contains("4k") {
-            2_250_000
-        } else if quality_pref.contains("1440") || quality_pref.contains("2k") {
-            1_125_000
-        } else if quality_pref.contains("1080") {
-            562_500
-        } else if quality_pref.contains("720") {
-            312_500
-        } else {
-            125_000
-        };
+        let bps = bps_for_quality(&quality_pref);
         probe_size = Some(duration_secs * bps);
     }
     let probing = probe_size.is_none() && real_formats.is_empty();
@@ -1011,8 +1066,10 @@ impl eframe::App for ConfirmApp {
             while let Ok((sz, nm)) = rx.try_recv() {
                 self.probing = false;
                 // A refused re-probe (off-session 403) must not erase the
-                // size the browser measured in its own session.
-                self.probe_size = sz.or(self.browser_size);
+                // size the browser measured in its own session or pre-cached formats.
+                if self.real_formats.is_empty() {
+                    self.probe_size = sz.or(self.browser_size);
+                }
                 if let Some(n) = nm {
                     // Prefer the server/video title while our name is still a
                     // guess we made (or a last-resort fallback whose timestamp
@@ -1436,41 +1493,19 @@ impl eframe::App for ConfirmApp {
                     if view_b.hovered() {
                         ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
                     }
-                    let lbl = if self.loading_playlist { "Loading playlist…" } else { "📋 Select Videos" };
+                    let lbl = "📋 Select Videos";
                     btn_pill(&p, view_r, view_b.hovered(), lbl, pl().dm_line, pl().dm_box_bd, pl().dm_txt, None);
-                    if view_b.clicked() && !self.loading_playlist {
-                        if let Some((title, entries)) = engine::cached_playlist_entries(&self.url) {
-                            let links: Vec<crate::native_host::PageLink> = entries
-                                .into_iter()
-                                .map(|(u, t)| crate::native_host::PageLink { url: u, text: t })
-                                .collect();
-                            if !links.is_empty() {
-                                let _ = crate::native_host::open_links_window_with_quality(&self.url, &title, &self.cookie, &self.quality_pref, &links);
-                                self.done = true;
-                                return;
-                            }
-                        }
-                        if let Some(rt) = self.rt.clone() {
-                            let (tx, rx) = std::sync::mpsc::channel();
-                            self.playlist_rx = Some(rx);
-                            self.loading_playlist = true;
-                            let url = self.url.clone();
-                            let opts = EngineOpts {
-                                user_agent: self.user_agent.clone(),
-                                timeout_secs: self.timeout_secs,
-                                proxy_url: self.proxy_url.clone(),
-                                referer: self.referer.clone(),
-                                cookie: self.cookie.clone(),
-                                quality_pref: self.quality_pref.clone(),
-                                ..Default::default()
-                            };
-                            rt.spawn(async move {
-                                let res = engine::playlist_entries(&url, &opts).await;
-                                let _ = tx.send(res);
-                            });
-                        }
+                    if view_b.clicked() {
+                        let (title, links) = engine::cached_playlist_entries(&self.url)
+                            .map(|(t, entries)| {
+                                (t, entries.into_iter().map(|(u, txt)| crate::native_host::PageLink { url: u, text: txt }).collect::<Vec<_>>())
+                            })
+                            .unwrap_or_else(|| (self.filename.clone(), Vec::new()));
+                        let _ = crate::native_host::open_links_window_with_quality(&self.url, &title, &self.cookie, &self.quality_pref, &links);
+                        self.done = true;
+                        return;
                     }
-                    (DM_X + 340.0, DM_W_IN - 340.0)
+                    (DM_X + 360.0, DM_W_IN - 360.0)
                 } else {
                     (DM_X, DM_W_IN)
                 };
@@ -1523,6 +1558,9 @@ impl eframe::App for ConfirmApp {
                         self.quality_pref = rf.quality_val.clone();
                         if let Some(sz) = rf.size {
                             self.probe_size = Some(sz);
+                        } else if self.duration_secs > 0 {
+                            let bps = bps_for_quality(&self.quality_pref);
+                            self.probe_size = Some(self.duration_secs * bps);
                         }
                         if rf.is_audio {
                             self.category = "Music".to_string();
@@ -1556,6 +1594,10 @@ impl eframe::App for ConfirmApp {
                                 }
                             }
                             other => self.quality_pref = other.to_string(),
+                        }
+                        if self.duration_secs > 0 {
+                            let bps = bps_for_quality(&self.quality_pref);
+                            self.probe_size = Some(self.duration_secs * bps);
                         }
                     }
                 }

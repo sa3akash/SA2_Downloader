@@ -5546,10 +5546,10 @@ fn js_runtime_path() -> Option<(&'static str, std::path::PathBuf)> {
 fn runtime_version_supported(name:&str,version:&str)->bool {
     let word=version.split_whitespace().find(|w|w.chars().next().map(|c|c.is_ascii_digit()||c=='v').unwrap_or(false)).unwrap_or("");
     let parts:Vec<u32>=word.trim_start_matches('v').split('.').map(|s|s.parse().unwrap_or(0)).collect();
-    let major=parts.first().copied().unwrap_or(0);let _minor=parts.get(1).copied().unwrap_or(0);
+    let major=parts.first().copied().unwrap_or(0);let minor=parts.get(1).copied().unwrap_or(0);
     match name {
-        "node" => major >= 16,
-        "deno" => major >= 1,
+        "node" => major >= 22,
+        "deno" => major > 2 || (major == 2 && minor >= 3),
         "bun" => major >= 1,
         "quickjs" | "qjs" => true,
         _ => false,

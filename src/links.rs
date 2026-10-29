@@ -812,6 +812,7 @@ impl LinksApp {
         }
         let shift = ui.input(|i| i.modifiers.shift);
         let mut clicked: Option<usize> = None;
+        let mut toggle_q: Option<usize> = None;
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body));
         // Slim bars, always shown (as in the main list).
         crate::app::modern_scrollbars(&mut child);
@@ -856,28 +857,7 @@ impl LinksApp {
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
                             .on_hover_text(format!("Resolution: {badge_text} (Click to switch resolution)"));
                         if pill_resp.clicked() {
-                            let next_q = cycle_quality(eff_q);
-                            let new_is_audio = next_q == "audio";
-                            let r_mut = &mut self.rows[i];
-                            r_mut.quality_override = Some(next_q.to_string());
-                            let stem = std::path::Path::new(&r_mut.name)
-                                .file_stem()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or(&r_mut.name);
-                            if new_is_audio {
-                                r_mut.name = format!("{stem}.mp3");
-                                r_mut.kind = Kind::Audio;
-                            } else {
-                                r_mut.name = format!("{stem}.mp4");
-                                r_mut.kind = Kind::Video;
-                            }
-                            if let Some(info) = engine::cached_real_video_formats(&r_mut.url) {
-                                if let Some(f) = info.formats.iter().find(|f| {
-                                    if new_is_audio { f.is_audio } else { f.quality_val.eq_ignore_ascii_case(next_q) }
-                                }) {
-                                    r_mut.size = f.size;
-                                }
-                            }
+                            toggle_q = Some(i);
                         }
                     }
 
@@ -938,6 +918,31 @@ impl LinksApp {
                     }
                 }
             });
+        if let Some(i) = toggle_q {
+            let next_q = cycle_quality(self.rows[i].quality_override.as_deref().unwrap_or(&self.quality_pref));
+            let new_is_audio = next_q == "audio";
+            let r_mut = &mut self.rows[i];
+            r_mut.quality_override = Some(next_q.to_string());
+            let stem = std::path::Path::new(&r_mut.name)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&r_mut.name)
+                .to_string();
+            if new_is_audio {
+                r_mut.name = format!("{stem}.mp3");
+                r_mut.kind = Kind::Audio;
+            } else {
+                r_mut.name = format!("{stem}.mp4");
+                r_mut.kind = Kind::Video;
+            }
+            if let Some(info) = engine::cached_real_video_formats(&r_mut.url) {
+                if let Some(f) = info.formats.iter().find(|f| {
+                    if new_is_audio { f.is_audio } else { f.quality_val.eq_ignore_ascii_case(next_q) }
+                }) {
+                    r_mut.size = f.size;
+                }
+            }
+        }
         if let Some(i) = clicked {
             self.click_row(i, shift, &shown);
         }

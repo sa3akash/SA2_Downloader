@@ -6804,6 +6804,10 @@ async fn download_with_ytdlp(
 ) -> Result<()> {
     shared.external_helper.store(true, Ordering::SeqCst);
     shared.ytdlp_tried.store(true, Ordering::SeqCst);
+    if opts.expected_size > 0 {
+        shared.total.store(opts.expected_size, Ordering::SeqCst);
+        shared.has_total.store(true, Ordering::SeqCst);
+    }
     wait_if_paused(shared).await?;
     if let Some(parent) = dest.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -7234,6 +7238,16 @@ pub struct RealVideoInfo {
 }
 
 static REAL_FORMAT_CACHE: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, RealVideoInfo)>>> = std::sync::OnceLock::new();
+
+/// Save discovered video formats to the cache for instant reuse across windows.
+pub fn store_real_video_formats(url: &str, info: RealVideoInfo) {
+    let target = url.trim().to_string();
+    if target.is_empty() { return; }
+    let cache = REAL_FORMAT_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(mut c) = cache.lock() {
+        c.insert(target, (std::time::Instant::now(), info));
+    }
+}
 
 /// Instant synchronous cache check for video formats (0ms delay).
 pub fn cached_real_video_formats(url: &str) -> Option<RealVideoInfo> {

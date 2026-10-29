@@ -62,6 +62,9 @@ struct Incoming {
     /// Preferred YouTube quality from the extension quality menu.
     #[serde(default)]
     pub quality: Option<String>,
+    /// Format ladder passed from the browser extension for instant 0ms display in confirm dialog.
+    #[serde(default)]
+    pub formats: Option<Vec<crate::engine::RealVideoFormat>>,
     /// Media duration in seconds (page player / JSON, best-effort).
     /// Shown in the confirm dialog and checked against the completed file.
     #[serde(default)]
@@ -122,12 +125,18 @@ pub struct LinksBatch {
     /// The page's cookies; the window applies them to same-host links only.
     #[serde(default)]
     pub cookie: String,
+    #[serde(default)]
+    pub quality: String,
     pub links: Vec<PageLink>,
 }
 
 /// Validate a page's links and keep the downloadable ones (http/https,
 /// sane lengths, no duplicates), capped like the extension's collector.
 pub fn links_batch(page_url: &str, title: &str, cookie: &str, links: &[PageLink]) -> LinksBatch {
+    links_batch_with_quality(page_url, title, cookie, "best", links)
+}
+
+pub fn links_batch_with_quality(page_url: &str, title: &str, cookie: &str, quality: &str, links: &[PageLink]) -> LinksBatch {
     let mut seen = std::collections::HashSet::new();
     let kept = links
         .iter()
@@ -143,15 +152,17 @@ pub fn links_batch(page_url: &str, title: &str, cookie: &str, links: &[PageLink]
         page_url: page_url.to_string(),
         title: title.chars().filter(|c| !c.is_control()).take(200).collect(),
         cookie: cookie.to_string(),
+        quality: quality.to_string(),
         links: kept,
     }
 }
 
 fn spawn_links(msg: &Incoming) -> Result<(), String> {
-    open_links_window(
+    open_links_window_with_quality(
         &msg.page_url.clone().unwrap_or_default(),
         msg.title.as_deref().unwrap_or(""),
         msg.cookie.as_deref().unwrap_or(""),
+        msg.quality.as_deref().unwrap_or("best"),
         msg.links.as_deref().unwrap_or(&[]),
     )
 }
@@ -159,7 +170,11 @@ fn spawn_links(msg: &Incoming) -> Result<(), String> {
 /// The "pick links" window for any list of links (download all links, batch
 /// patterns, dropped lists).
 pub fn open_links_window(page: &str, title: &str, cookie: &str, links: &[PageLink]) -> Result<(), String> {
-    let batch = links_batch(page, title, cookie, links);
+    open_links_window_with_quality(page, title, cookie, "best", links)
+}
+
+pub fn open_links_window_with_quality(page: &str, title: &str, cookie: &str, quality: &str, links: &[PageLink]) -> Result<(), String> {
+    let batch = links_batch_with_quality(page, title, cookie, quality, links);
     if batch.links.is_empty() {
         return Err("no downloadable links on this page".into());
     }
@@ -386,6 +401,9 @@ pub struct InboxItem {
     /// Preferred YouTube quality from the extension quality menu.
     #[serde(default)]
     pub quality: Option<String>,
+    /// Format ladder passed from the browser extension for instant 0ms display in confirm dialog.
+    #[serde(default)]
+    pub formats: Option<Vec<crate::engine::RealVideoFormat>>,
     /// Media duration in seconds (page player / JSON, best-effort).
     /// Shown in the confirm dialog and checked against the completed file.
     #[serde(default)]
@@ -817,6 +835,8 @@ fn queue_download(msg: &Incoming) -> Result<bool, String> {
     Ok(is_new)
 }
 
+static RECENT_CONFIRMS: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>> = std::sync::OnceLock::new();
+
 /// Fire-and-forget the standalone Download File Info dialog (detached, so
 /// it outlives this short-lived native-host process).
 fn spawn_confirm(msg: &Incoming) {
@@ -824,6 +844,35 @@ fn spawn_confirm(msg: &Incoming) {
     if !(url.starts_with("http://") || url.starts_with("https://") || url.starts_with("magnet:")) {
         return;
     }
+    // Prevent duplicate popups (e.g. 3-4 popups triggered by simultaneous webRequest + downloads.onCreated).
+    let debounce_key = format!("{}|{}", url, msg.page_url.as_deref().unwrap_or(""));
+    let cache = RECENT_CONFIRMS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(mut map) = cache.lock() {
+        let now = std::time::Instant::now();
+        map.retain(|_, t| now.duration_since(*t).as_secs() < 10);
+        if let Some(t) = map.get(&debounce_key) {
+            if now.duration_since(*t).as_millis() < 4000 {
+                return;
+            }
+        }
+        map.insert(debounce_key, now);
+    }
+
+    if let Some(formats) = &msg.formats {
+        let info = crate::engine::RealVideoInfo {
+            title: msg.filename.clone(),
+            duration_secs: msg.dur,
+            formats: formats.clone(),
+        };
+        crate::engine::store_real_video_formats(&url, info.clone());
+        if let Some(p) = &msg.page_url {
+            crate::engine::store_real_video_formats(p, info.clone());
+        }
+        if let Some(r) = &msg.referer {
+            crate::engine::store_real_video_formats(r, info);
+        }
+    }
+
     let Ok(exe) = crate::platform::launch_path() else {
         return;
     };

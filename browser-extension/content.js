@@ -407,7 +407,7 @@
       || (v.audioTracks && v.audioTracks.length > 0)));
   }
 
-  function sendDownload(url, filename, mime, size, pair, quality, dur, isPlaylist) {
+  function sendDownload(url, filename, mime, size, pair, quality, dur, isPlaylist, formats) {
     // Use only the matching video or an unambiguous sole video. Subtitle,
     // audio-only and ordinary file links do not borrow video expectations.
     const evidence = typeof DCRank !== "undefined"
@@ -415,6 +415,16 @@
       : { dur: Number.isFinite(Number(dur)) && Number(dur) > 0 ? Math.round(Number(dur)) : null, audioExpected: false };
     dur = evidence.dur;
     const audioExpected = evidence.audioExpected;
+    if ((!size || Number(size) <= 0) && dur && Number(dur) > 0) {
+      const qLower = String(quality || "").toLowerCase();
+      const bps = qLower === "audio" ? 20000
+        : (qLower.includes("2160") || qLower.includes("4k")) ? 2250000
+        : (qLower.includes("1440") || qLower.includes("2k")) ? 1125000
+        : qLower.includes("1080") ? 562500
+        : qLower.includes("720") ? 312500
+        : 125000;
+      size = Math.round(Number(dur) * bps);
+    }
     // A tab running a stale script (extension reloaded without a tab
     // reload) has no extension APIs left — fail loudly, not mysteriously.
     try {
@@ -465,6 +475,7 @@
         audioExpected,
         visitorData: ytVisitorData(),
         is_playlist: !!isPlaylist,
+        formats: Array.isArray(formats) && formats.length ? formats : null,
       }, (res) => {
         if (chrome.runtime.lastError) {
           if (ctxInvalidated(chrome.runtime.lastError)) markDead();
@@ -2853,7 +2864,15 @@
           format: `${qBadge} via app`,
           res: RES_WH[label],
           tip: `${qBadge} · MP4 · the app resolves this quality itself`,
-          send: () => sendDownload(location.href, `${fname.replace(/\.mp4$/i, "")} [${label}].mp4`, "video/mp4", sz || null, null, label, ladderDur || null),
+          send: () => {
+            const formatList = entries.map((e) => ({
+              label: e.res || (e.h === 0 ? "Audio only (MP3)" : `${e.h}p`),
+              quality_val: e.h === 0 ? "audio" : `${e.h}p`,
+              size: e.size || null,
+              is_audio: e.h === 0,
+            }));
+            sendDownload(location.href, `${fname.replace(/\.mp4$/i, "")} [${label}].mp4`, "video/mp4", sz || null, null, label, ladderDur || null, false, formatList);
+          },
         });
       }
       entries.push({
@@ -2864,7 +2883,15 @@
         format: "MP3 Audio",
         res: "Audio only (MP3)",
         tip: "Download only the audio track as high quality MP3",
-        send: () => sendDownload(location.href, `${fname.replace(/\.[a-z0-9]+$/i, "")}.mp3`, "audio/mp3", null, null, "audio", ladderDur || null),
+        send: () => {
+          const formatList = entries.map((e) => ({
+            label: e.res || (e.h === 0 ? "Audio only (MP3)" : `${e.h}p`),
+            quality_val: e.h === 0 ? "audio" : `${e.h}p`,
+            size: e.size || null,
+            is_audio: e.h === 0,
+          }));
+          sendDownload(location.href, `${fname.replace(/\.[a-z0-9]+$/i, "")}.mp3`, "audio/mp3", null, null, "audio", ladderDur || null, false, formatList);
+        },
       });
     }
     entries.sort((a, b) => (b.h - a.h) || (b.size - a.size));

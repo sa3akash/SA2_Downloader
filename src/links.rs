@@ -366,7 +366,18 @@ impl LinksApp {
                 // A page's length is its HTML, not a download size.
                 r.size = total.filter(|s| *s > 0 && !html);
             } else {
-                r.kind = Kind::Video;
+                r.kind = if self.quality_pref == "audio" { Kind::Audio } else { Kind::Video };
+                if let Some(info) = engine::cached_real_video_formats(&r.url) {
+                    if let Some(f) = info.formats.iter().find(|f| {
+                        if self.quality_pref == "audio" {
+                            f.is_audio
+                        } else {
+                            f.quality_val.eq_ignore_ascii_case(&self.quality_pref)
+                        }
+                    }) {
+                        r.size = f.size;
+                    }
+                }
             }
         }
     }
@@ -882,6 +893,7 @@ impl LinksApp {
             "Audio only (MP3)".to_string(),
         ];
         if let Some(pick) = crate::confirm::combo(ui, q_r, "links_q", cur_q, &q_opts, &mut self.q_open) {
+            let old_is_audio = self.quality_pref == "audio";
             match pick.as_str() {
                 "Best Quality" => self.quality_pref = "best".to_string(),
                 "4K (2160p)" => self.quality_pref = "2160p".to_string(),
@@ -892,6 +904,24 @@ impl LinksApp {
                 "360p SD" => self.quality_pref = "360p".to_string(),
                 "Audio only (MP3)" => self.quality_pref = "audio".to_string(),
                 other => self.quality_pref = other.to_string(),
+            }
+            let new_is_audio = self.quality_pref == "audio";
+            if old_is_audio != new_is_audio {
+                for r in &mut self.rows {
+                    if is_video_page_url(&r.url) || r.kind == Kind::Video || r.kind == Kind::Audio {
+                        let stem = std::path::Path::new(&r.name)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or(&r.name);
+                        if new_is_audio {
+                            r.name = format!("{stem}.mp3");
+                            r.kind = Kind::Audio;
+                        } else {
+                            r.name = format!("{stem}.mp4");
+                            r.kind = Kind::Video;
+                        }
+                    }
+                }
             }
         }
 
@@ -1089,6 +1119,8 @@ pub fn run() -> eframe::Result<()> {
     };
     let prefs = crate::confirm::load_prefs();
     let base_url = reqwest::Url::parse(&batch.page_url).ok();
+    let quality_pref = if !batch.quality.trim().is_empty() { batch.quality.clone() } else { "best".to_string() };
+    let is_audio_batch = quality_pref == "audio";
     let rows: Vec<Row> = batch
         .links
         .into_iter()
@@ -1120,7 +1152,9 @@ pub fn run() -> eframe::Result<()> {
                         .unwrap_or_else(|| "video".to_string());
                     format!("video_{from_u}")
                 };
-                name = engine::sanitize_filename(&if base.ends_with(".mp4") || base.ends_with(".mkv") || base.ends_with(".webm") {
+                name = engine::sanitize_filename(&if is_audio_batch {
+                    format!("{base}.mp3")
+                } else if base.ends_with(".mp4") || base.ends_with(".mkv") || base.ends_with(".webm") {
                     base
                 } else {
                     format!("{base}.mp4")
@@ -1129,11 +1163,15 @@ pub fn run() -> eframe::Result<()> {
                 name = page_name(&u_resolved, &l.text);
             }
             let (_, html, image) = if is_vid {
-                ("Video".to_string(), false, false)
+                (if is_audio_batch { "Music".to_string() } else { "Video".to_string() }, false, false)
             } else {
                 type_of(&name, None)
             };
-            let kind = if is_vid { Kind::Video } else { Kind::of(&name, html, image) };
+            let kind = if is_vid {
+                if is_audio_batch { Kind::Audio } else { Kind::Video }
+            } else {
+                Kind::of(&name, html, image)
+            };
             // Files and videos start checked; pages and links to other sites do not.
             let checked = kind != Kind::Page && kind != Kind::Other && kind != Kind::Image;
             Row { url: u_resolved, text: l.text, name, guessed_name: !is_vid, kind, size: None, checked, probe: Probe::Pending }
@@ -1169,7 +1207,7 @@ pub fn run() -> eframe::Result<()> {
         focused: false,
         done: false,
         exited: false,
-        quality_pref: "best".to_string(),
+        quality_pref,
         q_open: false,
     };
     let mut viewport = egui::ViewportBuilder::default()

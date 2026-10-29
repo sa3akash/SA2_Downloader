@@ -637,17 +637,19 @@ impl ConfirmApp {
             let _ = tx.send(out);
         });
 
-        let (ftx, frx) = std::sync::mpsc::channel();
-        self.formats_rx = Some(frx);
-        let f_url = self.url.clone();
-        rt.spawn(async move {
-            let info = if let Ok(client) = f_opts.build_client() {
-                engine::probe_real_video_formats(&client, &f_opts, &f_url).await
-            } else {
-                None
-            };
-            let _ = ftx.send(info);
-        });
+        if self.real_formats.is_empty() {
+            let (ftx, frx) = std::sync::mpsc::channel();
+            self.formats_rx = Some(frx);
+            let f_url = self.url.clone();
+            rt.spawn(async move {
+                let info = if let Ok(client) = f_opts.build_client() {
+                    engine::probe_real_video_formats(&client, &f_opts, &f_url).await
+                } else {
+                    None
+                };
+                let _ = ftx.send(info);
+            });
+        }
     }
 
     /// Queue the download. `start` = also wake the main app to begin it now
@@ -855,6 +857,47 @@ pub fn run() -> eframe::Result<()> {
             .expect("tokio runtime"),
     );
     let start_name = crate::model::apply_rename_template(&prefs.rename_template, &engine::sanitize_filename(&filename), url.trim());
+    let cached_info = crate::engine::cached_real_video_formats(url.trim())
+        .or_else(|| {
+            if !referer.is_empty() {
+                crate::engine::cached_real_video_formats(&referer)
+            } else {
+                None
+            }
+        });
+    let real_formats = cached_info.map(|info| info.formats).unwrap_or_default();
+    let mut probe_size = known_size;
+    if probe_size.is_none() || probe_size == Some(0) {
+        if let Some(rf) = real_formats.iter().find(|f| {
+            if quality_pref == "audio" {
+                f.is_audio
+            } else {
+                f.quality_val.eq_ignore_ascii_case(&quality_pref)
+            }
+        }) {
+            probe_size = rf.size;
+        } else if let Some(first_sz) = real_formats.first().and_then(|f| f.size) {
+            probe_size = Some(first_sz);
+        }
+    }
+    if probe_size.is_none() && duration_secs > 0 {
+        let bps: u64 = if quality_pref == "audio" {
+            20_000
+        } else if quality_pref.contains("2160") || quality_pref.contains("4k") {
+            2_250_000
+        } else if quality_pref.contains("1440") || quality_pref.contains("2k") {
+            1_125_000
+        } else if quality_pref.contains("1080") {
+            562_500
+        } else if quality_pref.contains("720") {
+            312_500
+        } else {
+            125_000
+        };
+        probe_size = Some(duration_secs * bps);
+    }
+    let probing = probe_size.is_none() && real_formats.is_empty();
+
     let mut app = ConfirmApp {
         auto_name: (!named_by_caller).then(|| start_name.clone()),
         browser_size: known_size,
@@ -880,8 +923,8 @@ pub fn run() -> eframe::Result<()> {
         timeout_secs: prefs.timeout_secs,
         rename_template: prefs.rename_template,
         folder_rules: prefs.folder_rules,
-        probing: false,
-        probe_size: known_size,
+        probing,
+        probe_size,
         probe_rx: None,
         rt: Some(rt.clone()),
         centered: false,
@@ -899,9 +942,7 @@ pub fn run() -> eframe::Result<()> {
         quality_open: false,
         loading_playlist: false,
         playlist_rx: None,
-        real_formats: crate::engine::cached_real_video_formats(&url)
-            .map(|info| info.formats)
-            .unwrap_or_default(),
+        real_formats,
         formats_rx: None,
     };
     app.start_probe();
@@ -1038,7 +1079,7 @@ impl eframe::App for ConfirmApp {
                             .map(|(u, t)| crate::native_host::PageLink { url: u, text: t })
                             .collect();
                         if !links.is_empty() {
-                            let _ = crate::native_host::open_links_window(&self.url, &title, &self.cookie, &links);
+                            let _ = crate::native_host::open_links_window_with_quality(&self.url, &title, &self.cookie, &self.quality_pref, &links);
                             self.done = true;
                             return;
                         } else {
@@ -1402,7 +1443,7 @@ impl eframe::App for ConfirmApp {
                                 .map(|(u, t)| crate::native_host::PageLink { url: u, text: t })
                                 .collect();
                             if !links.is_empty() {
-                                let _ = crate::native_host::open_links_window(&self.url, &title, &self.cookie, &links);
+                                let _ = crate::native_host::open_links_window_with_quality(&self.url, &title, &self.cookie, &self.quality_pref, &links);
                                 self.done = true;
                                 return;
                             }

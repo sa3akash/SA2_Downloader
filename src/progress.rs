@@ -33,10 +33,17 @@ fn cmd_path() -> Option<std::path::PathBuf> {
 }
 
 fn read_queue() -> Vec<DownloadItem> {
-    queue_path()
-        .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+    let Some(p) = queue_path() else { return Vec::new(); };
+    for _ in 0..3 {
+        if let Ok(s) = std::fs::read_to_string(&p) {
+            let clean = s.trim_start_matches('\u{feff}');
+            if let Ok(v) = serde_json::from_str(clean) {
+                return v;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    Vec::new()
 }
 
 #[derive(Debug, Default, Clone)]
@@ -424,6 +431,8 @@ struct ProgressApp {
     initial_centered: bool,
     last_poll: Instant,
     item: Option<DownloadItem>,
+    dead_count: u32,
+    smooth_frac: f32,
     snap: Snap,
     /// 0 Info, 1 Speed, 2 Settings — the concept's tabs.
     tab: u8,
@@ -448,7 +457,15 @@ struct ProgressApp {
 impl ProgressApp {
     fn refresh(&mut self) {
         let items = read_queue();
-        self.item = items.into_iter().find(|d| d.id == self.id);
+        if let Some(it) = items.into_iter().find(|d| d.id == self.id) {
+            self.item = Some(it);
+            self.dead_count = 0;
+        } else if self.item.is_some() {
+            self.dead_count += 1;
+            if self.dead_count > 12 {
+                self.item = None;
+            }
+        }
         self.snap = read_snap(self.id);
         // Speed graph: the last ~30 s (one sample per refresh).
         self.speed_hist.push_back(if self.snap.live { self.snap.speed.max(0.0) } else { 0.0 });
@@ -560,6 +577,8 @@ pub fn run() -> eframe::Result<()> {
         initial_centered: false,
         last_poll: Instant::now() - Duration::from_secs(10),
         item: None,
+        dead_count: 0,
+        smooth_frac: 0.0,
         snap: Snap::default(),
         tab: 0,
         limit_input,
@@ -642,25 +661,22 @@ impl eframe::App for ProgressApp {
         if self.handoff {
             Self::close_soon(ctx);
         }
-        // The app republishes progress ~4 times a second: no point drawing
-        // more often than that.
-        ctx.request_repaint_after(Duration::from_millis(250));
-
-        // The card follows the concept's own rules: one 25px row per part,
-        // everything else fixed. A monitor-sized cap keeps a 32-connection
-        // list usable — the table scrolls instead of leaving the screen.
-        let item_conns = self.item.as_ref().map(|it| it.connections.clamp(1, 8)).unwrap_or(1);
-        let _parts = if !self.snap.parts.is_empty() {
-            self.snap.parts.len()
-        } else if self.snap.fragments.is_some() {
-            1
+        let downloading = self.snap.live
+            && matches!(self.item.as_ref().map(|d| &d.status), Some(Status::Downloading | Status::Queued));
+        let cur_frac = self.item.as_ref().map(|it| self.frac(it)).unwrap_or(0.0);
+        let bar_animating = (self.smooth_frac - cur_frac).abs() > 0.002;
+        if downloading || self.preparing() || bar_animating {
+            ctx.request_repaint();
         } else {
-            item_conns
-        };
-        let want_h = match &self.item {
-            None => PG_DEAD_H,
-            Some(_) if self.parts_open => 448.0,
-            Some(_) => 196.0,
+            ctx.request_repaint_after(Duration::from_millis(250));
+        }
+
+        let want_h = if self.item.is_none() && self.dead_count > 10 {
+            PG_DEAD_H
+        } else if self.parts_open {
+            448.0
+        } else {
+            196.0
         };
         let want_h = match crate::model::work_area_rect(ctx) {
             Some(w) => want_h.min((w.height() - 40.0).max(PG_MIN_H)),
@@ -671,8 +687,9 @@ impl eframe::App for ProgressApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(PG_W, want_h)));
         }
         if !self.initial_centered {
-            self.initial_centered = true;
-            let _ = crate::model::center_window(ctx, egui::vec2(PG_W, want_h));
+            if crate::model::center_window(ctx, egui::vec2(PG_W, want_h)) {
+                self.initial_centered = true;
+            }
         }
 
         let item = self.item.clone();
@@ -1260,7 +1277,28 @@ impl ProgressApp {
         let thumb_r = at(o, PAD_X, r1_y, 44.0, 36.0);
         dm_file_thumbnail(&p, thumb_r, &item.filename);
 
-        let sz_txt = item.total_bytes.map(format_bytes).unwrap_or_else(|| "Unknown".into());
+        let sz_txt = if let Some(t) = item.total_bytes.filter(|t| *t > 0) {
+            format_bytes(t)
+        } else if item.duration_secs > 0 {
+            let bps: u64 = if item.quality_pref == "audio" {
+                20_000
+            } else if item.quality_pref.contains("2160") || item.quality_pref.contains("4k") {
+                2_250_000
+            } else if item.quality_pref.contains("1440") || item.quality_pref.contains("2k") {
+                1_125_000
+            } else if item.quality_pref.contains("1080") {
+                562_500
+            } else if item.quality_pref.contains("720") {
+                312_500
+            } else {
+                125_000
+            };
+            format!("~{}", format_bytes(item.duration_secs * bps))
+        } else if !item.quality_pref.is_empty() && item.quality_pref != "best" {
+            item.quality_pref.clone()
+        } else {
+            "Unknown".into()
+        };
         let fn_w = PROG_W - 52.0 - 100.0;
         let short_fn = elide_mid(&p, &item.filename, semi(13.0), fn_w);
         p.text(
@@ -1284,6 +1322,12 @@ impl ProgressApp {
         let track = at(o, PAD_X, prog_y, PROG_W, prog_h);
         p.rect_filled(track, 10.0, pl().dm_line);
 
+        let target_frac = frac.clamp(0.0, 1.0);
+        self.smooth_frac = egui::lerp(self.smooth_frac..=target_frac, 0.18);
+        if (self.smooth_frac - target_frac).abs() < 0.001 {
+            self.smooth_frac = target_frac;
+        }
+
         let preparing = self.preparing();
         if preparing {
             let t = ui.input(|i| i.time) as f32;
@@ -1300,12 +1344,12 @@ impl ProgressApp {
                     SPRING_BREEZE_END,
                 );
             }
-        } else if frac > 0.0 {
-            let w = (PROG_W * frac).max(prog_h);
+        } else if self.smooth_frac > 0.0 {
+            let w = (PROG_W * self.smooth_frac).max(prog_h);
             let fill = egui::Rect::from_min_size(track.min, egui::vec2(w, prog_h));
             dm_gradient_x(&p, fill, 10.0, SPRING_BREEZE_START, SPRING_BREEZE_END);
 
-            let pct_txt = format!("{:.2}%", frac * 100.0);
+            let pct_txt = format!("{:.2}%", self.smooth_frac * 100.0);
             p.text(
                 track.center(),
                 egui::Align2::CENTER_CENTER,
@@ -1421,7 +1465,7 @@ impl ProgressApp {
 
         let parts_list: Vec<(u64, u64, u64)> = if self.snap.parts.is_empty() {
             let conns = item.connections.clamp(1, 8);
-            if conns > 1 && (downloading || item.downloaded_bytes > 0) {
+            if conns > 1 && item.downloaded_bytes > 0 {
                 let total = item.total_bytes.unwrap_or(item.downloaded_bytes.max(1));
                 let seg_len = (total / conns as u64).max(1);
                 let done = item.downloaded_bytes;
@@ -1494,8 +1538,10 @@ impl ProgressApp {
                 crate::i18n::t("Finished")
             } else if downloading && f > 0.0 {
                 crate::i18n::t("Receiving data...")
+            } else if downloading && !self.snap.phase.is_empty() {
+                self.snap.phase.clone()
             } else if downloading {
-                crate::i18n::t("Connecting...")
+                crate::i18n::t("Connecting to stream...")
             } else {
                 crate::i18n::t("Waiting")
             };

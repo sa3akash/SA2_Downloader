@@ -1116,6 +1116,62 @@ pub fn drop_resume_state(dest: &std::path::Path) {
     let _ = std::fs::remove_file(dest.with_extension("dcftpparts"));
 }
 
+/// Completely purge all temporary segment files, chunks, sidecars, and resume
+/// state for `dest` from both its target folder and any engine work directory.
+/// This cleans up `.hls*` (including thousands of segments like `.hls0`, `.hls3896`),
+/// `.hls*tmp`, `.hlsmap`, `.hlstmp`, `.dcpart*`, `.dcmeta`, `.dcftp*`, `.part`, `.ytdl`, and `.tmp` files.
+pub fn clean_all_temp_segments(dest: &std::path::Path) {
+    drop_resume_state(dest);
+    let _ = std::fs::remove_file(dest.with_extension("hlstmp"));
+    let _ = std::fs::remove_file(dest.with_extension("hlsmap"));
+
+    let stem = dest.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let file_name = dest.file_name().and_then(|s| s.to_str()).unwrap_or("");
+    if stem.is_empty() && file_name.is_empty() {
+        return;
+    }
+
+    let prefix_stem = format!("{stem}.");
+    let prefix_file = format!("{file_name}.");
+
+    let clean_dir = |dir: &std::path::Path| {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path == dest {
+                    continue;
+                }
+                if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
+                    if name.starts_with(&prefix_stem) || name.starts_with(&prefix_file) {
+                        let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+                        let is_temp = ext.starts_with("hls")
+                            || ext.starts_with("dcpart")
+                            || ext == "dcmeta"
+                            || ext == "dcftp"
+                            || ext == "dcftpparts"
+                            || ext == "part"
+                            || ext == "ytdl"
+                            || ext == "aria2"
+                            || ext.ends_with("tmp")
+                            || ext == "hlsmap"
+                            || ext == "hlstmp";
+                        if is_temp {
+                            let _ = std::fs::remove_file(&path);
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    if let Some(parent) = dest.parent() {
+        clean_dir(parent);
+    }
+    if let Some(work) = crate::engine::work_dir() {
+        clean_dir(&work);
+    }
+}
+
 // ---- saved site logins (IDM "Site logins") ----------------------------------
 
 /// A login used automatically for one site.

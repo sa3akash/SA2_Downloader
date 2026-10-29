@@ -24,6 +24,7 @@ const PANES: &[(&str, &str)] = &[
     ("\u{e80b}", "Browser Integration"), // public
     ("\u{e871}", "Categories & Rules"), // dashboard
     ("\u{e863}", "Updates"),            // autorenew
+    ("\u{e853}", "About & Developer"),  // account_circle
 ];
 
 /// Rail index of the Plugins pane (the helper's status is probed when it is
@@ -503,6 +504,7 @@ struct SettingsApp {
     /// Updates page cards expanded.
     open_updates: bool,
     open_version: bool,
+    author_tex: Option<egui::TextureHandle>,
 }
 
 /// Probe the helper, and optionally re-download it first, off the UI thread.
@@ -642,6 +644,7 @@ pub fn run() -> eframe::Result<()> {
         host_status: None,
         open_updates: true,
         open_version: true,
+        author_tex: None,
     };
     // Separate OS window (own process via `--settings`): never embedded in
     // the main GUI. 640 wide is the concept's window width.
@@ -829,7 +832,8 @@ impl eframe::App for SettingsApp {
                             PANE_YTDLP => self.pane_plugins(ui),
                             3 => self.pane_browser(ui),
                             4 => self.pane_rules(ui),
-                            _ => self.pane_updates(ui),
+                            5 => self.pane_updates(ui),
+                            _ => self.pane_developer(ui),
                         }
                         ui.add_space(16.0);
                     });
@@ -3810,5 +3814,78 @@ impl SettingsApp {
         if go_plugins {
             self.pane = PANE_YTDLP;
         }
+    }
+
+    // ---------- About & Developer ----------
+    fn pane_developer(&mut self, ui: &mut Ui) {
+        let t = tok();
+        h2(ui, "About & Developer");
+        hint(ui, "Creator profile and application information.");
+        ui.add_space(10.0);
+
+        let mut open_dev = true;
+        card(ui, "Lead Developer", Some("Shakil Ahmed"), &mut open_dev, |ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(8.0, 8.0);
+
+            ui.horizontal(|ui| {
+                let (rect, _) = ui.allocate_exact_size(Vec2::new(72.0, 90.0), Sense::hover());
+                if self.author_tex.is_none() {
+                    let img_bytes = include_bytes!("../assets/author.png");
+                    if let Ok(dynamic_img) = image::load_from_memory(img_bytes) {
+                        let rgba = dynamic_img.to_rgba8();
+                        let (w, h) = (rgba.width(), rgba.height());
+                        let color_img = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba.into_raw());
+                        self.author_tex = Some(ui.ctx().load_texture("dev_portrait_settings", color_img, egui::TextureOptions::LINEAR));
+                    }
+                }
+                if let Some(tex) = &self.author_tex {
+                    ui.painter().image(
+                        tex.id(),
+                        rect,
+                        Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                        Color32::WHITE,
+                    );
+                }
+                ui.painter().rect_stroke(rect, 8.0, Stroke::new(1.5, t.accent), StrokeKind::Inside);
+
+                ui.add_space(12.0);
+                ui.vertical(|ui| {
+                    txt(ui, "Shakil Ahmed", semi(16.0), t.fg);
+                    ui.add_space(2.0);
+                    txt(ui, "Creator & Lead Developer", semi(11.5), t.accent);
+                    ui.add_space(4.0);
+                    wrapped(
+                        ui,
+                        "Passionate software engineer building high-performance, lightweight download tools in Rust.",
+                        reg(11.0),
+                        t.muted,
+                    );
+                    ui.add_space(8.0);
+                    if btn_icon(ui, "\u{e80b}", "Visit GitHub: sa3akash", true).clicked() {
+                        crate::platform::open_url("https://github.com/sa3akash");
+                    }
+                });
+            });
+        });
+
+        let mut open_about = true;
+        card(ui, "SA2 Downloader", Some(&format!("v{}", crate::model::APP_VERSION)), &mut open_about, |ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(8.0, 6.0);
+            wrapped(
+                ui,
+                "A lightweight, multi-threaded download manager written in Rust + egui. Free and open source under the MIT License.",
+                reg(11.0),
+                t.muted,
+            );
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                if btn_icon(ui, "\u{e863}", "Check for Updates", false).clicked() {
+                    self.pane = 5;
+                }
+                if btn_icon(ui, "\u{e879}", "GitHub Repository", false).clicked() {
+                    crate::platform::open_url("https://github.com/sa3akash");
+                }
+            });
+        });
     }
 }

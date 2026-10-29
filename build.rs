@@ -112,8 +112,10 @@ BLOCK "StringFileInfo"
 {{
 BLOCK "000004b0"
 {{
+VALUE "CompanyName", "Shakil Ahmed"
 VALUE "FileDescription", "{description}"
 VALUE "FileVersion", "{version}"
+VALUE "LegalCopyright", "Copyright (C) 2026 Shakil Ahmed"
 VALUE "ProductName", "{product}"
 VALUE "ProductVersion", "{version}"
 }}

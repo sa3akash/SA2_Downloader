@@ -4,6 +4,8 @@ version = "1.1.9"
 edition = "2021"
 description = "SA2 Downloader — a lightweight, offline-first download manager (egui GUI + CLI)"
 license = "MIT"
+authors = ["Shakil Ahmed <https://github.com/sa3akash>"]
+repository = "https://github.com/sa3akash"
 
 [profile.release]
 # Smaller and a little faster: whole-program optimisation, one codegen unit,

@@ -897,6 +897,7 @@ enum ButtonId {
     DCopyPage,
     DMove,
     DVerify,
+    DevGithub,
     AbClose,
     ThemeSystem,
     ThemeDark,
@@ -2117,6 +2118,7 @@ enum RowAct {
     Pause,
     Remove,
     RemoveFile,
+    DeleteCompletedFile,
     OpenFolder,
     OpenFile,
     OpenWith,
@@ -2169,6 +2171,7 @@ pub struct sa2App {
     show_add: bool,
     show_queues: bool,
     show_about: bool,
+    author_tex: Option<egui::TextureHandle>,
     add_url: String,
     add_dir: String,
     add_file: String,
@@ -2411,6 +2414,7 @@ impl sa2App {
             show_add: false,
             show_queues: false,
             show_about: false,
+            author_tex: None,
             add_url: String::new(),
             add_dir: dl_dir,
             add_file: String::new(),
@@ -3196,6 +3200,29 @@ impl sa2App {
                     self.remove(id);
                 }
             }
+            15 => {
+                let mut ids: Vec<u64> = self
+                    .selected_ids()
+                    .into_iter()
+                    .filter(|id| self.downloads.iter().any(|d| d.id == *id && matches!(d.status, Status::Completed)))
+                    .collect();
+                if ids.is_empty() {
+                    ids = self
+                        .downloads
+                        .iter()
+                        .filter(|d| matches!(d.status, Status::Completed))
+                        .map(|d| d.id)
+                        .collect();
+                }
+                let n = ids.len();
+                for id in ids {
+                    self.remove_file(id);
+                }
+                if n > 0 {
+                    self.push_log(format!("Deleted {n} completed file(s) from disk."));
+                }
+            }
+            16 => self.show_about = true,
             8 => self.show_queues = true,
             9 => Self::open_settings_window(),
             10 => self.show_about = true,
@@ -3241,6 +3268,7 @@ impl sa2App {
                 ("Stop queue".into(), 24),
                 ("Remove selected".into(), 6),
                 ("Clear finished".into(), 7),
+                ("Delete completed file(s)".into(), 15),
             ],
             2 => vec![("Open Queues".into(), 8), ("Settings".into(), 9)],
             3 => vec![
@@ -3248,7 +3276,10 @@ impl sa2App {
                 ("Dark".into(), 20),
                 ("Light".into(), 22),
             ],
-            _ => vec![("About".into(), 10)],
+            _ => vec![
+                ("About SA2 Downloader".into(), 10),
+                ("Developer Info".into(), 16),
+            ],
         }
     }
 
@@ -3299,6 +3330,15 @@ impl sa2App {
                     }
                 } else {
                     self.remove_file(id)
+                }
+            }
+            RowAct::DeleteCompletedFile => {
+                if bulk {
+                    for i in sel {
+                        self.remove_file(i);
+                    }
+                } else {
+                    self.remove_file(id);
                 }
             }
             RowAct::OpenFolder => {
@@ -3659,9 +3699,7 @@ impl sa2App {
             if dest.exists() {
                 let _ = std::fs::remove_file(&dest);
             }
-            for p in Self::part_files(&dest) {
-                let _ = std::fs::remove_file(p);
-            }
+            crate::model::clean_all_temp_segments(&dest);
         }
         self.remove(id);
     }
@@ -4712,6 +4750,14 @@ impl sa2App {
 
     fn remove(&mut self, id: u64) {
         self.cancel_task(id);
+        if let Some(d) = self.downloads.iter().find(|d| d.id == id) {
+            // For failed, paused, or any incomplete download, deleting it from
+            // the queue MUST also clean up its temporary segment files and partials.
+            if !matches!(d.status, Status::Completed) {
+                let dest = d.dest_path();
+                crate::model::clean_all_temp_segments(&dest);
+            }
+        }
         self.downloads.retain(|d| d.id != id);
         self.push_log(format!("Removed #{id}"));
         self.save_queue();
@@ -4894,10 +4940,11 @@ impl sa2App {
         if self.show_add || ctx.wants_keyboard_input() {
             return;
         }
-        let (all, del, space, enter) = ctx.input(|i| {
+        let (all, del, shift_del, space, enter) = ctx.input(|i| {
             (
                 i.modifiers.command && i.key_pressed(egui::Key::A),
-                i.key_pressed(egui::Key::Delete),
+                !i.modifiers.shift && i.key_pressed(egui::Key::Delete),
+                i.modifiers.shift && i.key_pressed(egui::Key::Delete),
                 i.key_pressed(egui::Key::Space),
                 i.key_pressed(egui::Key::Enter),
             )
@@ -4914,7 +4961,13 @@ impl sa2App {
         if ids.is_empty() {
             return;
         }
-        if del {
+        if shift_del {
+            let n = ids.len();
+            for id in ids {
+                self.remove_file(id);
+            }
+            self.push_log(format!("Deleted {n} file(s) from disk."));
+        } else if del {
             let n = ids.len();
             for id in ids {
                 self.remove(id);
@@ -9283,13 +9336,40 @@ impl eframe::App for sa2App {
         }
 
         if self.show_about {
-            // About concept: a fixed 480 px card — centered header, brand row,
-            // copy, credit box, update buttons, and a bordered footer. The whole
-            // card is painted from its origin so the concept's pixel geometry
-            // survives; hits go on the manual table like every other modal.
+            if self.author_tex.is_none() {
+                let img_bytes = include_bytes!("../assets/author.png");
+                if let Ok(dynamic_img) = image::load_from_memory(img_bytes) {
+                    let rgba = dynamic_img.to_rgba8();
+                    let (w, h) = (rgba.width(), rgba.height());
+                    let mut pixels = rgba.into_raw();
+                    let r = 24.0_f32;
+                    let fw = w as f32;
+                    let fh = h as f32;
+                    for py in 0..h {
+                        for px in 0..w {
+                            let x = px as f32;
+                            let y = py as f32;
+                            let dx = if x < r { r - x } else if x > fw - r { x - (fw - r) } else { 0.0 };
+                            let dy = if y < r { r - y } else if y > fh - r { y - (fh - r) } else { 0.0 };
+                            if dx > 0.0 && dy > 0.0 {
+                                let dist = (dx * dx + dy * dy).sqrt();
+                                if dist > r {
+                                    let idx = ((py * w + px) * 4 + 3) as usize;
+                                    let alpha = (r + 1.0 - dist).clamp(0.0, 1.0);
+                                    pixels[idx] = (pixels[idx] as f32 * alpha) as u8;
+                                }
+                            }
+                        }
+                    }
+                    let color_img = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &pixels);
+                    self.author_tex = Some(ctx.load_texture("author_portrait", color_img, egui::TextureOptions::LINEAR));
+                }
+            }
+            // About concept: a fixed card — centered header, brand row,
+            // copy, developer card, credit box, update buttons, and a bordered footer.
             let p = pl();
-            let ab_w = modal_width(ctx, 480.0);
-            let pad = 26.0;
+            let ab_w = modal_width(ctx, 510.0);
+            let pad = 24.0;
             let body_w = (ab_w - pad * 2.0).max(120.0);
             let soft = mix(p.modal_bg, p.modal_bd, 0.45);
             let accent = p.primary;
@@ -9421,10 +9501,12 @@ impl eframe::App for sa2App {
                 None
             };
 
+            let dev_card_h = 104.0;
             let brand_h = g_name.size().y.max(46.0) + 4.0 + g_ver.size().y;
             let credit_h = credit.size().y.max(14.0) + 18.0;
             let mut body_h = 18.0 + brand_h + 16.0 + 1.0 + 14.0;
             body_h += desc1.size().y + 10.0 + desc2.size().y + 10.0 + desc3.size().y + 14.0;
+            body_h += dev_card_h + 14.0;
             body_h += credit_h + 14.0 + btn_h;
             if let Some(g) = &status_g {
                 body_h += 8.0 + g.size().y;
@@ -9433,10 +9515,8 @@ impl eframe::App for sa2App {
                 body_h += 8.0 + g.size().y;
             }
             body_h += 16.0;
-            // Natural height: the layout is absolute, so clamping it would push
-            // the footer over the copy. It is sized to fit the app's smallest
-            // window (840x480) instead.
-            let ab_h = header_h + body_h + footer_h;
+            // Natural height: sized to fit comfortably with plenty of room.
+            let ab_h = (header_h + body_h + footer_h).min(ctx.screen_rect().height() - 32.0);
 
             let mut open = true;
             egui::Window::new("About")
@@ -9565,6 +9645,79 @@ impl eframe::App for sa2App {
                         y += g.size().y + 10.0;
                     }
                     y += 4.0; // the last paragraph's 14 px margin
+
+                    // ---- Developer info card ----
+                    let dev_card = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(body_w, dev_card_h));
+                    pf.rect(
+                        dev_card,
+                        10.0,
+                        mix(p.modal_bg, p.surface_lt, 0.40),
+                        egui::Stroke::new(1.0_f32, mix(p.modal_bd, accent, 0.25)),
+                        egui::StrokeKind::Inside,
+                    );
+
+                    let pic_w = 64.0_f32;
+                    let pic_h = 80.0_f32;
+                    let pic_r = egui::Rect::from_min_size(
+                        egui::pos2(dev_card.left() + 12.0, dev_card.center().y - pic_h / 2.0),
+                        egui::vec2(pic_w, pic_h),
+                    );
+                    if let Some(tex) = &self.author_tex {
+                        pf.image(
+                            tex.id(),
+                            pic_r,
+                            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                            egui::Color32::WHITE,
+                        );
+                    }
+                    pf.rect_stroke(
+                        pic_r,
+                        8.0,
+                        egui::Stroke::new(1.0_f32, wash(accent, 140)),
+                        egui::StrokeKind::Inside,
+                    );
+
+                    let dx = pic_r.right() + 14.0;
+                    let dy = pic_r.top() + 2.0;
+
+                    let f_dev_name = crate::fonts::semi(14.0);
+                    let g_dev_name = pf.layout_no_wrap("Shakil Ahmed".to_owned(), f_dev_name, p.txt);
+                    pf.galley(egui::pos2(dx, dy), g_dev_name.clone(), p.txt);
+
+                    let role_g = pf.layout_no_wrap("Creator & Lead Developer".to_owned(), f_small.clone(), accent_hi);
+                    let role_tag = egui::Rect::from_min_size(
+                        egui::pos2(dx + g_dev_name.size().x + 8.0, dy + 1.0),
+                        egui::vec2(role_g.size().x + 10.0, 16.0),
+                    );
+                    pf.rect(
+                        role_tag,
+                        4.0,
+                        wash(accent, 25),
+                        egui::Stroke::new(1.0_f32, wash(accent, 60)),
+                        egui::StrokeKind::Inside,
+                    );
+                    pf.galley(role_tag.center() - role_g.size() / 2.0, role_g, accent_hi);
+
+                    let bio_g = pf.layout_no_wrap(
+                        "Passionate software engineer building high-speed, lightweight download tools in Rust.".to_owned(),
+                        f_small.clone(),
+                        p.dim,
+                    );
+                    pf.galley(egui::pos2(dx, dy + 21.0), bio_g, p.dim);
+
+                    let gh_btn_r = about_btn(
+                        &pf,
+                        &self.man,
+                        dx,
+                        dy + 46.0,
+                        "GitHub: sa3akash",
+                        Some("\u{e80b}"),
+                        true,
+                    );
+                    self.hits.push((HitKind::Btn(ButtonId::DevGithub), gh_btn_r));
+
+                    y += dev_card_h + 14.0;
+
                     // credit box
                     let cb = egui::Rect::from_min_size(egui::pos2(bx, y), egui::vec2(body_w, credit_h));
                     pf.rect(
@@ -10203,6 +10356,10 @@ impl sa2App {
                 }
             }
             ButtonId::AbClose => self.show_about = false,
+            ButtonId::DevGithub => {
+                crate::platform::open_url("https://github.com/sa3akash");
+                self.push_log("Opened Shakil Ahmed's GitHub profile: https://github.com/sa3akash");
+            }
         }
     }
 
@@ -10384,7 +10541,33 @@ impl sa2App {
 
         // Group 5: Delete
         let _ = shift;
-        v.push(CtxEntry::Item { label: t("Delete"), icon: MI_CLOSE, hint: "Del", act: RemoveFile, enabled: true, danger: true });
+        if is_done {
+            v.push(CtxEntry::Item {
+                label: t("Delete completed file"),
+                icon: MI_DELETE_FOREVER,
+                hint: "Shift+Del",
+                act: DeleteCompletedFile,
+                enabled: true,
+                danger: true,
+            });
+            v.push(CtxEntry::Item {
+                label: t("Remove from list"),
+                icon: MI_CLOSE,
+                hint: "Del",
+                act: Remove,
+                enabled: true,
+                danger: false,
+            });
+        } else {
+            v.push(CtxEntry::Item {
+                label: t("Delete"),
+                icon: MI_CLOSE,
+                hint: "Del",
+                act: RemoveFile,
+                enabled: true,
+                danger: true,
+            });
+        }
         v.push(CtxEntry::Sep);
 
         // Group 6: Properties

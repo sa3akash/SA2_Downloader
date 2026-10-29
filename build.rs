@@ -36,6 +36,31 @@ fn main() {
                 println!("cargo:warning=static C++ runtime not set up: {e}");
             }
         }
+        // 32-bit x86 MSVC: UnRAR C++ functions are compiled as __stdcall (_Function@N),
+        // but unrar_sys declares them as extern "C" (cdecl, _Function).
+        // Linker aliases map the cdecl symbols to the stdcall symbols in link.exe.
+        if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc")
+            && (std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("x86")
+                || std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("i686"))
+        {
+            for (cdecl_sym, stdcall_sym) in [
+                ("_RARSetCallback", "_RARSetCallback@12"),
+                ("_RARProcessFileW", "_RARProcessFileW@16"),
+                ("_RARProcessFile", "_RARProcessFile@16"),
+                ("_RARCloseArchive", "_RARCloseArchive@4"),
+                ("_RAROpenArchiveEx", "_RAROpenArchiveEx@4"),
+                ("_RAROpenArchive", "_RAROpenArchive@4"),
+                ("_RARSetPassword", "_RARSetPassword@8"),
+                ("_RARReadHeaderEx", "_RARReadHeaderEx@8"),
+                ("_RARReadHeader", "_RARReadHeader@8"),
+                ("_RARSetChangeVolProc", "_RARSetChangeVolProc@8"),
+                ("_RARSetProcessDataProc", "_RARSetProcessDataProc@8"),
+                ("_RARGetDllVersion", "_RARGetDllVersion@0"),
+            ] {
+                println!("cargo:rustc-link-arg-bins=/ALTERNATENAME:{cdecl_sym}={stdcall_sym}");
+                println!("cargo:rustc-link-arg-tests=/ALTERNATENAME:{cdecl_sym}={stdcall_sym}");
+            }
+        }
     }
 }
 

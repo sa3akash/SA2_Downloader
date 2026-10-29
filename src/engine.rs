@@ -3378,7 +3378,6 @@ async fn download_hls(
     opts: &EngineOpts,
     shared: &Arc<SharedState>,
 ) -> Result<()> {
-    const MAX_SEGS: usize = 2000;
     // An existing file is kept (numbered copy) unless overwrite was chosen,
     // as on the progressive path; the final rename used to replace it
     // silently. A resumable job (segment map or parts at this name) stays.

@@ -7067,7 +7067,7 @@ async fn download_with_ytdlp(
         .arg(opts.timeout_secs.max(30).to_string())
         .arg("--concurrent-fragments")
         .arg(connections.clamp(1, 16).to_string())
-        .arg("--buffersize")
+        .arg("--buffer-size")
         .arg("16M")
         .arg("--http-chunk-size")
         .arg("10M")

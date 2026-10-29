@@ -873,6 +873,7 @@ impl LinksApp {
         let q_r = Rect::from_min_size(Pos2::new(area.max.x - 410.0, area.max.y - 30.0), Vec2::new(175.0, 28.0));
         let cur_q = match self.quality_pref.as_str() {
             "" | "best" => "Best Quality",
+            "4320p" => "8K (4320p)",
             "2160p" => "4K (2160p)",
             "1440p" => "2K (1440p)",
             "1080p" => "1080p Full HD",
@@ -884,6 +885,7 @@ impl LinksApp {
         };
         let q_opts = vec![
             "Best Quality".to_string(),
+            "8K (4320p)".to_string(),
             "4K (2160p)".to_string(),
             "2K (1440p)".to_string(),
             "1080p Full HD".to_string(),
@@ -896,6 +898,7 @@ impl LinksApp {
             let old_is_audio = self.quality_pref == "audio";
             match pick.as_str() {
                 "Best Quality" => self.quality_pref = "best".to_string(),
+                "8K (4320p)" => self.quality_pref = "4320p".to_string(),
                 "4K (2160p)" => self.quality_pref = "2160p".to_string(),
                 "2K (1440p)" => self.quality_pref = "1440p".to_string(),
                 "1080p Full HD" => self.quality_pref = "1080p".to_string(),

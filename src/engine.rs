@@ -4418,9 +4418,9 @@ async fn download_inner(
         None if is_googlevideo_url(&url) && is_youtube_page(&opts.referer) => Some(opts.referer.clone()),
         None if social_video_page(&url) => Some(url.clone()),
         None if social_video_page(&opts.referer) => Some(opts.referer.clone()),
-        None if is_playlist_url_or_query(&url) => Some(url.clone()),
-        None if is_universal_video_site(&url) => Some(url.clone()),
-        None if is_universal_video_site(&opts.referer) => Some(opts.referer.clone()),
+        None if !is_playlist_url(&url) && is_playlist_url_or_query(&url) => Some(url.clone()),
+        None if !is_playlist_url(&url) && !has_direct_ext(&url) && is_universal_video_site(&url) => Some(url.clone()),
+        None if !is_playlist_url(&url) && !has_direct_ext(&url) && is_universal_video_site(&opts.referer) => Some(opts.referer.clone()),
         None => fragment_page(&normalize_media_url(&url), &opts.referer)?,
     };
     if let Some(page) = resolve_page {
@@ -5635,9 +5635,6 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
         .arg("--print").arg("title:%(playlist_title)s")
         .arg("--print").arg("item:%(url)s\t%(title)s");
 
-    if is_youtube_page(url) || is_googlevideo_url(url) {
-        cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
-    }
     if let Some((name, path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
     }
@@ -6990,10 +6987,6 @@ async fn download_with_ytdlp(
             cmd.arg("--merge-output-format").arg("mp4");
         }
     }
-    // YouTube player client fallback to bypass bot check walls & SABR blocks
-    if is_youtube_page(url) || is_googlevideo_url(url) {
-        cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
-    }
     // Without a JS runtime yt-dlp cannot solve YouTube's player challenges:
     // extraction fails on many videos and it reports only "The page needs to
     // be reloaded" (reproduced live against this very URL).
@@ -7362,9 +7355,6 @@ pub async fn probe_real_video_formats(
         .arg("--no-warnings")
         .arg("--no-playlist")
         .arg("--socket-timeout").arg("10");
-    if is_youtube_page(target) || is_googlevideo_url(target) {
-        cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
-    }
     if let Some((name, path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
     }

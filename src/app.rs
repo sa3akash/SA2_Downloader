@@ -8028,6 +8028,7 @@ impl eframe::App for sa2App {
                             match self.add_quality.trim().to_ascii_lowercase().as_str() {
                                 "" | "best" | "max" | "highest" => "Best Quality".to_string(),
                                 "audio" => "Audio only (MP3)".to_string(),
+                                "4320p" | "8k" => "8K (4320p)".to_string(),
                                 "2160p" | "4k" => "4K (2160p)".to_string(),
                                 "1440p" | "2k" => "2K (1440p)".to_string(),
                                 "1080p" => "1080p Full HD".to_string(),
@@ -8043,6 +8044,7 @@ impl eframe::App for sa2App {
                         } else {
                             vec![
                                 "Best Quality".to_string(),
+                                "8K (4320p)".to_string(),
                                 "4K (2160p)".to_string(),
                                 "2K (1440p)".to_string(),
                                 "1080p Full HD".to_string(),
@@ -8073,6 +8075,7 @@ impl eframe::App for sa2App {
                             } else {
                                 match pick.as_str() {
                                     "Best Quality" => self.add_quality = "best".to_string(),
+                                    "8K (4320p)" => self.add_quality = "4320p".to_string(),
                                     "4K (2160p)" => self.add_quality = "2160p".to_string(),
                                     "2K (1440p)" => self.add_quality = "1440p".to_string(),
                                     "1080p Full HD" => self.add_quality = "1080p".to_string(),

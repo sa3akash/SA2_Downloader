@@ -1282,6 +1282,8 @@ impl ProgressApp {
         } else if item.duration_secs > 0 {
             let bps: u64 = if item.quality_pref == "audio" {
                 20_000
+            } else if item.quality_pref.contains("4320") || item.quality_pref.contains("8k") {
+                5_000_000
             } else if item.quality_pref.contains("2160") || item.quality_pref.contains("4k") {
                 2_250_000
             } else if item.quality_pref.contains("1440") || item.quality_pref.contains("2k") {

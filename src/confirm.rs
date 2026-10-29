@@ -883,6 +883,8 @@ pub fn run() -> eframe::Result<()> {
     if probe_size.is_none() && duration_secs > 0 {
         let bps: u64 = if quality_pref == "audio" {
             20_000
+        } else if quality_pref.contains("4320") || quality_pref.contains("8k") {
+            5_000_000
         } else if quality_pref.contains("2160") || quality_pref.contains("4k") {
             2_250_000
         } else if quality_pref.contains("1440") || quality_pref.contains("2k") {
@@ -1488,6 +1490,7 @@ impl eframe::App for ConfirmApp {
                     match self.quality_pref.trim().to_ascii_lowercase().as_str() {
                         "" | "best" | "max" | "highest" => "Best Quality".to_string(),
                         "audio" => "Audio only (MP3)".to_string(),
+                        "4320p" | "8k" => "8K (4320p)".to_string(),
                         "2160p" | "4k" => "4K (2160p)".to_string(),
                         "1440p" | "2k" => "2K (1440p)".to_string(),
                         "1080p" => "1080p Full HD".to_string(),
@@ -1503,6 +1506,7 @@ impl eframe::App for ConfirmApp {
                 } else {
                     vec![
                         "Best Quality".to_string(),
+                        "8K (4320p)".to_string(),
                         "4K (2160p)".to_string(),
                         "2K (1440p)".to_string(),
                         "1080p Full HD".to_string(),
@@ -1533,6 +1537,7 @@ impl eframe::App for ConfirmApp {
                     } else {
                         match pick.as_str() {
                             "Best Quality" => self.quality_pref = "best".to_string(),
+                            "8K (4320p)" => self.quality_pref = "4320p".to_string(),
                             "4K (2160p)" => self.quality_pref = "2160p".to_string(),
                             "2K (1440p)" => self.quality_pref = "1440p".to_string(),
                             "1080p Full HD" => self.quality_pref = "1080p".to_string(),

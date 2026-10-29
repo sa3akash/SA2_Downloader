@@ -930,7 +930,7 @@ pub fn run() -> eframe::Result<()> {
     if !real_formats.is_empty() {
         crate::engine::store_real_video_formats(url.trim(), crate::engine::RealVideoInfo {
             title: Some(filename.clone()),
-            duration_secs: duration_secs.filter(|s| *s > 0),
+            duration_secs: if duration_secs > 0 { Some(duration_secs) } else { None },
             formats: real_formats.clone(),
         });
     }

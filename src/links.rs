@@ -777,11 +777,18 @@ impl LinksApp {
             if self.loading_playlist {
                 let time = ui.input(|i| i.time) as f32;
                 let center = body.center();
-                let spinner_r = 18.0;
-                let stroke = Stroke::new(3.0, t.primary);
-                let start_a = time * 5.0;
-                let end_a = start_a + std::f32::consts::PI * 1.4;
-                p.arc(center - Vec2::new(0.0, 20.0), spinner_r, start_a, end_a, stroke);
+                let spinner_r = 16.0_f32;
+                let n_points = 24;
+                let start_a = time * 6.0;
+                let arc_len = std::f32::consts::PI * 1.5;
+                for k in 0..n_points {
+                    let a0 = start_a + arc_len * (k as f32 / n_points as f32);
+                    let a1 = start_a + arc_len * ((k + 1) as f32 / n_points as f32);
+                    let p0 = Pos2::new(center.x + a0.cos() * spinner_r, center.y - 20.0 + a0.sin() * spinner_r);
+                    let p1 = Pos2::new(center.x + a1.cos() * spinner_r, center.y - 20.0 + a1.sin() * spinner_r);
+                    let alpha = (k as f32 + 1.0) / (n_points as f32);
+                    p.line_segment([p0, p1], Stroke::new(3.0_f32, t.primary.gamma_multiply(alpha)));
+                }
                 p.text(
                     Pos2::new(center.x, center.y + 16.0),
                     Align2::CENTER_CENTER,
@@ -796,7 +803,7 @@ impl LinksApp {
                     reg(11.0),
                     t.dim,
                 );
-                ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
+                ui.ctx().request_repaint_after(std::time::Duration::from_millis(40));
             } else {
                 p.text(body.center(), Align2::CENTER_CENTER, "Nothing matches — clear the search or pick another type.", reg(12.0), t.dim);
             }
@@ -1062,7 +1069,6 @@ impl LinksApp {
             "Audio only (MP3)".to_string(),
         ];
         if let Some(pick) = crate::confirm::combo(ui, q_r, "links_q", cur_q, &q_opts, &mut self.q_open) {
-            let old_is_audio = self.quality_pref == "audio";
             match pick.as_str() {
                 "Best Quality" => self.quality_pref = "best".to_string(),
                 "8K (4320p)" => self.quality_pref = "4320p".to_string(),
@@ -1302,7 +1308,7 @@ pub fn run() -> eframe::Result<()> {
     let base_url = reqwest::Url::parse(&batch.page_url).ok();
     let quality_pref = if !batch.quality.trim().is_empty() { batch.quality.clone() } else { "best".to_string() };
     let is_audio_batch = quality_pref == "audio";
-    let rows: Vec<Row> = batch
+    let mut rows: Vec<Row> = batch
         .links
         .into_iter()
         .map(|l| {

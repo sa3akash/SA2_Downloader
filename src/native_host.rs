@@ -156,6 +156,7 @@ pub fn links_batch_with_quality(page_url: &str, title: &str, cookie: &str, quali
         cookie: cookie.to_string(),
         quality: quality.to_string(),
         links: kept,
+        is_playlist: false,
     }
 }
 

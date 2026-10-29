@@ -1,26 +1,26 @@
-# Download SA2 1.1.8
+# Download SA2 1.1.9
 
 Use [the current release instructions](RELEASE-NOTES.md) for Windows, universal
 Mac, Fedora/RPM, Debian-family DEB and AppImage installation and media helpers.
 
 `VERSION` contains the public app version. Cargo, UI, CLI and browser versions
-are aligned at 1.1.8.
+are aligned at 1.1.9.
 
 ### Automated GitHub Releases
 All builds across Windows, macOS, and Linux are automatically compiled, packaged,
 and published to GitHub Releases by `.github/workflows/portable.yml`.
 After all builds complete successfully, release assets are attached to the GitHub
 Release page ready for instant download and use:
-- `SA2Downloader-1.1.8-windows-x64.exe` (Windows 64-bit standalone executable)
-- `SA2Downloader-1.1.8-windows-x86.exe` (Windows 32-bit standalone executable)
-- `SA2Downloader-1.1.8-windows-x64-portable.zip` (Windows 64-bit portable)
-- `SA2Downloader-1.1.8-windows-x86-portable.zip` (Windows 32-bit portable)
-- `SA2Downloader-1.1.8-macos-Universal.zip` (macOS Apple Silicon & Intel)
-- `SA2Downloader-1.1.8-x86_64.AppImage` (Universal Linux AppImage)
-- `SA2Downloader_1.1.8_amd64.deb` (Debian, Ubuntu, Mint)
-- `SA2Downloader-1.1.8-1.x86_64.rpm` (Fedora, RHEL)
-- `SA2Downloader-Chrome-1.1.8.zip` (Chrome, Edge, Brave browser extension)
-- `SA2Downloader-Firefox-1.1.8.xpi` (Firefox add-on)
+- `SA2Downloader-1.1.9-windows-x64.exe` (Windows 64-bit standalone executable)
+- `SA2Downloader-1.1.9-windows-x86.exe` (Windows 32-bit standalone executable)
+- `SA2Downloader-1.1.9-windows-x64-portable.zip` (Windows 64-bit portable)
+- `SA2Downloader-1.1.9-windows-x86-portable.zip` (Windows 32-bit portable)
+- `SA2Downloader-1.1.9-macos-Universal.zip` (macOS Apple Silicon & Intel)
+- `SA2Downloader-1.1.9-x86_64.AppImage` (Universal Linux AppImage)
+- `SA2Downloader_1.1.9_amd64.deb` (Debian, Ubuntu, Mint)
+- `SA2Downloader-1.1.9-1.x86_64.rpm` (Fedora, RHEL)
+- `SA2Downloader-Chrome-1.1.9.zip` (Chrome, Edge, Brave browser extension)
+- `SA2Downloader-Firefox-1.1.9.xpi` (Firefox add-on)
 - `SHA256SUMS.txt` (Integrity checksums)
 
 ### Automatic Daily Media Helpers (`yt-dlp` & `FFmpeg`)

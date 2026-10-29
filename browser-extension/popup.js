@@ -359,14 +359,14 @@ function card(item, mode) {
       const formatList = options
         .filter((opt) => opt.h !== 10000)
         .map((opt) => {
-          let qVal = "best";
+          let qVal = opt.quality_val || "best";
           if (opt.h === 9999) {
             qVal = "best";
-          } else if (opt.h === -1) {
+          } else if (opt.h === -1 || opt.quality_val === "audio") {
             qVal = "audio";
           } else if (opt.h && opt.h > 0) {
             qVal = `${opt.h}p`;
-          } else if (opt.label) {
+          } else if (!opt.quality_val && opt.label) {
             const m = String(opt.label).match(/(\d+)p/i);
             if (m) qVal = `${m[1]}p`;
             else if (/audio/i.test(opt.label)) qVal = "audio";
@@ -375,7 +375,7 @@ function card(item, mode) {
             label: opt.label,
             quality_val: qVal,
             size: opt.size > 0 ? opt.size : null,
-            is_audio: opt.h === -1 || /audio/i.test(opt.label || ""),
+            is_audio: qVal === "audio" || opt.h === -1 || /audio/i.test(opt.label || ""),
           };
         });
       send({
@@ -603,17 +603,105 @@ function collectItems(peek, pageUrl) {
     const tag = isSub ? "SUBS" : kind === "segment" ? "PART" : tagOf(n.url, n.mime);
     const name = isStream || isSub ? undefined : safeName(pageTitle || "video", /^audio\//i.test(n.mime || "") ? ".m4a" : ".mp4");
     const streamName = safeName(pageTitle || "video", ".mp4");
+    let opts = [];
+    if (isStream && n.variants && n.variants.length) {
+      const sorted = n.variants.slice().sort((a, b) => (b.h || 0) - (a.h || 0) || (b.bw || 0) - (a.bw || 0));
+      const formatList = [];
+      const best = sorted[0];
+      const dur = n.dur || peek.dur || 0;
+      const bestSz = (dur > 0 && best.bw > 0) ? Math.round((best.bw / 8) * dur) : 0;
+      formatList.push({
+        label: bestSz > 0 ? `Best Quality • ${fmtSize(bestSz)}` : "Best Quality (Auto)",
+        quality_val: "best",
+        size: bestSz || undefined,
+        is_audio: false,
+        url: n.url,
+      });
+
+      const seenH = new Set();
+      for (const v of sorted) {
+        const h = v.h || 0;
+        if (h > 0 && seenH.has(h)) continue;
+        if (h > 0) seenH.add(h);
+        const sz = (dur > 0 && v.bw > 0) ? Math.round((v.bw / 8) * dur) : 0;
+        const prefix = h >= 2160 ? "4K (2160p)" :
+                       h >= 1440 ? "2K (1440p)" :
+                       h >= 1080 ? "1080p Full HD" :
+                       h >= 720  ? "720p HD" :
+                       h >= 480  ? "480p SD" :
+                       h >= 360  ? "360p SD" :
+                       h > 0     ? `${h}p` : "Stream";
+        const label = sz > 0 ? `${prefix} • ${fmtSize(sz)}` : prefix;
+        formatList.push({
+          label,
+          quality_val: h > 0 ? `${h}p` : "best",
+          size: sz || undefined,
+          is_audio: false,
+          url: v.url || n.url,
+        });
+      }
+
+      if (n.audios && n.audios.length) {
+        const audioSz = dur > 0 ? Math.round((128000 / 8) * dur) : 0;
+        formatList.push({
+          label: audioSz > 0 ? `Audio only (MP3) • ${fmtSize(audioSz)}` : "Audio only (MP3)",
+          quality_val: "audio",
+          size: audioSz || undefined,
+          is_audio: true,
+          url: n.audios[0].url || n.url,
+        });
+      }
+
+      for (const f of formatList) {
+        opts.push({
+          label: f.label,
+          size: f.size || 0,
+          url: f.url,
+          quality_val: f.quality_val,
+          browser: browserJob(f.url, streamName, { mime: n.mime || "" }),
+          msg: {
+            type: "download",
+            url: n.url,
+            variant_url: f.url,
+            quality_val: f.quality_val,
+            filename: streamName,
+            pageUrl: pageUrl || undefined,
+            formats: formatList,
+            dur: dur || undefined,
+            size: f.size || undefined,
+          },
+        });
+      }
+    } else {
+      if (isStream && (!n.variants || !n.variants.length) && !n._fetchingVariants && (/\.m3u8(\?|$)/i.test(n.url) || /mpegurl/i.test(n.mime))) {
+        n._fetchingVariants = true;
+        fetch(n.url, { credentials: "include" })
+          .then((r) => r.text())
+          .then((txt) => {
+            if (typeof DCStreams !== "undefined" && txt.includes("#EXTM3U")) {
+              const parsed = DCStreams.parseM3u8(txt, n.url);
+              if (parsed && Array.isArray(parsed.variants) && parsed.variants.length) {
+                n.variants = parsed.variants;
+                if (parsed.audios) n.audios = parsed.audios;
+                render(peek, pageUrl);
+              }
+            }
+          })
+          .catch(() => {});
+      }
+      opts = [{
+        label: isStream ? (n.master ? "Best quality" : "Stream") : isSub ? "Subtitles" : `${tag}${n.pairUrl ? " + audio" : ""}`,
+        size: n.size || 0, url: n.url, pairUrl: n.pairUrl || undefined,
+        browser: browserJob(n.url, isStream ? streamName : (name || ""), { mime: n.mime || "", pairUrl: n.pairUrl || undefined }),
+        msg: { type: "download", url: n.url, filename: name, pageUrl: pageUrl || undefined, pairUrl: n.pairUrl || undefined, pairMime: n.pairMime || undefined, dur: n.dur || undefined },
+      }];
+    }
     items.push({
       key: `net:${n.url}`,
       kind: isStream ? "streams" : isSub || kind === "segment" ? "other" : "videos",
       title: pageTitle || "Video",
       thumb: n.thumb, dur: n.dur, tag, link: n.url, page: pageUrl,
-      options: [{
-        label: isStream ? (n.master ? "Best quality" : "Stream") : isSub ? "Subtitles" : `${tag}${n.pairUrl ? " + audio" : ""}`,
-        size: n.size || 0, url: n.url, pairUrl: n.pairUrl || undefined,
-        browser: browserJob(n.url, isStream ? streamName : (name || ""), { mime: n.mime || "", pairUrl: n.pairUrl || undefined }),
-        msg: { type: "download", url: n.url, filename: name, pageUrl: pageUrl || undefined, pairUrl: n.pairUrl || undefined, pairMime: n.pairMime || undefined, dur: n.dur || undefined },
-      }],
+      options: opts,
     });
   }
   for (const l of (peek.links || [])) {

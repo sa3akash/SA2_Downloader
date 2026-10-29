@@ -1,4 +1,20 @@
-# Download SA2 1.1.8 — Ultra HD 2K/4K/8K Dynamic Downloader, Single Instant Loading & Daily Background Helper Updates
+# Download SA2 1.1.9 — Advanced Universal Stream Downloader, Dynamic HLS/DASH Resolutions & Large Media Engine
+
+## What's new in 1.1.9
+
+### Universal Stream Resolution Discovery & Dynamic Variant Parsing
+- **Multi-Resolution Detection for All Streaming Websites**: Enhanced HLS (`.m3u8`) and DASH (`.mpd`) stream sniffing across sites like **BongoBD**, **SonyLIV**, **Zee5**, **Hotstar**, **Vimeo**, **Dailymotion**, and web video players.
+- **Full Resolution Dropdown**: Master playlists are now automatically parsed to expose individual qualities (8K, 4K, 2K, 1080p FHD, 720p HD, 480p, 360p, 240p, and Audio Only) directly in the browser extension popup.
+- **Dynamic File Size Calculation**: Calculates estimated download sizes for stream variants (`bitrate * duration`) before downloading begins, giving IDM-like size transparency.
+- **Specific Quality Variant Picker**: Upgraded `hls_pick_variant` to target and fetch the exact resolution selected by the user rather than always defaulting to a generic stream.
+
+### Large Media Engine & Stream Resilience
+- **Fixed "Playlist has too many segments" Error**: Raised the maximum segment threshold from 2,000 to 100,000 segments, allowing multi-hour movies, web series, and sports events (such as 2h+ 3896-segment streams) to download smoothly.
+- **Key Rotation Resilience**: Increased encryption key rotation capacity from 8 to 1,024 keys for AES-128 HLS streams.
+- **Automatic yt-dlp Stream Fallback**: Native HLS segment downloads now automatically fall back to the integrated `yt-dlp` helper upon encountering stream interruptions or complex ciphers.
+- **Universal Fast-Path Manifest Probing**: Native fast-path HLS master manifest parser parses and caches resolutions with 0ms UI delay.
+
+---
 
 ## What's new in 1.1.8
 

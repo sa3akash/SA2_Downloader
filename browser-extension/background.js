@@ -631,27 +631,40 @@ async function sniffUrl(url, headers) {
   } finally { sniffInflight--; }
 }
 
-// Master flag + child references of a playlist, for parent/part linking.
+// Master flag + child references + stream variants of a playlist, for parent/part linking and resolution selection.
 async function playlistShape(url, headers) {
-  let master = false, children = [];
+  let master = false, children = [], variants = [], audios = [];
   try {
     const res = await fetch(url, { credentials: "include", headers: headers || {}, signal: AbortSignal.timeout(8000) });
-    if (res.ok && (!res.headers.get("content-length") || Number(res.headers.get("content-length")) <= 1024 * 1024)) {
+    if (res.ok && (!res.headers.get("content-length") || Number(res.headers.get("content-length")) <= 2 * 1024 * 1024)) {
       const reader = res.body.getReader();
       let body = "", size = 0;
       const decoder = new TextDecoder();
       try {
-        while (size <= 1024 * 1024) {
+        while (size <= 2 * 1024 * 1024) {
           const { value, done } = await reader.read();
           if (done) break;
           size += value.length; body += decoder.decode(value, { stream: true });
           if (/#EXT-X-STREAM-INF|<MPD[\s>]/i.test(body)) master = true;
         }
         if (typeof DCRank !== "undefined") children = DCRank.playlistReferences(body, url);
+        if (typeof DCStreams !== "undefined") {
+          if (/#EXTM3U/i.test(body)) {
+            try {
+              const parsed = DCStreams.parseM3u8(body, url);
+              if (parsed && Array.isArray(parsed.variants) && parsed.variants.length) {
+                variants = parsed.variants;
+              }
+              if (parsed && Array.isArray(parsed.audios) && parsed.audios.length) {
+                audios = parsed.audios;
+              }
+            } catch (e) {}
+          }
+        }
       } finally { await reader.cancel(); }
     }
   } catch (e) { /* metadata optional; keep the original signed URL */ }
-  return { master, children };
+  return { master, children, variants, audios };
 }
 
 function responseMeta(details) {
@@ -697,11 +710,13 @@ async function onMediaResponse(details) {
     hit = found;
   }
   if (!hit) return;
-  const shape = hit.kind === "playlist" ? await playlistShape(details.url, replayHeaders(auth)) : { master: false, children: [] };
+  const shape = hit.kind === "playlist" ? await playlistShape(details.url, replayHeaders(auth)) : { master: false, children: [], variants: [], audios: [] };
   if (navSeqOf(tabId) !== seq) return; // the tab navigated while we looked
   if (auth) rememberAuth(mediaAuth, stripFbSlice(details.url), auth, 300);
   noteMedia(tabId, {
     master: shape.master, children: shape.children,
+    variants: shape.variants || [],
+    audios: shape.audios || [],
     url: details.url,
     mime: hit.mime || meta.mime,
     // A playlist's byte length is its text, not the video.

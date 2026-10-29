@@ -3103,16 +3103,39 @@ fn hls_abs(base: &str, uri: &str) -> String {
     uri.to_string()
 }
 
-/// Pick the highest-BANDWIDTH variant from a master playlist.
+/// Parse a numeric height (e.g. 1080 from "1080p") from a quality string.
+fn parse_quality_height(pref: &str) -> Option<u64> {
+    let p = pref.trim().to_ascii_lowercase();
+    if p.is_empty() || p == "best" || p == "auto" {
+        return None;
+    }
+    let digits: String = p.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if let Ok(n) = digits.parse::<u64>() {
+        if n >= 144 && n <= 4320 {
+            return Some(n);
+        }
+    }
+    p.split(|c: char| !c.is_ascii_digit())
+        .find_map(|chunk| chunk.parse::<u64>().ok())
+        .filter(|&n| (144..=4320).contains(&n))
+}
+
+/// Pick the requested variant from a master playlist (closest at or under requested resolution,
+/// or highest bandwidth if "best" / unconstrained).
 /// Returns None when this is already a media playlist.
-fn hls_pick_variant(text: &str, base: &str) -> Option<String> {
-    let mut best: Option<(u64, String)> = None;
+fn hls_pick_variant(text: &str, base: &str, quality_pref: &str) -> Option<String> {
+    struct Variant {
+        bw: u64,
+        h: u64,
+        url: String,
+    }
+    let target_h = parse_quality_height(quality_pref);
+    let mut variants: Vec<Variant> = Vec::new();
     let mut lines = text.lines().peekable();
     while let Some(line) = lines.next() {
         let t = line.trim();
         if t.starts_with("#EXT-X-STREAM-INF") {
             // Tag form: #EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=...
-            // (the first kv carries the tag prefix before the colon).
             let bw = t
                 .split([':', ',', ' '])
                 .find_map(|kv| {
@@ -3120,6 +3143,15 @@ fn hls_pick_variant(text: &str, base: &str) -> Option<String> {
                     kv.strip_prefix("BANDWIDTH=")
                         .or_else(|| kv.strip_prefix("bandwidth="))
                         .and_then(|v| v.parse::<u64>().ok())
+                })
+                .unwrap_or(0);
+            let h = t
+                .split([':', ',', ' '])
+                .find_map(|kv| {
+                    let kv = kv.trim();
+                    let res = kv.strip_prefix("RESOLUTION=").or_else(|| kv.strip_prefix("resolution="))?;
+                    let (_, h_str) = res.split_once('x')?;
+                    h_str.parse::<u64>().ok()
                 })
                 .unwrap_or(0);
             // Next non-empty, non-comment line is the variant URI.
@@ -3133,14 +3165,27 @@ fn hls_pick_variant(text: &str, base: &str) -> Option<String> {
                 break;
             }
             if let Some(u) = uri {
-                let abs = hls_abs(base, &u);
-                if best.as_ref().map(|(b, _)| bw > *b).unwrap_or(true) {
-                    best = Some((bw, abs));
-                }
+                variants.push(Variant {
+                    bw,
+                    h,
+                    url: hls_abs(base, &u),
+                });
             }
         }
     }
-    best.map(|(_, u)| u)
+    if variants.is_empty() {
+        return None;
+    }
+    if let Some(target) = target_h {
+        let under: Vec<&Variant> = variants.iter().filter(|v| v.h > 0 && v.h <= target).collect();
+        if let Some(best) = under.iter().max_by_key(|v| (v.h, v.bw)) {
+            return Some(best.url.clone());
+        }
+        if let Some(closest) = variants.iter().min_by_key(|v| (v.h as i64 - target as i64).abs()) {
+            return Some(closest.url.clone());
+        }
+    }
+    variants.iter().max_by_key(|v| (v.h, v.bw)).map(|v| v.url.clone())
 }
 
 fn hls_segments(text: &str, base: &str) -> Vec<String> {
@@ -3380,7 +3425,7 @@ async fn download_hls(
         return download_with_ytdlp(&exe, playlist_url, dest, connections, &helper_opts, shared).await;
     }
     if text.contains("#EXT-X-STREAM-INF") {
-        pl_url = hls_pick_variant(&text, &pl_url).ok_or_else(|| {
+        pl_url = hls_pick_variant(&text, &pl_url, &opts.quality_pref).ok_or_else(|| {
             anyhow!("could not pick a variant from this master playlist — use the extension MP4 qualities")
         })?;
         text = opts
@@ -3413,7 +3458,12 @@ async fn download_hls(
     if segs.is_empty() {
         return Err(anyhow!("playlist has no media segments — it may have expired"));
     }
+    const MAX_SEGS: usize = 100_000;
     if segs.len() > MAX_SEGS {
+        if let Ok(exe) = ensure_ytdlp(&client).await {
+            let helper_opts = opts.clone();
+            return download_with_ytdlp(&exe, playlist_url, dest, connections, &helper_opts, shared).await;
+        }
         return Err(anyhow!(
             "playlist has too many segments ({} for a finished stream)",
             segs.len()
@@ -3428,8 +3478,12 @@ async fn download_hls(
             distinct.push(slot.uri.clone());
         }
     }
-    const MAX_KEYS: usize = 8;
+    const MAX_KEYS: usize = 1024;
     if distinct.len() > MAX_KEYS {
+        if let Ok(exe) = ensure_ytdlp(&client).await {
+            let helper_opts = opts.clone();
+            return download_with_ytdlp(&exe, playlist_url, dest, connections, &helper_opts, shared).await;
+        }
         return Err(anyhow!(
             "this HLS stream cycles through {} encryption keys — not supported",
             distinct.len()
@@ -3768,6 +3822,10 @@ async fn download_hls(
         }
     }
     if let Some(e) = first_err {
+        if let Ok(exe) = ensure_ytdlp(&client).await {
+            let helper_opts = opts.clone();
+            return download_with_ytdlp(&exe, playlist_url, dest, connections, &helper_opts, shared).await;
+        }
         return Err(e);
     }
     // Rebuild the full done set, merge in order, clean up.
@@ -7347,21 +7405,103 @@ pub fn cached_real_video_formats(url: &str) -> Option<RealVideoInfo> {
     None
 }
 
+/// Parse all available video/audio variant resolutions from an HLS master playlist.
+pub fn parse_hls_master_formats(text: &str, base_url: &str, dur_secs: Option<u64>) -> Vec<RealVideoFormat> {
+    struct Var {
+        h: u64,
+        w: u64,
+        bw: u64,
+        url: String,
+    }
+    let mut variants: Vec<Var> = Vec::new();
+    let mut lines = text.lines().peekable();
+    while let Some(line) = lines.next() {
+        let t = line.trim();
+        if t.starts_with("#EXT-X-STREAM-INF") {
+            let bw = t.split([':', ',', ' ']).find_map(|kv| {
+                let kv = kv.trim();
+                kv.strip_prefix("BANDWIDTH=").or_else(|| kv.strip_prefix("bandwidth="))
+                    .and_then(|v| v.parse::<u64>().ok())
+            }).unwrap_or(0);
+            let (w, h) = t.split([':', ',', ' ']).find_map(|kv| {
+                let kv = kv.trim();
+                let res = kv.strip_prefix("RESOLUTION=").or_else(|| kv.strip_prefix("resolution="))?;
+                let (w_str, h_str) = res.split_once('x')?;
+                Some((w_str.parse::<u64>().unwrap_or(0), h_str.parse::<u64>().unwrap_or(0)))
+            }).unwrap_or((0, 0));
+            while let Some(n) = lines.next() {
+                let n = n.trim();
+                if n.is_empty() || n.starts_with('#') { continue; }
+                variants.push(Var { h, w, bw, url: hls_abs(base_url, n) });
+                break;
+            }
+        }
+    }
+    if variants.is_empty() { return Vec::new(); }
+    variants.sort_by(|a, b| b.h.cmp(&a.h).then_with(|| b.bw.cmp(&a.bw)));
+
+    let mut out = Vec::new();
+    let best_sz = dur_secs.map(|s| (variants[0].bw * s) / 8).filter(|s| *s > 0);
+    out.push(RealVideoFormat {
+        label: match best_sz {
+            Some(sz) => format!("Best Quality • {}", crate::model::format_bytes(sz)),
+            None => "Best Quality (Auto)".to_string(),
+        },
+        quality_val: "best".to_string(),
+        size: best_sz,
+        is_audio: false,
+    });
+
+    let mut seen_h = std::collections::HashSet::new();
+    for v in variants {
+        if v.h > 0 && !seen_h.insert(v.h) { continue; }
+        let sz = dur_secs.map(|s| (v.bw * s) / 8).filter(|s| *s > 0);
+        let prefix = match v.h {
+            4320 => "8K (4320p)",
+            2160 => "4K (2160p)",
+            1440 => "2K (1440p)",
+            1080 => "1080p FHD",
+            720 => "720p HD",
+            480 => "480p",
+            360 => "360p",
+            240 => "240p",
+            144 => "144p",
+            other if other > 0 => &format!("{other}p"),
+            _ => "Video Stream",
+        };
+        let label = match sz {
+            Some(bytes) => format!("{prefix} • {}", crate::model::format_bytes(bytes)),
+            None => prefix.to_string(),
+        };
+        out.push(RealVideoFormat {
+            label,
+            quality_val: format!("{}p", v.h),
+            size: sz,
+            is_audio: false,
+        });
+    }
+
+    if text.contains("#EXT-X-MEDIA:TYPE=AUDIO") {
+        let audio_sz = dur_secs.map(|s| (128_000 * s) / 8).filter(|s| *s > 0);
+        out.push(RealVideoFormat {
+            label: match audio_sz {
+                Some(sz) => format!("Audio Only • {}", crate::model::format_bytes(sz)),
+                None => "Audio Only • m4a".to_string(),
+            },
+            quality_val: "audio".to_string(),
+            size: audio_sz,
+            is_audio: true,
+        });
+    }
+    out
+}
+
 pub async fn probe_real_video_formats(
     client: &reqwest::Client,
     opts: &EngineOpts,
     url: &str,
 ) -> Option<RealVideoInfo> {
-    let is_video = is_youtube_page(url)
-        || social_video_page(url)
-        || is_googlevideo_url(url)
-        || url.contains("vimeo.com")
-        || url.contains("dailymotion.com")
-        || url.contains("twitch.tv")
-        || url.contains("bilibili.com")
-        || url.contains("soundcloud.com")
-        || has_direct_ext(url);
-    if !is_video {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
         return None;
     }
     let target = if is_googlevideo_url(url) && is_youtube_page(&opts.referer) {
@@ -7375,6 +7515,31 @@ pub async fn probe_real_video_formats(
         if let Some((t, info)) = c.get(target) {
             if t.elapsed() < std::time::Duration::from_secs(600) {
                 return Some(info.clone());
+            }
+        }
+    }
+
+    // Direct HLS master manifest fast-path (instant 0ms parse without waiting for yt-dlp):
+    if target.contains(".m3u8") || is_playlist_url(target) {
+        if let Ok(resp) = opts.get(client, target).send().await {
+            if let Ok(text) = resp.text().await {
+                if text.contains("#EXT-X-STREAM-INF") {
+                    let duration_secs = if text.contains("#EXT-X-ENDLIST") {
+                        let seconds: f64 = text.lines().filter_map(|l| l.trim().strip_prefix("#EXTINF:")
+                            .and_then(|v| v.split(',').next()).and_then(|v| v.parse::<f64>().ok())).sum();
+                        if seconds > 0.0 { Some(seconds.round() as u64) } else { None }
+                    } else { None };
+                    let formats = parse_hls_master_formats(&text, target, duration_secs);
+                    if !formats.is_empty() {
+                        let info = RealVideoInfo {
+                            title: None,
+                            duration_secs,
+                            formats,
+                        };
+                        store_real_video_formats(target, info.clone());
+                        return Some(info);
+                    }
+                }
             }
         }
     }
@@ -10738,13 +10903,17 @@ mod tests {
         assert!(!is_playlist_url("https://cdn.example/v/clip.mp4"));
         assert!(has_direct_ext("https://cdn.example/a/b.mp4?token=1"));
         assert!(!has_direct_ext("https://cdn.example/a/playlist.m3u8"));
-        // master variant pick: highest bandwidth wins
+        // master variant pick: highest bandwidth wins by default, or specific quality
         let master = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360\nlow.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080\nhi.m3u8\n";
         assert_eq!(
-            hls_pick_variant(master, "https://cdn.example/v/master.m3u8").as_deref(),
+            hls_pick_variant(master, "https://cdn.example/v/master.m3u8", "best").as_deref(),
             Some("https://cdn.example/v/hi.m3u8")
         );
-        assert_eq!(hls_pick_variant("#EXTM3U\n#EXT-X-TARGETDURATION:6\n", "https://h/x.m3u8"), None);
+        assert_eq!(
+            hls_pick_variant(master, "https://cdn.example/v/master.m3u8", "360p").as_deref(),
+            Some("https://cdn.example/v/low.m3u8")
+        );
+        assert_eq!(hls_pick_variant("#EXTM3U\n#EXT-X-TARGETDURATION:6\n", "https://h/x.m3u8", "best"), None);
         // media segments: comments skipped, relative resolved
         let media = "#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6.0,\nseg0.ts\n#EXTINF:6.0,\nhttps://other.example/s1.ts\n#EXT-X-ENDLIST\n";
         assert_eq!(

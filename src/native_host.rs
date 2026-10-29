@@ -809,6 +809,7 @@ fn queue_download(msg: &Incoming) -> Result<bool, String> {
         pair_mime: msg.pair_mime.clone().filter(|s| !s.trim().is_empty()),
         urls: None,
         quality: msg.quality.clone().filter(|s| !s.trim().is_empty()),
+        formats: msg.formats.clone(),
         dur: msg.dur.filter(|s| *s > 0),
         audio_expected: msg.audio_expected,
         is_playlist: msg.is_playlist,

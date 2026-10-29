@@ -1539,7 +1539,7 @@ impl ProgressApp {
             } else if downloading && f > 0.0 {
                 crate::i18n::t("Receiving data...")
             } else if downloading && !self.snap.phase.is_empty() {
-                self.snap.phase.clone()
+                self.snap.phase.as_str()
             } else if downloading {
                 crate::i18n::t("Connecting to stream...")
             } else {

@@ -954,6 +954,14 @@ fn hint(ui: &mut Ui, s: &str) {
     wrapped(ui, s, reg(10.0), tok().muted);
 }
 
+fn bullet(ui: &mut Ui, s: &str, color: Color32) {
+    ui.horizontal(|ui| {
+        ui.add_space(4.0);
+        txt(ui, "•", reg(11.0), color);
+        wrapped(ui, s, reg(11.0), color);
+    });
+}
+
 /// Plain button: `--btn-bg` / `--btn-border`, 5 px radius, 6×16 padding.
 fn button(ui: &mut Ui, label: &str, primary: bool) -> Response {
     let label = crate::i18n::t(label);

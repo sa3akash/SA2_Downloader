@@ -9512,9 +9512,9 @@ impl eframe::App for sa2App {
                 None
             };
 
+            let brand_h = g_name.size().y.max(46.0) + 4.0 + g_ver.size().y;
+            let credit_h = credit.size().y.max(14.0) + 18.0;
             let sw_body_h = {
-                let brand_h = g_name.size().y.max(46.0) + 4.0 + g_ver.size().y;
-                let credit_h = credit.size().y.max(14.0) + 18.0;
                 let mut h = 18.0 + brand_h + 16.0 + 1.0 + 14.0;
                 h += desc1.size().y + 10.0 + desc2.size().y + 10.0 + desc3.size().y + 14.0;
                 h += credit_h + 14.0 + btn_h;
@@ -9550,6 +9550,7 @@ impl eframe::App for sa2App {
                     // the card so the anchor/pivot place it exactly.
                     ui.set_min_size(egui::vec2(ab_w, ab_h));
                     let card = ui.max_rect();
+                    let bx = card.left() + pad;
                     let pf = ui.painter().clone();
                     // ---- card: faint top-lit gradient, 1 px border ----
                     crate::dm::dm_gradient(
@@ -9636,7 +9637,6 @@ impl eframe::App for sa2App {
                     self.hits.push((HitKind::Btn(ButtonId::AbClose), xr));
 
                     // ---- body ----
-                    let bx = card.left() + pad;
                     let mut y = head.bottom() + 18.0;
 
                     if self.about_tab == 0 {

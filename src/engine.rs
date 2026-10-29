@@ -5045,10 +5045,32 @@ async fn download_inner(
     Ok(())
 }
 
-/// Include common Unix tool locations when launched from a Dock or desktop.
+/// Include common Unix and Windows tool locations when launched from a Dock or desktop.
 fn tool_dirs() -> Vec<std::path::PathBuf> {
     #[allow(unused_mut)]
     let mut paths: Vec<_> = std::env::var_os("PATH").map(|v| std::env::split_paths(&v).collect()).unwrap_or_default();
+    #[cfg(windows)]
+    {
+        for dir in [
+            r"C:\AvroPortable\tools",
+            r"C:\ffmpeg\bin",
+            r"C:\ffmpeg",
+            r"C:\tools\ffmpeg\bin",
+            r"C:\ProgramData\chocolatey\bin",
+            r"C:\Program Files\ffmpeg\bin",
+        ] {
+            let p = std::path::PathBuf::from(dir);
+            if p.is_dir() && !paths.contains(&p) {
+                paths.push(p);
+            }
+        }
+        if let Some(local) = dirs::data_local_dir() {
+            let p = local.join("sa2_downloader").join("bin");
+            if p.is_dir() && !paths.contains(&p) {
+                paths.push(p);
+            }
+        }
+    }
     #[cfg(unix)]
     {
         for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] {
@@ -5574,9 +5596,28 @@ pub fn is_youtube_list(url: &str) -> bool {
         || path.starts_with("/user/")
 }
 
+static PLAYLIST_CACHE: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, (String, Vec<(String, String)>))>>> = std::sync::OnceLock::new();
+
+/// Instant synchronous cache check for playlist entries (0ms delay).
+pub fn cached_playlist_entries(url: &str) -> Option<(String, Vec<(String, String)>)> {
+    let target = url.trim();
+    let cache = PLAYLIST_CACHE.get()?;
+    if let Ok(c) = cache.lock() {
+        if let Some((t, info)) = c.get(target) {
+            if t.elapsed() < std::time::Duration::from_secs(600) {
+                return Some(info.clone());
+            }
+        }
+    }
+    None
+}
+
 /// The videos of a playlist / channel: (watch URL, title), via yt-dlp's
 /// flat listing (no video is downloaded). The list's own title comes first.
 pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, Vec<(String, String)>)> {
+    if let Some(cached) = cached_playlist_entries(url) {
+        return Ok(cached);
+    }
     let client = opts.build_client()?;
     let exe = ensure_ytdlp(&client).await?;
     let mut cmd = tokio::process::Command::new(exe);
@@ -5692,7 +5733,15 @@ pub async fn playlist_entries(url: &str, opts: &EngineOpts) -> Result<(String, V
         list.push((url.to_string(), title.clone()));
     }
     list.truncate(5000);
-    Ok((title, list))
+    let res = (title, list);
+    let cache = PLAYLIST_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(mut c) = cache.lock() {
+        if c.len() >= 50 {
+            c.retain(|_, (t, _)| t.elapsed() < std::time::Duration::from_secs(600));
+        }
+        c.insert(url.trim().to_string(), (std::time::Instant::now(), res.clone()));
+    }
+    Ok(res)
 }
 
 /// Which YouTube engine runs first (Settings -> Plugins -> YouTube):
@@ -6787,7 +6836,7 @@ async fn download_with_ytdlp(
     // merge at all (no ffmpeg = only a single muxed file can be delivered).
     // The app's own copy is fetched here when nothing else exists, so a first
     // 1080p download sets itself up instead of quietly capping at 720p.
-    let mut merge_ffmpeg = ffmpeg_path();
+    let mut merge_ffmpeg = ffmpeg_path().or_else(ffmpeg_on_path);
     if merge_ffmpeg.is_none() {
         if let Ok(c) = opts.build_client() {
             shared.set_phase("Fetching ffmpeg");
@@ -6799,6 +6848,9 @@ async fn download_with_ytdlp(
             }
         }
     }
+    let can_merge = merge_ffmpeg.is_some()
+        || ffmpeg_on_path().is_some()
+        || quality_cap(&opts.quality_pref).map(|h| h > 720).unwrap_or(false);
     let is_pl = opts.is_playlist || is_pure_playlist_url(url);
     if is_pl {
         cmd.arg("--yes-playlist");
@@ -6833,9 +6885,9 @@ async fn download_with_ytdlp(
         .arg(if wants_audio_only(&opts.quality_pref) {
             "ba[ext=m4a]/ba/b".to_string()
         } else if vimeo_needs_audio(url) || opts.require_audio {
-            audio_required_format(&opts.quality_pref, merge_ffmpeg.is_some())
+            audio_required_format(&opts.quality_pref, can_merge)
         } else {
-            ytdlp_format_with(&opts.quality_pref, merge_ffmpeg.is_some())
+            ytdlp_format_with(&opts.quality_pref, can_merge)
         })
         .arg("-o")
         .arg(if wants_audio_only(&opts.quality_pref) {
@@ -6864,6 +6916,13 @@ async fn download_with_ytdlp(
         cmd.arg("--abort-on-unavailable-fragments");
     }
     if let Some(ff) = &merge_ffmpeg {
+        cmd.arg("--ffmpeg-location").arg(ff);
+        if wants_audio_only(&opts.quality_pref) {
+            cmd.arg("-x").arg("--audio-format").arg("mp3").arg("--audio-quality").arg("0");
+        } else {
+            cmd.arg("--merge-output-format").arg("mp4");
+        }
+    } else if let Some(ff) = ffmpeg_on_path() {
         cmd.arg("--ffmpeg-location").arg(ff);
         if wants_audio_only(&opts.quality_pref) {
             cmd.arg("-x").arg("--audio-format").arg("mp3").arg("--audio-quality").arg("0");
@@ -7034,6 +7093,7 @@ async fn download_with_ytdlp(
         }
         final_path
     });
+    let err_log_key = opts.log_key.clone();
     let err_task = tokio::spawn(async move {
         let mut kept: std::collections::VecDeque<String> = std::collections::VecDeque::new();
         if let Some(mut err) = stderr {
@@ -7043,6 +7103,7 @@ async fn download_with_ytdlp(
             for line in text.lines() {
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
+                    job_log(&err_log_key, format!("yt-dlp: {trimmed}"));
                     if kept.len() == 8 {
                         kept.pop_front();
                     }
@@ -7231,16 +7292,26 @@ pub async fn probe_real_video_formats(
         .arg("--no-warnings")
         .arg("--no-playlist")
         .arg("--socket-timeout").arg("10");
+    if is_youtube_page(target) || is_googlevideo_url(target) {
+        cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
+    }
     if let Some((name, path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}", path.display()));
     }
     if let Some(p) = opts.effective_proxy(target) {
         cmd.arg("--proxy").arg(p);
     }
+    let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
+        opts.ytdlp_cookies_browser.clone()
+    } else {
+        crate::model::ui_pref_str("browser_cookies", "")
+    };
     if !opts.cookie.trim().is_empty() {
         if let Ok(Some(jar)) = write_cookie_jar(&opts.cookie, &cookie_domain(target)).await {
             cmd.arg("--cookies").arg(&jar.0);
         }
+    } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
+        cmd.arg("--cookies-from-browser").arg(b_cookie.trim());
     }
     cmd.arg(target).stdin(std::process::Stdio::null());
     let out = tokio::time::timeout(std::time::Duration::from_secs(20), cmd.output()).await.ok()?.ok()?;
@@ -7695,6 +7766,24 @@ async fn download_adaptive_inner(
 ) -> Result<()> {
     let video_url = normalize_media_url(&video_url);
     let audio_url = audio_url.map(|u| normalize_media_url(&u));
+
+    // When the adaptive URLs are from YouTube (googlevideo CDN), direct segmented
+    // Range requests fail or stall at "Connecting..." because YouTube throttles
+    // parallel connections on raw CDN URLs. Route to yt-dlp with the page URL instead.
+    if (is_googlevideo_url(&video_url) || audio_url.as_deref().map(is_googlevideo_url).unwrap_or(false))
+        && (is_youtube_page(&opts.referer) || is_youtube_page(&video_url))
+    {
+        let page_target = if is_youtube_page(&opts.referer) {
+            opts.referer.clone()
+        } else {
+            video_url.clone()
+        };
+        let client = opts.build_client()?;
+        if let Ok(exe) = ensure_ytdlp(&client).await {
+            return download_with_ytdlp(&exe, &page_target, &dest, connections, &opts, &shared).await;
+        }
+    }
+
     let _job = claim_dest_job(&dest).ok_or_else(|| {
         anyhow!("this destination is already downloading elsewhere — wait for it or remove the duplicate queue entry")
     })?;

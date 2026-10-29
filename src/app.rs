@@ -6015,7 +6015,7 @@ async fn update_check_async() -> (String, Option<crate::selfupdate::Asset>, bool
     let api = std::env::var("sa2_downloader_UPDATE_API")
         .ok()
         .filter(|u| !u.trim().is_empty())
-        .unwrap_or_else(|| "https://api.github.com/repos/hungry-detective/SA2Downloader/releases/latest".to_string());
+        .unwrap_or_else(|| "https://api.github.com/repos/sa3akash/SA2_Downloader/releases/latest".to_string());
     let resp = client
         .get(api)
         .header("Accept", "application/vnd.github+json")
@@ -6040,7 +6040,7 @@ async fn update_check_async() -> (String, Option<crate::selfupdate::Asset>, bool
         let url = v
             .get("html_url")
             .and_then(|u| u.as_str())
-            .unwrap_or("https://github.com/hungry-detective/SA2Downloader/releases");
+            .unwrap_or("https://github.com/sa3akash/SA2_Downloader/releases");
         (
             format!("Update available: {tag} (you have v{current}) — {url}"),
             crate::selfupdate::pick_asset(&v),

@@ -539,9 +539,15 @@ impl ConfirmApp {
         };
         let (tx, rx) = std::sync::mpsc::channel();
         self.probe_rx = Some(rx);
-        self.probe_size = self.browser_size;
-        self.probing = self.browser_size.is_none();
-        let has_browser_size = self.browser_size.is_some();
+        if self.probe_size.is_none() || self.probe_size == Some(0) {
+            if let Some(sz) = self.browser_size {
+                self.probe_size = Some(sz);
+            } else if let Some(first_sz) = self.real_formats.first().and_then(|f| f.size) {
+                self.probe_size = Some(first_sz);
+            }
+        }
+        self.probing = self.probe_size.is_none() && self.real_formats.is_empty();
+        let has_browser_size = self.browser_size.is_some() || !self.real_formats.is_empty();
         let url = self.url.clone();
         let referer = self.referer.clone();
         // Quality choice feeds the page resolve so the dialog measures the
@@ -1390,6 +1396,17 @@ impl eframe::App for ConfirmApp {
                     let lbl = if self.loading_playlist { "Loading playlist…" } else { "📋 Select Videos" };
                     btn_pill(&p, view_r, view_b.hovered(), lbl, pl().dm_line, pl().dm_box_bd, pl().dm_txt, None);
                     if view_b.clicked() && !self.loading_playlist {
+                        if let Some((title, entries)) = engine::cached_playlist_entries(&self.url) {
+                            let links: Vec<crate::native_host::PageLink> = entries
+                                .into_iter()
+                                .map(|(u, t)| crate::native_host::PageLink { url: u, text: t })
+                                .collect();
+                            if !links.is_empty() {
+                                let _ = crate::native_host::open_links_window(&self.url, &title, &self.cookie, &links);
+                                self.done = true;
+                                return;
+                            }
+                        }
                         if let Some(rt) = self.rt.clone() {
                             let (tx, rx) = std::sync::mpsc::channel();
                             self.playlist_rx = Some(rx);

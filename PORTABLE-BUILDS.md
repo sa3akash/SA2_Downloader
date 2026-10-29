@@ -11,6 +11,8 @@ All builds across Windows, macOS, and Linux are automatically compiled, packaged
 and published to GitHub Releases by `.github/workflows/portable.yml`.
 After all builds complete successfully, release assets are attached to the GitHub
 Release page ready for instant download and use:
+- `SA2Downloader-1.1.8-windows-x64.exe` (Windows 64-bit standalone executable)
+- `SA2Downloader-1.1.8-windows-x86.exe` (Windows 32-bit standalone executable)
 - `SA2Downloader-1.1.8-windows-x64-portable.zip` (Windows 64-bit portable)
 - `SA2Downloader-1.1.8-windows-x86-portable.zip` (Windows 32-bit portable)
 - `SA2Downloader-1.1.8-macos-Universal.zip` (macOS Apple Silicon & Intel)

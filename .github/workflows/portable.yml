@@ -93,6 +93,12 @@ jobs:
         run: python scripts/package.py --platform windows --arch x64 --portable --binary target/x86_64-pc-windows-msvc/release/sa2_downloader.exe
       - name: Package 32-bit Windows Portable
         run: python scripts/package.py --platform windows --arch x86 --portable --binary target/i686-pc-windows-msvc/release/sa2_downloader.exe
+      - name: Copy Windows Standalone Binaries
+        shell: pwsh
+        run: |
+          $ver = (Get-Content VERSION).Trim()
+          Copy-Item target/x86_64-pc-windows-msvc/release/sa2_downloader.exe "dist/SA2Downloader-$ver-windows-x64.exe"
+          Copy-Item target/i686-pc-windows-msvc/release/sa2_downloader.exe "dist/SA2Downloader-$ver-windows-x86.exe"
       - run: python scripts/package_extensions.py --output dist
       - uses: actions/upload-artifact@v4
         with:
@@ -124,7 +130,7 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
           mkdir -p release-dist
-          find artifacts -type f \( -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o -name "*.xpi" \) -exec cp -v {} release-dist/ \;
+          find artifacts -type f \( -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o -name "*.xpi" -o -name "*.exe" \) -exec cp -v {} release-dist/ \;
           cd release-dist
           sha256sum * > SHA256SUMS.txt
           echo "All release files to publish:"

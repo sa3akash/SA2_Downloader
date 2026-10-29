@@ -27,7 +27,7 @@
 - **Manual Forced Check**: "Check for updates" in the About window and Settings triggers both application and helper update checks simultaneously.
 
 ### CI & Build Pipeline Enhancements
-- **64-bit & 32-bit Windows Portable Packages**: Automated compilation and packaging of both `SA2Downloader-1.1.8-windows-x64-portable.zip` (64-bit) and `SA2Downloader-1.1.8-windows-x86-portable.zip` (32-bit) with `-portable` naming in GitHub Releases.
+- **64-bit & 32-bit Windows Standalone Binaries & Portable Bundles**: Automated compilation and publishing of standalone executables (`SA2Downloader-1.1.8-windows-x64.exe`, `SA2Downloader-1.1.8-windows-x86.exe`) and portable archives (`SA2Downloader-1.1.8-windows-x64-portable.zip`, `SA2Downloader-1.1.8-windows-x86-portable.zip`) in GitHub Releases.
 - Synchronized package version in `Cargo.lock` with `Cargo.toml`.
 - Improved CI portable packaging workflow resilience across Windows, macOS, and Linux.
 

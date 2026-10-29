@@ -8,15 +8,17 @@ The text and answers to paste into each browser's extension store. The extension
 
 ## Full description
 
-Download SA2 is a free, open-source (MIT) download manager for Windows. This extension connects it to your browser:
+Download SA2 is a fast, advanced, open-source (MIT) download manager for Windows, macOS, and Linux. This extension connects it seamlessly to your browser:
 
-- **Captures downloads.** Files you download go to Download SA2 instead of the browser. It splits each file over up to 32 connections, resumes after a cut or a restart, and can refresh an expired link.
-- **Saves videos.** A button appears on pages that play video, including YouTube, Vimeo, HLS and DASH streams. Pick a quality and the app downloads and merges it.
-- **Works without the app.** If Download SA2 is not installed or not running, the extension downloads the file or video itself, in the browser.
-- **Right-click menu.** Download a link, every link on a page, or the selected links with Download SA2.
-- **Keeps your session.** It passes the page's cookies, referrer and headers to the app, so downloads that need a login work like they do in the browser. These stay on your computer.
+- **Ultra-fast parallel downloads.** Files you download go to Download SA2 instead of the browser. It splits each file over up to 32 parallel connections with dynamic work-stealing, crash-safe resume, and expired link refresh.
+- **Saves Ultra HD videos (2K, 4K, 8K).** A sleek download pill appears on playing videos, supporting YouTube, Facebook, Vimeo, BongoBD, JustWatch, Bilibili, TikTok, and millions of other sites. Select any resolution or audio-only extraction with automatic stream merging.
+- **Single Instant Loading (0ms).** Video formats and sizes are detected instantly without waiting for slow server probes or experiencing duplicate popups.
+- **Complete Playlist Downloader.** One-click batch downloading for entire video playlists, series, albums, and channel lists with unified quality inheritance.
+- **Works without the app.** If Download SA2 is not running, the extension can download, join, and save files directly within the browser.
+- **Right-click menu.** Download links, batches of links, media streams, and BitTorrent magnet links with a single click.
+- **Preserves your session.** Forwards page cookies, authentication tokens, referrers, and headers to bypass bot verification (429 errors) and access members-only content safely on your local device.
 
-No account, no ads, no tracking. The source code is at https://github.com/hungry-detective/SA2Downloader.
+No account, no ads, no telemetry. The source code is available at https://github.com/sa3akash/SA2_Downloader.
 
 ## Category
 
@@ -77,4 +79,4 @@ Productivity (Chrome / Edge / Opera); Download Management (Firefox).
 
 ## Review notes (for the reviewer field)
 
-> The extension needs the Download SA2 desktop app (free, MIT, https://github.com/hungry-detective/SA2Downloader) for its main feature. Without the app it still works: downloads and videos are saved by the browser itself. To test: install the extension, open any page with a video or a file link, and use the button or the right-click menu.
+> The extension needs the Download SA2 desktop app (free, MIT, https://github.com/sa3akash/SA2_Downloader) for its main feature. Without the app it still works: downloads and videos are saved by the browser itself. To test: install the extension, open any page with a video or a file link, and use the button or the right-click menu.

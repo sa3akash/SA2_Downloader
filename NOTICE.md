@@ -1,8 +1,31 @@
 # Third-party notices
 
 Download SA2 is original Rust code written for this project. Its interface
-design was inspired by modern download managers. The libraries below are
-built into the program; their own licences apply to them.
+design was inspired by modern download managers. The libraries and media
+helpers below are built into or managed by the program; their own licences
+apply to them.
+
+## Managed Media Helpers
+
+The program optionally downloads and manages standalone portable helper binaries
+into the application's user directory to support high-resolution stream multiplexing
+and media extraction.
+
+### yt-dlp — The Unlicense
+- Portable media extractor executable fetched from official releases.
+- Source: https://github.com/yt-dlp/yt-dlp
+- License: The Unlicense (Public Domain)
+
+### FFmpeg and ffprobe — LGPL 2.1+ / GPL 2+
+- Static audio/video multiplexing and stream transcoding utilities.
+- Source: https://ffmpeg.org / https://github.com/eugeneware/ffmpeg-static
+- License: GNU Lesser General Public License (LGPL) version 2.1 or later.
+  Shipped as unmodified separate standalone binaries without static linkage into the main executable.
+
+### Deno — MIT License
+- Portable JavaScript runtime used for complex player challenge extraction.
+- Source: https://github.com/denoland/deno
+- License: MIT License
 
 ## UnRAR — UnRAR licence (freeware, not open source)
 

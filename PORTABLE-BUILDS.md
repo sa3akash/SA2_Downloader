@@ -1,24 +1,31 @@
-# Download SA2 1.1.0
+# Download SA2 1.1.6
 
 Use [the current release instructions](RELEASE-NOTES.md) for Windows, universal
 Mac, Fedora/RPM, Debian-family DEB and AppImage installation and media helpers.
 
 `VERSION` contains the public app version. Cargo, UI, CLI and browser versions
-are aligned at 1.1.0.
+are aligned at 1.1.6.
 
 ### Automated GitHub Releases
 All builds across Windows, macOS, and Linux are automatically compiled, packaged,
 and published to GitHub Releases by `.github/workflows/portable.yml`.
 After all builds complete successfully, release assets are attached to the GitHub
 Release page ready for instant download and use:
-- `SA2Downloader-1.1.0-windows-x64-portable.zip` (Windows portable)
-- `SA2Downloader-1.1.0-macos-Universal.zip` (macOS Apple Silicon & Intel)
-- `SA2Downloader-1.1.0-x86_64.AppImage` (Universal Linux AppImage)
-- `SA2Downloader_1.1.0_amd64.deb` (Debian, Ubuntu, Mint)
-- `SA2Downloader-1.1.0-1.x86_64.rpm` (Fedora, RHEL)
-- `SA2Downloader-Chrome-1.1.0.zip` (Chrome, Edge, Brave browser extension)
-- `SA2Downloader-Firefox-1.1.0.xpi` (Firefox add-on)
+- `SA2Downloader-1.1.6-windows-x64-portable.zip` (Windows portable)
+- `SA2Downloader-1.1.6-macos-Universal.zip` (macOS Apple Silicon & Intel)
+- `SA2Downloader-1.1.6-x86_64.AppImage` (Universal Linux AppImage)
+- `SA2Downloader_1.1.6_amd64.deb` (Debian, Ubuntu, Mint)
+- `SA2Downloader-1.1.6-1.x86_64.rpm` (Fedora, RHEL)
+- `SA2Downloader-Chrome-1.1.6.zip` (Chrome, Edge, Brave browser extension)
+- `SA2Downloader-Firefox-1.1.6.xpi` (Firefox add-on)
 - `SHA256SUMS.txt` (Integrity checksums)
+
+### Automatic Daily Media Helpers (`yt-dlp` & `FFmpeg`)
+Portable builds feature automated 24-hour background helper updates:
+- Managed `yt-dlp` and `FFmpeg` are stored locally in the application's portable data directory.
+- On launch, if at least 24 hours have elapsed since the last check, a background thread checks GitHub releases and atomically updates older helper binaries.
+- The UI remains completely non-blocking with 0ms startup delay.
+- The feature can be toggled in **Settings → Plugins** or **Settings → Updates**.
 
 ### Local & CI Build Instructions
 Build native binaries with Cargo. Package with `scripts/package.py`, or build

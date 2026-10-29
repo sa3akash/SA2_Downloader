@@ -1,11 +1,26 @@
 # Download SA2: what is still open
 
-The one roadmap. It lists only what is not done yet. Everything else from the
-earlier engine, IDM-parity and extension roadmaps is built and in the code.
+The one roadmap. It lists only what is not done yet, along with recently completed milestones.
 
-Updated 28 Oct 2026, for 0.9.10.
+Updated 29 Oct 2026, for 1.1.6.
 
 **Priority:** 🔴 do first · 🟠 worth doing soon · 🟢 when there is time.
+
+---
+
+## Recently Completed (v1.1.6)
+
+| Milestone | Resolution |
+|---|---|
+| ✅ **Ultra HD 2K / 4K / 8K Dynamic Downloads** | Resolved 360p fallback; streams now download at native max resolution (8K 4320p, 4K 2160p, 2K 1440p, 1080p, 60fps AV1/VP9). |
+| ✅ **Universal Multi-Website Video Support** | Dynamic stream extraction across millions of video websites (YouTube, Facebook, Vimeo, BongoBD, JustWatch, Bilibili, TikTok, and any DASH/HLS stream). |
+| ✅ **Browser Cookie Forwarding** | Forward login cookies from Chrome, Edge, Firefox, Brave, Opera, and Vivaldi to bypass bot checks and HTTP 429 errors. |
+| ✅ **Single Instant IDM-Style Video Loading (0ms)** | Real stream formats and calculated sizes pre-fetched by the browser extension into memory cache, eliminating 5–10s blocking probes and duplicate popup loops. |
+| ✅ **Automated Daily Background Updates** | Automatically checks and updates managed `yt-dlp` and `FFmpeg` binaries once every 24 hours silently in the background with atomic replacements. |
+| ✅ **Smooth 60 FPS Lerp Progress Bar** | Progress window height oscillation eliminated with locked layout geometry and fluid 60fps progress bar interpolation. |
+| ✅ **Playlist Quality & Format Inheritance** | Selecting Audio or a Video quality applies instantly to all items in a playlist batch. |
+
+---
 
 ## Before listing in the browser stores
 
@@ -27,7 +42,6 @@ Updated 28 Oct 2026, for 0.9.10.
 | | Item | Notes |
 |---|---|---|
 | 🟢 | SFTP | Needs an SSH library; do not hand-write SSH. |
-| 🟢 | BitTorrent / magnet links | Needs a torrent library; do not hand-write the protocol. |
 | 🟢 | More error recovery | IDM handles many rare server faults ("restart types"). Add them as real downloads turn them up; the common ones (416, 429/503 with Retry-After, expired links, HTTP/2, IPv6, NTLM hand-over, FTP behind NAT) are done. |
 
 ## Browser extension

@@ -1,4 +1,36 @@
-# Download SA2 1.1.3 — New Modern IDM 7.0 UI, Theme System & Automated Release Builds
+# Download SA2 1.1.6 — Ultra HD 2K/4K/8K Dynamic Downloader, Single Instant Loading & Daily Background Helper Updates
+
+## What's new in 1.1.6
+
+### Ultra HD (2K, 4K, 8K) Dynamic Downloads & Universal Site Support
+- **Fixed 360p Resolution Lock**: Resolved the issue where higher video qualities reverted to low-resolution streams. The downloader now honors and delivers full Ultra HD streams (8K 4320p, 4K 2160p, 2K 1440p, 1080p Full HD, 60fps AV1/VP9).
+- **Universal Multi-Site Compatibility**: Dynamic stream extraction now works seamlessly across millions of websites, including **YouTube**, **Facebook**, **Vimeo**, **BongoBD**, **JustWatch**, **Bilibili**, **TikTok**, and any site utilizing DASH or HLS manifests.
+- **Browser Cookie Session Forwarding**: Added configurable browser cookie extraction (Chrome, Edge, Firefox, Brave, Opera, Vivaldi) to bypass bot verification and HTTP 429 Too Many Requests errors.
+
+### Single Instant IDM-Style Loading (0ms Delay)
+- **Zero-Latency Format & Size Resolution**: Video formats and duration-calculated file sizes are pre-extracted by the browser extension and cached in memory. Clicking the download pill opens the confirmation dialog instantly with accurate sizes without 5–10s blocking probes.
+- **Duplicate Confirm Popup Prevention**: Added native host request deduplication to prevent multiple popups when clicking or navigating media players.
+
+### Smooth Progress Monitor & 60 FPS Visual Interpolation
+- **Locked Dialog Dimensions**: Eliminated progress window vibration, height jumping, and resizing oscillation.
+- **Smooth 60 FPS Lerp Progress Bar**: Smooth linear interpolation for real-time progress bar rendering.
+- **Clean Connection State**: Replaced preliminary placeholder rows with a single clear connection status (`# 1 | Connecting to stream...`) during stream handshakes.
+
+### Playlist Dynamic Quality & Audio Inheritance
+- Selecting **Audio** or a specific **Video Quality** dynamically propagates across all batch items in the playlist downloader, automatically setting file extensions (e.g. `.mp3`) and download modes.
+
+### Automatic Daily Background Updates (`yt-dlp` & `FFmpeg`)
+- **Daily Silent Check**: Automatically checks GitHub releases for newer `yt-dlp` and `FFmpeg` builds once every 24 hours in a non-blocking background thread.
+- **Atomic Safe Replacement**: Updates download to a sidecar file, verifies binary integrity, and atomically swaps the executable without interrupting active downloads.
+- **Activity Log Reporting**: Displays auto-update status directly in the main activity log (`Auto-update: Updated yt-dlp...`).
+- **User Preference Toggle**: Configure daily auto-updates under **Settings → Plugins** and **Settings → Updates** (enabled by default).
+- **Manual Forced Check**: "Check for updates" in the About window and Settings triggers both application and helper update checks simultaneously.
+
+### CI & Build Pipeline Enhancements
+- Synchronized package version in `Cargo.lock` with `Cargo.toml`.
+- Improved CI portable packaging workflow resilience across Windows, macOS, and Linux.
+
+---
 
 ## What's new in 1.1.3
 
@@ -47,20 +79,19 @@
 
 All packages are compiled with full optimizations and attached directly to the GitHub Release for download and immediate use:
 
-- **Windows 10/11 (64-bit)**: Download `SA2Downloader-1.1.0-windows-x64-portable.zip` — extract and run `sa2_downloader.exe`. Portable, zero-install, preserves settings and downloads.
-- **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `SA2Downloader-1.1.0-macos-Universal.zip` — unzip and move `Download SA2.app` to your Applications folder.
+- **Windows 10/11 (64-bit)**: Download `SA2Downloader-1.1.6-windows-x64-portable.zip` — extract and run `sa2_downloader.exe`. Portable, zero-install, preserves settings and downloads.
+- **macOS 12+ (Universal: Apple Silicon & Intel)**: Download `SA2Downloader-1.1.6-macos-Universal.zip` — unzip and move `Download SA2.app` to your Applications folder.
 - **Linux (x86_64, glibc 2.28+)**:
-  - Ubuntu, Debian, Mint: `SA2Downloader_1.1.0_amd64.deb` (`sudo apt install ./SA2Downloader_1.1.0_amd64.deb`)
-  - Fedora, RHEL: `SA2Downloader-1.1.0-1.x86_64.rpm` (`sudo dnf install ./SA2Downloader-1.1.0-1.x86_64.rpm`)
-  - Any distribution: `SA2Downloader-1.1.0-x86_64.AppImage` (make executable and run).
-- **Browser Extension (1.1.0)**:
-  - Chrome / Edge / Brave: Download `SA2Downloader-Chrome-1.1.0.zip`, extract, go to `chrome://extensions`, enable *Developer mode*, click *Load unpacked*, and select the extension folder.
-  - Firefox: Download `SA2Downloader-Firefox-1.1.0.xpi`, open `about:debugging#/runtime/this-firefox`, and click *Load Temporary Add-on…*.
+  - Ubuntu, Debian, Mint: `SA2Downloader_1.1.6_amd64.deb` (`sudo apt install ./SA2Downloader_1.1.6_amd64.deb`)
+  - Fedora, RHEL: `SA2Downloader-1.1.6-1.x86_64.rpm` (`sudo dnf install ./SA2Downloader-1.1.6-1.x86_64.rpm`)
+  - Any distribution: `SA2Downloader-1.1.6-x86_64.AppImage` (make executable and run).
+- **Browser Extension (1.1.6)**:
+  - Chrome / Edge / Brave: Download `SA2Downloader-Chrome-1.1.6.zip`, extract, go to `chrome://extensions`, enable *Developer mode*, click *Load unpacked*, and select the extension folder.
+  - Firefox: Download `SA2Downloader-Firefox-1.1.6.xpi`, open `about:debugging#/runtime/this-firefox`, and click *Load Temporary Add-on…*.
 
 ## Media helpers
 
-Settings → Plugins downloads and updates **yt-dlp**, **FFmpeg + ffprobe** and a portable
-**JavaScript runtime** (Deno) into the app's own folder — no installers, no PATH changes, no sudo.
-System copies on PATH or a custom file can be chosen instead.
+Settings → Plugins downloads and keeps **yt-dlp**, **FFmpeg + ffprobe** and a portable **JavaScript runtime** (Deno) automatically up to date into the app's own folder — no manual installers, no PATH changes, no administrator privileges needed.
+System copies on PATH or custom executable paths can be chosen instead.
 
 RAR archives are read with the UnRAR source code (freeware licence, extraction only); see `NOTICE.md`.

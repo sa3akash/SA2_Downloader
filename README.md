@@ -14,15 +14,15 @@ Multi-connection parallel downloads, dynamic segmentation work-stealing, YouTube
 
 <br>
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nd2hpdGUnIGQ9J00yIDQuMmw4LjUtMS4ydjguNEgyek0xMS42IDIuOUwyMiAxLjV2OS45SDExLjZ6TTIgMTIuNmg4LjVWMjFMMiAxOS44ek0xMS42IDEyLjZIMjJ2OS45bC0xMC40LTEuNHonLz48L3N2Zz4=)](https://github.com/hungry-detective/SA2Downloader/releases/download/v1.1.0/SA2Downloader-1.1.0-windows-x64-portable.zip)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nd2hpdGUnIGQ9J00yIDQuMmw4LjUtMS4ydjguNEgyek0xMS42IDIuOUwyMiAxLjV2OS45SDExLjZ6TTIgMTIuNmg4LjVWMjFMMiAxOS44ek0xMS42IDEyLjZIMjJ2OS45bC0xMC40LTEuNHonLz48L3N2Zz4=)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.6/SA2Downloader-1.1.6-windows-x64-portable.zip)
 &nbsp;
-[![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/hungry-detective/SA2Downloader/releases/download/v1.1.0/SA2Downloader-1.1.0-macos-Universal.zip)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.6/SA2Downloader-1.1.6-macos-Universal.zip)
 &nbsp;
-[![Download for Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/tag/v1.1.0)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/tag/v1.1.6)
 
-[![Chrome / Edge extension](https://img.shields.io/badge/Extension-Chrome%20%2F%20Edge-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.0/SA2Downloader-Chrome-1.1.0.zip)
+[![Chrome / Edge extension](https://img.shields.io/badge/Extension-Chrome%20%2F%20Edge-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.6/SA2Downloader-Chrome-1.1.6.zip)
 &nbsp;
-[![Firefox extension](https://img.shields.io/badge/Extension-Firefox-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.0/SA2Downloader-Firefox-1.1.0.xpi)
+[![Firefox extension](https://img.shields.io/badge/Extension-Firefox-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](https://github.com/sa3akash/SA2_Downloader/releases/download/v1.1.6/SA2Downloader-Firefox-1.1.6.xpi)
 
 <sub>Windows 10/11 · macOS 12+ (Apple Silicon & Intel) · Linux x86-64 (DEB, RPM, AppImage) · <a href="https://github.com/sa3akash/SA2_Downloader/releases">all releases</a></sub>
 
@@ -34,13 +34,15 @@ Multi-connection parallel downloads, dynamic segmentation work-stealing, YouTube
 
 ---
 
-## ✨ What's new in 1.1.0
+## ✨ What's new in 1.1.6
 
-- **New Modern IDM 7.0 Redesign**: full official color theme, faceted 3D brand logo, and unified visual styling.
-- **Enhanced Sidebar with Disk Space**: category-colored vector icons, live disk space arc meter gauge, and one-click Disk Cleaner.
-- **Refined Download List & Toolbar**: 44px rows with 2-line file information, format thumbnail cards, Spring Breeze progress bars, [+ Add Url] pill with cloud badge, and live Speed Test status bar.
-- **Redesigned Playlist Downloader**: multi-file batch window with format pills, auto-sorting, and disk availability indicator.
-- **Automated GitHub Releases**: CI builds across Windows, macOS, and Linux automatically publish release packages and extensions directly to GitHub Releases.
+- **Ultra HD 2K / 4K / 8K Dynamic Downloads**: Resolved 360p fallback; streams now download at native max resolution (8K 4320p, 4K 2160p, 2K 1440p, 1080p, 60fps AV1/VP9).
+- **Universal Multi-Website Video Support**: Dynamic stream extraction across millions of video websites (YouTube, Facebook, Vimeo, BongoBD, JustWatch, Bilibili, TikTok, and any DASH/HLS stream).
+- **Browser Cookie Session Forwarding**: Forward login cookies from Chrome, Edge, Firefox, Brave, Opera, and Vivaldi to bypass bot checks and HTTP 429 errors.
+- **Single Instant IDM-Style Video Loading (0ms Delay)**: Real stream formats and calculated sizes are pre-fetched by the browser extension into memory cache, eliminating 5–10s blocking probes and duplicate popup loops.
+- **Automated Daily Background Updates**: Automatically checks and updates managed `yt-dlp` and `FFmpeg` binaries once every 24 hours silently in the background with atomic replacements.
+- **Smooth 60 FPS Lerp Progress Bar**: Progress window height oscillation eliminated with locked layout geometry and fluid 60fps progress bar interpolation.
+- **Playlist Quality & Format Inheritance**: Selecting Audio or a Video quality applies instantly to all items in a playlist batch.
 
 ---
 
@@ -166,17 +168,17 @@ let done = SA2Downloader_engine::Downloader::new(reqwest::Client::new())
 
 | Platform | Download | How |
 |---|---|---|
-| **Windows 10/11** | `SA2Downloader-1.1.0-windows-x64-portable.zip` | Extract and run `sa2_downloader.exe` — nothing to install. |
-| **macOS 12+** | `SA2Downloader-1.1.0-macos-Universal.zip` | Move *Download SA2.app* to Applications (development build, not notarized — right-click → Open the first time). |
-| **Ubuntu / Debian / Mint** | `SA2Downloader_1.1.0_amd64.deb` | `sudo apt install ./SA2Downloader_1.1.0_amd64.deb` |
-| **Fedora** | `SA2Downloader-1.1.0-1.x86_64.rpm` | `sudo dnf install ./SA2Downloader-1.1.0-1.x86_64.rpm` |
-| **Other Linux** | `SA2Downloader-1.1.0-x86_64.AppImage` | Make it executable and open it. |
+| **Windows 10/11** | `SA2Downloader-1.1.6-windows-x64-portable.zip` | Extract and run `sa2_downloader.exe` — nothing to install. |
+| **macOS 12+** | `SA2Downloader-1.1.6-macos-Universal.zip` | Move *Download SA2.app* to Applications (development build, not notarized — right-click → Open the first time). |
+| **Ubuntu / Debian / Mint** | `SA2Downloader_1.1.6_amd64.deb` | `sudo apt install ./SA2Downloader_1.1.6_amd64.deb` |
+| **Fedora** | `SA2Downloader-1.1.6-1.x86_64.rpm` | `sudo dnf install ./SA2Downloader-1.1.6-1.x86_64.rpm` |
+| **Other Linux** | `SA2Downloader-1.1.6-x86_64.AppImage` | Make it executable and open it. |
 
 **Browser extension**
-1. **Chrome / Edge / Brave:** extract `SA2Downloader-Chrome-1.1.0.zip`, open `chrome://extensions`, turn on
+1. **Chrome / Edge / Brave:** extract `SA2Downloader-Chrome-1.1.6.zip`, open `chrome://extensions`, turn on
    *Developer mode*, choose **Load unpacked** and pick the `browser-extension` folder.
 2. **Firefox:** open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick
-   `SA2Downloader-Firefox-1.1.0.xpi`.
+   `SA2Downloader-Firefox-1.1.6.xpi`.
 3. In the app, open **Settings → Browser Integration** and press **Install** for your browser, so the
    extension can talk to the app. (Without it, the extension still downloads in the browser.)
 

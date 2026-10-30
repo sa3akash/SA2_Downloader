@@ -2122,6 +2122,7 @@ enum RowAct {
     Redownload,
     Pause,
     Remove,
+    ClearCompleted,
     RemoveFile,
     DeleteCompletedFile,
     OpenFolder,
@@ -3335,6 +3336,19 @@ impl sa2App {
                 } else {
                     self.remove(id)
                 }
+            }
+            RowAct::ClearCompleted => {
+                let ids: Vec<u64> = self
+                    .downloads
+                    .iter()
+                    .filter(|d| matches!(d.status, Status::Completed))
+                    .map(|d| d.id)
+                    .collect();
+                let n = ids.len();
+                for i in ids {
+                    self.remove(i);
+                }
+                self.push_log(format!("Cleared {n} completed download(s)."));
             }
             RowAct::RemoveFile => {
                 if bulk {
@@ -7096,7 +7110,7 @@ impl eframe::App for sa2App {
                 tools.push((ToolId::StopSel, MI_STOP, crate::i18n::t("Stop"), true, crate::i18n::t("Pause the selected downloads (all active when none is checked)")));
                 tools.push((ToolId::StopAll, MI_STOP_CIRCLE, crate::i18n::t("Stop All"), true, crate::i18n::t("Pause every active download now")));
                 tools.push((ToolId::Delete, MI_DELETE, crate::i18n::t("Delete"), n_checked > 0, crate::i18n::t("Remove the checked rows from the list")));
-                tools.push((ToolId::ClearCompleted, MI_SWAP_VERT, crate::i18n::t("Clear Completed"), has_completed, crate::i18n::t("Remove all finished/completed downloads from the list")));
+                tools.push((ToolId::ClearCompleted, MI_DELETE_FOREVER, crate::i18n::t("Clear Completed"), has_completed, crate::i18n::t("Remove all finished/completed downloads from the list")));
                 tools.push((ToolId::Settings, MI_TUNE, crate::i18n::t("Options"), true, crate::i18n::t("Open Settings in its own window")));
                 tools.push((ToolId::Queues, MI_REORDER, crate::i18n::t("Queues"), true, crate::i18n::t("Queues: start, stop, schedule (also in Tasks)")));
                 tools.push((ToolId::Scheduler, MI_SCHEDULE, crate::i18n::t("Scheduler"), true, crate::i18n::t("Scheduler and Queue timings")));
@@ -10659,9 +10673,9 @@ impl sa2App {
             });
             v.push(CtxEntry::Item {
                 label: t("Clear completed"),
-                icon: MI_SWAP_VERT,
+                icon: MI_DELETE_FOREVER,
                 hint: "",
-                act: RowAct::Menu(7),
+                act: ClearCompleted,
                 enabled: true,
                 danger: false,
             });

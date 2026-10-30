@@ -1403,15 +1403,17 @@ impl ProgressApp {
             COLOR_BLEU_DE_FRANCE,
         );
 
-        // ---- Row 4: Action Buttons [Hide Details] [Pause ||] [Cancel X] ----
+        // ---- Row 4: Action Buttons [Hide Details] [Pause ||] [Hide] [Cancel X] ----
         let btn_y = stats_y + 24.0;
         let details_lbl = if self.parts_open { crate::i18n::t("Hide Details") } else { crate::i18n::t("Show Details") };
-        let det_r = at(o, PAD_X, btn_y, 110.0, 32.0);
-        let pause_r = at(o, PAD_X + 160.0, btn_y, 120.0, 32.0);
-        let cancel_r = at(o, IN_R - 100.0, btn_y, 100.0, 32.0);
+        let det_r = at(o, PAD_X, btn_y, 100.0, 32.0);
+        let pause_r = at(o, PAD_X + 110.0, btn_y, 105.0, 32.0);
+        let hide_r = at(o, PAD_X + 225.0, btn_y, 100.0, 32.0);
+        let cancel_r = at(o, IN_R - 95.0, btn_y, 95.0, 32.0);
 
         let det_b = ui.interact(det_r, egui::Id::new("pg-details-btn"), egui::Sense::click());
         let pause_b = ui.interact(pause_r, egui::Id::new("pg-pause-btn"), egui::Sense::click());
+        let hide_b = ui.interact(hide_r, egui::Id::new("pg-hide-btn"), egui::Sense::click());
         let cancel_b = ui.interact(cancel_r, egui::Id::new("pg-cancel-btn"), egui::Sense::click());
 
         btn_pill(&p, det_r, det_b.hovered(), details_lbl, pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
@@ -1428,9 +1430,11 @@ impl ProgressApp {
             None,
         );
 
+        btn_pill(&p, hide_r, hide_b.hovered(), crate::i18n::t("Hide"), pl().dm_card, pl().dm_box_bd, pl().dm_txt, None);
+
         btn_pill(&p, cancel_r, cancel_b.hovered(), crate::i18n::t("Cancel"), pl().dm_card, pl().dm_box_bd, pl().dm_dim, Some(DmIcon::Close));
 
-        if det_b.hovered() || pause_b.hovered() || cancel_b.hovered() {
+        if det_b.hovered() || pause_b.hovered() || hide_b.hovered() || cancel_b.hovered() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
         if det_b.clicked() {
@@ -1442,6 +1446,10 @@ impl ProgressApp {
             } else {
                 send_cmd(self.id, "pause");
             }
+        }
+        if hide_b.clicked() {
+            // IDM-style hide: closes this progress popup while download continues running in background
+            Self::close_soon(ui.ctx());
         }
         if cancel_b.clicked() {
             send_cmd(self.id, "cancel");

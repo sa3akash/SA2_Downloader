@@ -772,7 +772,12 @@ impl ProgressApp {
     fn paint(&mut self, ui: &mut egui::Ui, item: &DownloadItem, o: egui::Pos2) {
         let frac = self.frac(item);
         let pct = (frac * 100.0).floor() as u64;
-        let title = format!("{} {pct}%", crate::i18n::t("Downloading"));
+        let is_completed = matches!(item.status, Status::Completed) || (!self.snap.live && frac >= 1.0);
+        let title = if is_completed {
+            crate::i18n::t("Download Complete")
+        } else {
+            format!("{} {pct}%", crate::i18n::t("Downloading"))
+        };
         self.chrome(ui, o, &title);
 
         let downloading = self.snap.live
@@ -1403,57 +1408,89 @@ impl ProgressApp {
             COLOR_BLEU_DE_FRANCE,
         );
 
-        // ---- Row 4: Action Buttons [Hide Details] [Pause ||] [Hide] [Cancel X] ----
+        // ---- Row 4: Action Buttons ----
         let btn_y = stats_y + 24.0;
-        let details_lbl = if self.parts_open { crate::i18n::t("Hide Details") } else { crate::i18n::t("Show Details") };
-        let det_r = at(o, PAD_X, btn_y, 100.0, 32.0);
-        let pause_r = at(o, PAD_X + 110.0, btn_y, 105.0, 32.0);
-        let hide_r = at(o, PAD_X + 225.0, btn_y, 100.0, 32.0);
-        let cancel_r = at(o, IN_R - 95.0, btn_y, 95.0, 32.0);
+        let is_completed = matches!(item.status, Status::Completed) || (!self.snap.live && frac >= 1.0);
 
-        let det_b = ui.interact(det_r, egui::Id::new("pg-details-btn"), egui::Sense::click());
-        let pause_b = ui.interact(pause_r, egui::Id::new("pg-pause-btn"), egui::Sense::click());
-        let hide_b = ui.interact(hide_r, egui::Id::new("pg-hide-btn"), egui::Sense::click());
-        let cancel_b = ui.interact(cancel_r, egui::Id::new("pg-cancel-btn"), egui::Sense::click());
+        if is_completed {
+            let open_r = at(o, PAD_X, btn_y, 110.0, 32.0);
+            let folder_r = at(o, PAD_X + 120.0, btn_y, 125.0, 32.0);
+            let close_r = at(o, IN_R - 95.0, btn_y, 95.0, 32.0);
 
-        btn_pill(&p, det_r, det_b.hovered(), details_lbl, pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
+            let open_b = ui.interact(open_r, egui::Id::new("pg-open-btn"), egui::Sense::click());
+            let folder_b = ui.interact(folder_r, egui::Id::new("pg-folder-btn"), egui::Sense::click());
+            let close_b = ui.interact(close_r, egui::Id::new("pg-close-btn"), egui::Sense::click());
 
-        let paused = matches!(item.status, Status::Paused);
-        btn_pill(
-            &p,
-            pause_r,
-            pause_b.hovered(),
-            if paused { crate::i18n::t("Resume") } else { crate::i18n::t("Pause") },
-            pl().dm_card,
-            COLOR_APPLE_GREEN,
-            pl().dm_txt,
-            None,
-        );
+            btn_pill(&p, open_r, open_b.hovered(), crate::i18n::t("Open"), pl().dm_card, COLOR_APPLE_GREEN, pl().dm_txt, None);
+            btn_pill(&p, folder_r, folder_b.hovered(), crate::i18n::t("Open Folder"), pl().dm_card, pl().dm_box_bd, pl().dm_txt, None);
+            btn_pill(&p, close_r, close_b.hovered(), crate::i18n::t("Close"), pl().dm_card, pl().dm_box_bd, pl().dm_dim, Some(DmIcon::Close));
 
-        btn_pill(&p, hide_r, hide_b.hovered(), crate::i18n::t("Hide"), pl().dm_card, pl().dm_box_bd, pl().dm_txt, None);
-
-        btn_pill(&p, cancel_r, cancel_b.hovered(), crate::i18n::t("Cancel"), pl().dm_card, pl().dm_box_bd, pl().dm_dim, Some(DmIcon::Close));
-
-        if det_b.hovered() || pause_b.hovered() || hide_b.hovered() || cancel_b.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-        }
-        if det_b.clicked() {
-            self.parts_open = !self.parts_open;
-        }
-        if pause_b.clicked() {
-            if paused {
-                send_cmd(self.id, "resume");
-            } else {
-                send_cmd(self.id, "pause");
+            if open_b.hovered() || folder_b.hovered() || close_b.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
             }
-        }
-        if hide_b.clicked() {
-            // IDM-style hide: closes this progress popup while download continues running in background
-            Self::close_soon(ui.ctx());
-        }
-        if cancel_b.clicked() {
-            send_cmd(self.id, "cancel");
-            Self::close_soon(ui.ctx());
+            if open_b.clicked() {
+                let dest = item.dest_path();
+                crate::platform::open_file(&dest);
+                Self::close_soon(ui.ctx());
+            }
+            if folder_b.clicked() {
+                let dest = item.dest_path();
+                crate::platform::show_in_folder(&dest);
+            }
+            if close_b.clicked() {
+                Self::close_soon(ui.ctx());
+            }
+        } else {
+            let details_lbl = if self.parts_open { crate::i18n::t("Hide Details") } else { crate::i18n::t("Show Details") };
+            let det_r = at(o, PAD_X, btn_y, 100.0, 32.0);
+            let pause_r = at(o, PAD_X + 110.0, btn_y, 105.0, 32.0);
+            let hide_r = at(o, PAD_X + 225.0, btn_y, 100.0, 32.0);
+            let cancel_r = at(o, IN_R - 95.0, btn_y, 95.0, 32.0);
+
+            let det_b = ui.interact(det_r, egui::Id::new("pg-details-btn"), egui::Sense::click());
+            let pause_b = ui.interact(pause_r, egui::Id::new("pg-pause-btn"), egui::Sense::click());
+            let hide_b = ui.interact(hide_r, egui::Id::new("pg-hide-btn"), egui::Sense::click());
+            let cancel_b = ui.interact(cancel_r, egui::Id::new("pg-cancel-btn"), egui::Sense::click());
+
+            btn_pill(&p, det_r, det_b.hovered(), details_lbl, pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
+
+            let paused = matches!(item.status, Status::Paused);
+            btn_pill(
+                &p,
+                pause_r,
+                pause_b.hovered(),
+                if paused { crate::i18n::t("Resume") } else { crate::i18n::t("Pause") },
+                pl().dm_card,
+                COLOR_APPLE_GREEN,
+                pl().dm_txt,
+                None,
+            );
+
+            btn_pill(&p, hide_r, hide_b.hovered(), crate::i18n::t("Hide"), pl().dm_card, pl().dm_box_bd, pl().dm_txt, None);
+
+            btn_pill(&p, cancel_r, cancel_b.hovered(), crate::i18n::t("Cancel"), pl().dm_card, pl().dm_box_bd, pl().dm_dim, Some(DmIcon::Close));
+
+            if det_b.hovered() || pause_b.hovered() || hide_b.hovered() || cancel_b.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            if det_b.clicked() {
+                self.parts_open = !self.parts_open;
+            }
+            if pause_b.clicked() {
+                if paused {
+                    send_cmd(self.id, "resume");
+                } else {
+                    send_cmd(self.id, "pause");
+                }
+            }
+            if hide_b.clicked() {
+                // IDM-style hide: closes this progress popup while download continues running in background
+                Self::close_soon(ui.ctx());
+            }
+            if cancel_b.clicked() {
+                send_cmd(self.id, "cancel");
+                Self::close_soon(ui.ctx());
+            }
         }
     }
 

@@ -5234,11 +5234,16 @@ impl sa2App {
                     let merged_ok = adaptive
                         && landed > 0
                         && task.shared.succeeded.load(Ordering::SeqCst);
-                    let complete = match d.total_bytes {
-                        Some(t) if adaptive => (t > 0 && dl >= t) || merged_ok,
-                        Some(t) => t > 0 && dl >= t && landed >= t,
-                        // unknown size: only a clean end WITH bytes counts
-                        None => !cancelled && dl > 0,
+                    let engine_succeeded = task.shared.succeeded.load(Ordering::SeqCst) && landed > 0 && !cancelled;
+                    let complete = if engine_succeeded {
+                        true
+                    } else {
+                        match d.total_bytes {
+                            Some(t) if adaptive => (t > 0 && dl >= t) || merged_ok,
+                            Some(t) => t > 0 && (dl >= t || landed >= t || (dl > 0 && (t as f64 - landed as f64).abs() / t as f64 < 0.05)),
+                            // unknown size: only a clean end WITH bytes counts
+                            None => !cancelled && dl > 0,
+                        }
                     };
                     // Snapshot what follow-up actions need (borrow ends at block end).
                     // A pre-existing file only counts when the size was never

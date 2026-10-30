@@ -3584,7 +3584,10 @@ async fn download_hls(
     // 4. Byte totals via concurrent ranged HEADs (best-effort).
     let parallel = connections.clamp(4, 8);
     let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(parallel));
-    {
+    if opts.expected_size > 0 {
+        shared.total.store(opts.expected_size, Ordering::SeqCst);
+        shared.has_total.store(true, Ordering::SeqCst);
+    } else {
         let mut any_known = false;
         let mut probes = Vec::new();
         // For large playlists (movies, multi-hour series, 3000+ segments), sampling avoids
@@ -3618,19 +3621,41 @@ async fn download_hls(
         }
         let mut sampled_total: u64 = 0;
         let mut sampled_hits = 0u64;
+        let mut first_val: Option<u64> = None;
+        let mut all_same = true;
         for h in probes {
             if let Ok(Some(n)) = h.await {
+                if let Some(first) = first_val {
+                    if first != n {
+                        all_same = false;
+                    }
+                } else {
+                    first_val = Some(n);
+                }
                 sampled_total = sampled_total.saturating_add(n);
                 sampled_hits += 1;
                 any_known = true;
             }
         }
         if any_known && sampled_hits > 0 {
-            let total_known = if sampled_count == segs.len() {
+            let avg = sampled_total / sampled_hits;
+            // In HTTP, `Content-Range: bytes 0-0/TOTAL` returns the total length of the resource.
+            // On CDNs or byte-range HLS, this is often the total size of the entire video (e.g. 1.0 GB).
+            // A single HLS segment is typically 200 KB - 5 MB, and NEVER > 25 MB.
+            // If the probe returns > 25 MB, or if all probes returned the identical size > 10 MB,
+            // then `avg` is already the total size of the video, NOT an individual segment.
+            let total_known = if avg > 25 * 1024 * 1024 || (all_same && avg > 10 * 1024 * 1024) {
+                avg
+            } else if sampled_count == segs.len() {
                 sampled_total
             } else {
-                let avg = sampled_total / sampled_hits;
-                avg.saturating_mul(segs.len() as u64)
+                let multiplied = avg.saturating_mul(segs.len() as u64);
+                // Sanity cap: an HLS video stream should not estimate > 200 GB
+                if multiplied > 200 * 1024 * 1024 * 1024 {
+                    avg
+                } else {
+                    multiplied
+                }
             };
             shared.total.store(total_known, Ordering::SeqCst);
             shared.has_total.store(true, Ordering::SeqCst);

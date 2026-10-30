@@ -559,16 +559,17 @@
     const title = pageTitle();
     const info = urlStem(mediaUrl || "");
     const stem = info.stem;
+    const isHash = /^[0-9a-f]{16,64}$/i.test(stem) || /^[0-9a-f-]{32,36}$/i.test(stem);
     const generic = !title || GENERIC_TITLE.test(title) || title.length < 4;
     // A descriptive URL name wins over a generic title, and over a title
     // that is clearly shorter than the name itself. Folder names behind a
     // playlist qualify too (the release name, not a hashed CDN segment).
     const descriptive =
-      stem.length >= 8 && !BORING_STEM.test(stem) && (info.hasExt || info.fromFolder);
-    if (descriptive && (generic || stem.length > title.length + 8)) {
+      stem.length >= 8 && !BORING_STEM.test(stem) && !isHash && (info.hasExt || info.fromFolder);
+    if (descriptive && (generic || (!isHash && stem.length > title.length + 8))) {
       return stem.slice(0, 80);
     }
-    const base = (title || stem || "video")
+    const base = (!generic && title ? title : (isHash ? (title || "video") : (title || stem || "video")))
       .replace(MEDIA_EXT_RE, "")
       .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
       .trim()
@@ -3175,13 +3176,33 @@
         const r = v.getBoundingClientRect();
         return r.width >= 100 && r.height >= 60 && r.bottom >= -300 && r.top <= window.innerHeight + 300;
       });
+
+      function updatePillVis(pill, v) {
+        if (!pill || !v) return;
+        const isPlaying = !v.paused && !v.ended && v.currentTime > 0;
+        const isHovered = !!(v.__dcHovered || pill.__dcHovered);
+        // IDM behavior on multi-video feeds (Facebook, TikTok, Instagram, etc.):
+        // Only show the download bar on the actively playing or hovered video.
+        if (vids.length > 1 || isSocialPage()) {
+          if (isPlaying || isHovered) {
+            pill.style.display = "block";
+            positionPillOnVideo(pill, v);
+          } else {
+            pill.style.display = "none";
+          }
+        } else {
+          pill.style.display = "block";
+          positionPillOnVideo(pill, v);
+        }
+      }
+
       for (const v of vids) {
         const key = dismissalKey(v, null);
         if (dismissedVideos.has(key)) continue;
         if (v.__dcBtn) {
           if (!v.__dcBtn.isConnected) v.__dcBtn = null;
           else if (v.__dcKey === key) {
-            positionPillOnVideo(v.__dcBtn, v);
+            updatePillVis(v.__dcBtn, v);
             continue;
           }
           else { if (v.__dcBtn.__dcClose) v.__dcBtn.__dcClose.remove(); v.__dcBtn.remove(); v.__dcBtn = null; }
@@ -3196,12 +3217,12 @@
         pill.dataset.gen = String(GEN);
         pill.style.position = "fixed";
         pill.style.zIndex = "2147483646";
-        positionPillOnVideo(pill, v);
+        pill.__dcVideo = v;
+        updatePillVis(pill, v);
+
         pill.onclick = (ev) => {
           ev.stopPropagation(); ev.preventDefault();
-          // Facebook reels: open the IDM-style quality menu (title + HD/SD
-          // rows with sizes) instead of firing one mystery download — the
-          // player only holds a blob: URL and every reel needs no reload.
+          // Facebook reels: open the IDM-style quality menu (title + HD/SD rows)
           if (isFacebookPage()) {
             handleFbPill(pill);
             return;
@@ -3216,79 +3237,88 @@
               return;
             }
           }
+
+          let vdur = null;
+          try {
+            const d = Math.round(v.duration);
+            if (Number.isFinite(d) && d > 0 && d < 86400) vdur = d;
+          } catch (e) { }
           const direct = mediaUrlOf(v);
-          if (direct) {
-            const base = mediaBase(direct);
-            const ext = /\.mp3|\.m4a|\.wav|\.ogg/i.test(direct) ? "" : ".mp4";
-            let vdur = null;
-            try {
-              const d = Math.round(v.duration);
-              if (Number.isFinite(d) && d > 0 && d < 86400) vdur = d;
-            } catch (e) { /* duration unknown */ }
-            sendDownload(direct, base + ext, v.getAttribute && v.getAttribute("type"), null, null, null, vdur);
-          } else {
-            // Ask background for sniffed media URLs for this tab first.
-            // (Facebook reels render as blob: players — the real fbcdn/mp4
-            // URL only exists in the sniffed network traffic.) Clicked before
-            // the player fetched anything: wait for it ("Capturing…") rather
-            // than sending the bare page.
-            if (pill.__dcBusy) return;
-            const src = String((v && (v.currentSrc || v.src)) || "");
-            const pick = (items) => bestSniffed(items, { streamPlayer: /^blob:/i.test(src) || !!(v && v.srcObject) });
-            barBusy(pill, dcT("busyCapturing", "Capturing…"));
-            waitFor(() => sniffedNow().then(pick), (best) => {
-              barBusy(pill, null);
-              if (best) {
-                const isStream = (typeof DCRank !== "undefined" && DCRank.kindOf(best) === "playlist")
-                  || /(\.m3u8|\.mpd)(\?|#|$)/i.test(String(best.url).split("?")[0])
-                  || /mpegurl|dash/i.test(String(best.mime || ""));
-                if (isStream) {
-                  if (best.variants && best.variants.length) {
-                    openUniversalStreamMenu(pill, best, v);
-                  } else {
-                    barBusy(pill, dcT("busyResolving", "Resolving…"));
-                    chrome.runtime.sendMessage({ type: "fetchShape", url: best.url }, (res) => {
-                      barBusy(pill, null);
-                      if (res && res.ok && res.shape && res.shape.variants && res.shape.variants.length) {
-                        best.variants = res.shape.variants;
-                        if (res.shape.audios) best.audios = res.shape.audios;
-                        if (res.shape.dur) best.dur = res.shape.dur;
-                        openUniversalStreamMenu(pill, best, v);
-                      } else {
-                        const base = mediaBase(best.url);
-                        let vdur = best.dur || null;
-                        try { const d = Math.round(v.duration); if (!vdur && Number.isFinite(d) && d > 0 && d < 86400) vdur = d; } catch (e) { }
-                        sendDownload(best.url, base + ".mp4", best.mime, best.size || null, null, null, vdur);
-                      }
-                    });
+          const src = String((v && (v.currentSrc || v.src)) || "");
+          const pick = (items) => bestSniffed(items, { streamPlayer: /^blob:/i.test(src) || !!(v && v.srcObject) });
+
+          if (pill.__dcBusy) return;
+
+          // Zero-delay IDM experience: check sniff cache immediately
+          sniffedNow().then((items) => {
+            const best = pick(items);
+            const targetItem = best || (direct ? { url: direct, mime: (v.getAttribute && v.getAttribute("type")) || "video/mp4", dur: vdur, size: 0 } : null);
+            if (targetItem) {
+              const isStream = (typeof DCRank !== "undefined" && DCRank.kindOf(targetItem) === "playlist")
+                || /(\.m3u8|\.mpd)(\?|#|$)/i.test(String(targetItem.url).split("?")[0])
+                || /mpegurl|dash/i.test(String(targetItem.mime || ""));
+              if (isStream && (!targetItem.variants || !targetItem.variants.length)) {
+                barBusy(pill, dcT("busyResolving", "Resolving…"));
+                chrome.runtime.sendMessage({ type: "fetchShape", url: targetItem.url }, (res) => {
+                  barBusy(pill, null);
+                  if (res && res.ok && res.shape) {
+                    if (res.shape.variants && res.shape.variants.length) targetItem.variants = res.shape.variants;
+                    if (res.shape.audios) targetItem.audios = res.shape.audios;
+                    if (res.shape.dur) targetItem.dur = res.shape.dur;
                   }
-                } else {
-                  const base = mediaBase(best.url);
-                  const pair = best.pairUrl ? { url: best.pairUrl, mime: best.pairMime || "audio/mp4" } : null;
-                  let vdur = best.dur || null;
-                  try { const d = Math.round(v.duration); if (!vdur && Number.isFinite(d) && d > 0 && d < 86400) vdur = d; } catch (e) { }
-                  sendDownload(best.url, base + ".mp4", best.mime, best.size || null, pair, null, vdur);
-                }
+                  openUniversalStreamMenu(pill, targetItem, v);
+                });
               } else {
-                sendDownload(location.href, undefined, null);
+                openUniversalStreamMenu(pill, targetItem, v);
               }
-            }, 14, 600);
-          }
+            } else {
+              barBusy(pill, dcT("busyCapturing", "Capturing…"));
+              waitFor(() => sniffedNow().then(pick), (found) => {
+                barBusy(pill, null);
+                const item = found || (direct ? { url: direct, mime: (v.getAttribute && v.getAttribute("type")) || "video/mp4", dur: vdur, size: 0 } : null);
+                if (item) {
+                  openUniversalStreamMenu(pill, item, v);
+                } else {
+                  sendDownload(location.href, undefined, null);
+                }
+              }, 8, 200);
+            }
+          });
         };
         if (isSocialPage()) {
           pill.__dcQuickFor = () => { const post = socialPostFor(v); return post ? socialQuick(post, v) : null; };
           applyQuick(pill);
         }
         try {
-          pill.__dcVideo = v;
           v.addEventListener("mouseenter", () => {
-            positionPillOnVideo(pill, v);
+            v.__dcHovered = true;
+            updatePillVis(pill, v);
             wakeBar(pill);
+          }, { passive: true });
+          v.addEventListener("mouseleave", () => {
+            v.__dcHovered = false;
+            setTimeout(() => { updatePillVis(pill, v); }, 150);
+          }, { passive: true });
+          pill.addEventListener("mouseenter", () => {
+            pill.__dcHovered = true;
+            updatePillVis(pill, v);
+            wakeBar(pill);
+          }, { passive: true });
+          pill.addEventListener("mouseleave", () => {
+            pill.__dcHovered = false;
+            setTimeout(() => { updatePillVis(pill, v); }, 150);
           }, { passive: true });
           v.addEventListener("play", () => {
-            positionPillOnVideo(pill, v);
+            updatePillVis(pill, v);
             wakeBar(pill);
           }, { passive: true });
+          v.addEventListener("pause", () => {
+            setTimeout(() => { updatePillVis(pill, v); }, 150);
+          }, { passive: true });
+          v.addEventListener("ended", () => {
+            setTimeout(() => { updatePillVis(pill, v); }, 150);
+          }, { passive: true });
+
           document.documentElement.appendChild(pill);
           v.__dcBtn = pill; v.__dcKey = key;
           addDismissControl(pill, () => dismissalKey(v, null), null);
@@ -3473,7 +3503,7 @@
   function openUniversalStreamMenu(pill, item, video) {
     try { document.querySelectorAll("#dc-stream-panel, #dc-fb-panel").forEach((m) => m.remove()); } catch (e) { }
     let vdur = item.dur || (video && Number.isFinite(video.duration) && video.duration > 0 && Math.round(video.duration)) || 0;
-    const rawTitle = document.title || "Video";
+    const rawTitle = pageTitle() || document.title || "Video";
     const title = safeFilename(rawTitle.replace(/\.(mp4|m3u8|webm)$/i, ""));
     const thumb = (video && video.poster) || (document.querySelector('meta[property="og:image"]') && document.querySelector('meta[property="og:image"]').content) || "";
     const fname = safeName(title, ".mp4");

@@ -5240,7 +5240,7 @@ impl sa2App {
                     } else {
                         match d.total_bytes {
                             Some(t) if adaptive => (t > 0 && dl >= t) || merged_ok,
-                            Some(t) => t > 0 && (dl >= t || landed >= t || (dl > 0 && (t as f64 - landed as f64).abs() / t as f64 < 0.05)),
+                            Some(t) => t > 0 && (dl >= t || landed >= t || (dl > 0 && (t as f64 - landed as f64).abs() / (t as f64) < 0.05)),
                             // unknown size: only a clean end WITH bytes counts
                             None => !cancelled && dl > 0,
                         }

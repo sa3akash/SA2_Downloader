@@ -774,7 +774,7 @@ impl ProgressApp {
         let pct = (frac * 100.0).floor() as u64;
         let is_completed = matches!(item.status, Status::Completed) || (!self.snap.live && frac >= 1.0);
         let title = if is_completed {
-            crate::i18n::t("Download Complete")
+            crate::i18n::t("Download Complete").to_string()
         } else {
             format!("{} {pct}%", crate::i18n::t("Downloading"))
         };
@@ -1430,12 +1430,12 @@ impl ProgressApp {
             }
             if open_b.clicked() {
                 let dest = item.dest_path();
-                crate::platform::open_file(&dest);
+                crate::app::open_path(&dest, false);
                 Self::close_soon(ui.ctx());
             }
             if folder_b.clicked() {
                 let dest = item.dest_path();
-                crate::platform::show_in_folder(&dest);
+                crate::app::open_path(&dest, true);
             }
             if close_b.clicked() {
                 Self::close_soon(ui.ctx());

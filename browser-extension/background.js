@@ -295,6 +295,12 @@ async function sendToHost(url, filename, extra) {
     if (ctx._cookie && !pageOnly && (!cookie || (extra && extra.fromRequest))) cookie = ctx._cookie;
     const sentReferer = ctx._referer;
     delete ctx._cookie; delete ctx._referer; delete ctx._post;
+    try {
+      const uHost = new URL(url).hostname.toLowerCase();
+      if (/(?:^|\.)(?:youtube\.com|youtu\.be|googlevideo\.com)$/.test(uHost)) {
+        cookie = null;
+      }
+    } catch (e) {}
     rememberCapture(url, filename, extra);
     const res = await hostSend({
       type: "download",
@@ -585,6 +591,7 @@ function replayHeaders(auth) {
   for (const [k, v] of Object.entries((auth && auth.headers) || {})) {
     if (k !== "origin") out[k] = v;
   }
+  if (auth && auth.referer) out["Referer"] = auth.referer;
   return out;
 }
 // Throws when the server refuses (so the caller does not cache a miss).

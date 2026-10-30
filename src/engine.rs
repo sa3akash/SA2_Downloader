@@ -4307,6 +4307,7 @@ async fn fallback_chain(
                     if shared.cancelled.load(Ordering::SeqCst) { break; }
                     job_log(&opts.log_key, format!("retrying with alternative player profile to bypass verification"));
                     let mut o2 = opts.clone();
+                    o2.cookie.clear();
                     o2.ytdlp_extractor_args = client_profile.to_string();
                     reset_counters(shared);
                     if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
@@ -4611,9 +4612,35 @@ async fn download_inner(
         if url.to_ascii_lowercase().split(['?', '#']).next().unwrap_or("").ends_with(".mpd")
             || url.contains(".mpd")
         {
-            return download_dash(&url, dest, connections, opts, shared).await;
+            let res = download_dash(&url, dest.clone(), connections, opts.clone(), shared.clone()).await;
+            if res.is_err() && !shared.cancelled.load(Ordering::SeqCst) {
+                if let Ok(client) = opts.build_client() {
+                    if let Ok(exe) = ensure_ytdlp(&client).await {
+                        let mut helper_opts = opts.clone();
+                        if helper_opts.referer.is_empty() && !opts.referer.is_empty() {
+                            helper_opts.referer = opts.referer.clone();
+                        }
+                        reset_counters(&shared);
+                        return download_with_ytdlp(&exe, &url, &dest, connections, &helper_opts, &shared).await;
+                    }
+                }
+            }
+            return res;
         }
-        return download_hls(&url, &dest, connections, &opts, &shared).await;
+        let res = download_hls(&url, &dest, connections, &opts, &shared).await;
+        if res.is_err() && !shared.cancelled.load(Ordering::SeqCst) {
+            if let Ok(client) = opts.build_client() {
+                if let Ok(exe) = ensure_ytdlp(&client).await {
+                    let mut helper_opts = opts.clone();
+                    if helper_opts.referer.is_empty() && !opts.referer.is_empty() {
+                        helper_opts.referer = opts.referer.clone();
+                    }
+                    reset_counters(&shared);
+                    return download_with_ytdlp(&exe, &url, &dest, connections, &helper_opts, &shared).await;
+                }
+            }
+        }
+        return res;
     }
     // Same-destination jobs would interleave part files: serialize them.
     let _job = claim_dest_job(&dest).ok_or_else(|| {
@@ -7055,7 +7082,8 @@ async fn download_with_ytdlp(
     } else {
         cmd.arg("--no-playlist");
     }
-    cmd.arg("--no-warnings")
+    cmd.arg("--no-config")
+        .arg("--no-warnings")
         .arg("--continue")
         .arg("--no-simulate")
         .arg("--print")
@@ -7142,13 +7170,18 @@ async fn download_with_ytdlp(
     if let Some((name,path)) = js_runtime_path() {
         cmd.arg("--js-runtimes").arg(format!("{name}:{}",path.display()));
     }
+    let is_yt = is_youtube_page(url) || is_googlevideo_url(url) || url.contains("youtube.com") || url.contains("youtu.be");
     if !opts.ytdlp_extractor_args.trim().is_empty() {
         cmd.arg("--extractor-args").arg(opts.ytdlp_extractor_args.trim());
-    } else if !opts.ytdlp_visitor_data.is_empty() && (is_youtube_page(url) || is_googlevideo_url(url) || url.contains("youtube.com") || url.contains("youtu.be")) {
-        cmd.arg("--extractor-args").arg(format!(
-            "youtube:visitor_data={};player_skip=configs,webpage",
-            opts.ytdlp_visitor_data
-        ));
+    } else if is_yt {
+        if !opts.ytdlp_visitor_data.is_empty() {
+            cmd.arg("--extractor-args").arg(format!(
+                "youtube:visitor_data={};player_skip=configs",
+                opts.ytdlp_visitor_data
+            ));
+        } else {
+            cmd.arg("--extractor-args").arg("youtube:player_skip=configs");
+        }
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
         opts.ytdlp_cookies_browser.clone()
@@ -7156,12 +7189,17 @@ async fn download_with_ytdlp(
         crate::model::ui_pref_str("browser_cookies", "")
     };
     if let Some(jar) = &jar {
-        cmd.arg("--cookies").arg(&jar.0);
+        if !is_yt {
+            cmd.arg("--cookies").arg(&jar.0);
+        }
     } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
         cmd.arg("--cookies-from-browser").arg(b_cookie.trim());
     }
     if !opts.referer.trim().is_empty() {
         cmd.arg("--referer").arg(opts.referer.trim());
+    }
+    if !opts.user_agent.trim().is_empty() {
+        cmd.arg("--user-agent").arg(opts.user_agent.trim());
     }
     if opts.captured_headers.applies_to(url) {
         for (name, value) in &opts.captured_headers.headers {
@@ -7299,11 +7337,9 @@ async fn download_with_ytdlp(
     let err_log_key = opts.log_key.clone();
     let err_task = tokio::spawn(async move {
         let mut kept: std::collections::VecDeque<String> = std::collections::VecDeque::new();
-        if let Some(mut err) = stderr {
-            let mut buf = Vec::new();
-            let _ = tokio::io::AsyncReadExt::read_to_end(&mut err, &mut buf).await;
-            let text = String::from_utf8_lossy(&buf);
-            for line in text.lines() {
+        if let Some(err) = stderr {
+            let mut lines = tokio::io::BufReader::new(err).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
                     job_log(&err_log_key, format!("yt-dlp: {trimmed}"));
@@ -7588,6 +7624,64 @@ pub fn parse_hls_master_formats(text: &str, base_url: &str, dur_secs: Option<u64
     out
 }
 
+fn parse_dash_formats(videos: &[DashRep], has_audio: bool, dur_secs: Option<u64>) -> Vec<RealVideoFormat> {
+    if videos.is_empty() { return Vec::new(); }
+    let mut sorted = videos.to_vec();
+    sorted.sort_by(|a, b| b.height.cmp(&a.height).then_with(|| b.bandwidth.cmp(&a.bandwidth)));
+    let mut out = Vec::new();
+    let best_sz = dur_secs.map(|s| (sorted[0].bandwidth * s) / 8).filter(|s| *s > 0);
+    out.push(RealVideoFormat {
+        label: match best_sz {
+            Some(sz) => format!("Best Quality • {}", crate::model::format_bytes(sz)),
+            None => "Best Quality (Auto)".to_string(),
+        },
+        quality_val: "best".to_string(),
+        size: best_sz,
+        is_audio: false,
+    });
+    let mut seen_h = std::collections::HashSet::new();
+    for v in sorted {
+        if v.height > 0 && !seen_h.insert(v.height) { continue; }
+        let sz = dur_secs.map(|s| (v.bandwidth * s) / 8).filter(|s| *s > 0);
+        let prefix = match v.height {
+            4320 => "8K (4320p)",
+            2160 => "4K (2160p)",
+            1440 => "2K (1440p)",
+            1080 => "1080p FHD",
+            720 => "720p HD",
+            480 => "480p",
+            360 => "360p",
+            240 => "240p",
+            144 => "144p",
+            other if other > 0 => &format!("{other}p"),
+            _ => "Video Stream",
+        };
+        let label = match sz {
+            Some(bytes) => format!("{prefix} • {}", crate::model::format_bytes(bytes)),
+            None => prefix.to_string(),
+        };
+        out.push(RealVideoFormat {
+            label,
+            quality_val: format!("{}p", v.height),
+            size: sz,
+            is_audio: false,
+        });
+    }
+    if has_audio {
+        let audio_sz = dur_secs.map(|s| (128_000 * s) / 8).filter(|s| *s > 0);
+        out.push(RealVideoFormat {
+            label: match audio_sz {
+                Some(sz) => format!("Audio Only • {}", crate::model::format_bytes(sz)),
+                None => "Audio Only • MP3".to_string(),
+            },
+            quality_val: "audio".to_string(),
+            size: audio_sz,
+            is_audio: true,
+        });
+    }
+    out
+}
+
 pub async fn probe_real_video_formats(
     client: &reqwest::Client,
     opts: &EngineOpts,
@@ -7635,6 +7729,36 @@ pub async fn probe_real_video_formats(
             }
         }
     }
+
+    // Direct DASH MPD manifest fast-path (instant 0ms parse):
+    if target.contains(".mpd") {
+        if let Ok(resp) = opts.get(client, target).send().await {
+            if let Ok(text) = resp.text().await {
+                if let Ok((videos, audios)) = parse_mpd(&text) {
+                    let duration_secs = text
+                        .find("<MPD")
+                        .and_then(|p| {
+                            let q = text[p..].find('>').map(|x| x + p).unwrap_or(text.len());
+                            xml_attr(&text[p..q.min(text.len())], "mediaPresentationDuration")
+                        })
+                        .and_then(|d| parse_pt_duration(&d))
+                        .filter(|d| d.is_finite() && *d > 0.0)
+                        .map(|d| d.round() as u64);
+                    let formats = parse_dash_formats(&videos, !audios.is_empty(), duration_secs);
+                    if !formats.is_empty() {
+                        let info = RealVideoInfo {
+                            title: None,
+                            duration_secs,
+                            formats,
+                        };
+                        store_real_video_formats(target, info.clone());
+                        return Some(info);
+                    }
+                }
+            }
+        }
+    }
+
     let exe = ensure_ytdlp(client).await.ok()?;
     let mut cmd = tokio::process::Command::new(exe);
     cmd.kill_on_drop(true);
@@ -7644,6 +7768,7 @@ pub async fn probe_real_video_formats(
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd.arg("-J")
+        .arg("--no-config")
         .arg("--no-warnings")
         .arg("--no-playlist")
         .arg("--socket-timeout").arg("10");
@@ -7653,12 +7778,22 @@ pub async fn probe_real_video_formats(
     if let Some(p) = opts.effective_proxy(target) {
         cmd.arg("--proxy").arg(p);
     }
+    if !opts.referer.trim().is_empty() {
+        cmd.arg("--referer").arg(opts.referer.trim());
+    }
+    if !opts.user_agent.trim().is_empty() {
+        cmd.arg("--user-agent").arg(opts.user_agent.trim());
+    }
+    let is_yt = is_youtube_page(target) || is_googlevideo_url(target) || target.contains("youtube.com") || target.contains("youtu.be");
+    if is_yt {
+        cmd.arg("--extractor-args").arg("youtube:player_skip=configs");
+    }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
         opts.ytdlp_cookies_browser.clone()
     } else {
         crate::model::ui_pref_str("browser_cookies", "")
     };
-    if !opts.cookie.trim().is_empty() {
+    if !opts.cookie.trim().is_empty() && !is_yt {
         if let Ok(Some(jar)) = write_cookie_jar(&opts.cookie, &cookie_domain(target)).await {
             cmd.arg("--cookies").arg(&jar.0);
         }

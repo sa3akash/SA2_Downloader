@@ -687,12 +687,107 @@ function collectItems(peek, pageUrl) {
           }
         });
       }
-      opts = [{
-        label: isStream ? (n.master ? "Best quality" : "Stream") : isSub ? "Subtitles" : `${tag}${n.pairUrl ? " + audio" : ""}`,
-        size: n.size || 0, url: n.url, pairUrl: n.pairUrl || undefined,
-        browser: browserJob(n.url, isStream ? streamName : (name || ""), { mime: n.mime || "", pairUrl: n.pairUrl || undefined }),
-        msg: { type: "download", url: n.url, filename: name, pageUrl: pageUrl || undefined, pairUrl: n.pairUrl || undefined, pairMime: n.pairMime || undefined, dur: n.dur || undefined },
-      }];
+      if (isStream) {
+        const streamDur = dur || n.dur || 0;
+        const ladders = [
+          { h: 2160, label: "4K (2160p)", bw: 18000000 },
+          { h: 1440, label: "2K (1440p)", bw: 9000000 },
+          { h: 1080, label: "1080p Full HD", bw: 4500000 },
+          { h: 720, label: "720p HD", bw: 2500000 },
+          { h: 480, label: "480p SD", bw: 1000000 },
+          { h: 360, label: "360p SD", bw: 600000 },
+        ];
+        const bestSz = streamDur > 0 ? Math.round((4500000 / 8) * streamDur) : (n.size || 0);
+        const formatList = [{
+          label: bestSz > 0 ? `Best Quality • ${fmtSize(bestSz)}` : "Best Quality (Auto)",
+          quality_val: "best",
+          size: bestSz || undefined,
+          is_audio: false,
+          url: n.url,
+        }];
+        opts.push({
+          label: bestSz > 0 ? `★ Best Quality • ${fmtSize(bestSz)}` : "★ Best Quality (Auto)",
+          size: bestSz || 0,
+          url: n.url,
+          quality_val: "best",
+          browser: browserJob(n.url, streamName, { mime: n.mime || "" }),
+          msg: {
+            type: "download",
+            url: n.url,
+            variant_url: n.url,
+            quality: "best",
+            quality_val: "best",
+            filename: streamName,
+            pageUrl: pageUrl || undefined,
+            formats: formatList,
+            dur: streamDur || undefined,
+            size: bestSz || undefined,
+          },
+        });
+        for (const ld of ladders) {
+          const sz = streamDur > 0 ? Math.round((ld.bw / 8) * streamDur) : 0;
+          formatList.push({
+            label: sz > 0 ? `${ld.label} • ${fmtSize(sz)}` : ld.label,
+            quality_val: `${ld.h}p`,
+            size: sz || undefined,
+            is_audio: false,
+            url: n.url,
+          });
+          opts.push({
+            label: sz > 0 ? `${ld.label} • ${fmtSize(sz)}` : ld.label,
+            size: sz || 0,
+            url: n.url,
+            quality_val: `${ld.h}p`,
+            browser: browserJob(n.url, streamName, { mime: n.mime || "" }),
+            msg: {
+              type: "download",
+              url: n.url,
+              variant_url: n.url,
+              quality: `${ld.h}p`,
+              quality_val: `${ld.h}p`,
+              filename: (streamName || "video.mp4").replace(/\.mp4$/i, ` [${ld.h}p].mp4`),
+              pageUrl: pageUrl || undefined,
+              formats: formatList,
+              dur: streamDur || undefined,
+              size: sz || undefined,
+            },
+          });
+        }
+        const audioSz = streamDur > 0 ? Math.round((128000 / 8) * streamDur) : 0;
+        formatList.push({
+          label: audioSz > 0 ? `Audio Only (MP3) • ${fmtSize(audioSz)}` : "Audio Only (MP3)",
+          quality_val: "audio",
+          size: audioSz || undefined,
+          is_audio: true,
+          url: n.url,
+        });
+        opts.push({
+          label: audioSz > 0 ? `Audio Only (MP3) • ${fmtSize(audioSz)}` : "Audio Only (MP3)",
+          size: audioSz || 0,
+          url: n.url,
+          quality_val: "audio",
+          browser: browserJob(n.url, streamName, { mime: "audio/mp4" }),
+          msg: {
+            type: "download",
+            url: n.url,
+            variant_url: n.url,
+            quality: "audio",
+            quality_val: "audio",
+            filename: (streamName || "video").replace(/\.[a-z0-9]+$/i, ".mp3"),
+            pageUrl: pageUrl || undefined,
+            formats: formatList,
+            dur: streamDur || undefined,
+            size: audioSz || undefined,
+          },
+        });
+      } else {
+        opts = [{
+          label: isSub ? "Subtitles" : `${tag}${n.pairUrl ? " + audio" : ""}`,
+          size: n.size || 0, url: n.url, pairUrl: n.pairUrl || undefined,
+          browser: browserJob(n.url, isStream ? streamName : (name || ""), { mime: n.mime || "", pairUrl: n.pairUrl || undefined }),
+          msg: { type: "download", url: n.url, filename: name, pageUrl: pageUrl || undefined, pairUrl: n.pairUrl || undefined, pairMime: n.pairMime || undefined, dur: n.dur || undefined },
+        }];
+      }
     }
     items.push({
       key: `net:${n.url}`,
@@ -982,7 +1077,9 @@ async function loadVideos() {
     try {
       // The top frame only: every iframe also answers (ad/account frames
       // replied first with an empty or foreign video list).
-      const peek = await api.tabs.sendMessage(tab.id, { type: "peekState" }, { frameId: 0 });
+      const peekPromise = api.tabs.sendMessage(tab.id, { type: "peekState" }, { frameId: 0 });
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 300));
+      const peek = await Promise.race([peekPromise, timeoutPromise]);
       if (peek && (peek.videos || peek.links || peek.net || peek.fb)) {
         render(peek, peek.page || tabUrl);
         return;

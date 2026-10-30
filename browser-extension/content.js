@@ -2007,7 +2007,7 @@
   }
   // Retry `probe` every `every` ms until it returns something truthy or
   // `tries` run out; `done` gets the result (or null).
-  function waitFor(probe, done, tries = 16, every = 600) {
+  function waitFor(probe, done, tries = 16, every = 120) {
     let n = 0;
     const step = () => {
       let v = null;
@@ -3496,6 +3496,8 @@
     pill.__dcStreamPanel = api.panel;
 
     const variants = (item.variants && item.variants.length) ? item.variants : [];
+    const vHeight = (video && Number.isFinite(video.videoHeight) && video.videoHeight > 0) ? video.videoHeight : 1080;
+    const formatList = [];
     if (variants.length) {
       const sorted = variants.slice().sort((a, b) => (b.h || 0) - (a.h || 0) || (b.bw || 0) - (a.bw || 0));
       const seenH = new Set();
@@ -3505,33 +3507,98 @@
         if (h > 0) seenH.add(h);
         const sz = (vdur > 0 && vr.bw > 0) ? Math.round((vr.bw / 8) * vdur) : 0;
         const qStr = h > 0 ? `${h}p` : "best";
+        const res = h >= 2160 ? "4K (2160p)" : h >= 1440 ? "2K (1440p)" : h >= 1080 ? "1080p Full HD" : h >= 720 ? "720p HD" : h >= 480 ? "480p SD" : h > 0 ? `${h}p` : "Auto Quality";
+        formatList.push({
+          label: sz > 0 ? `${res} • ${fmtSize(sz)}` : res,
+          quality_val: qStr,
+          size: sz || undefined,
+          is_audio: false,
+          url: vr.url || item.url,
+        });
         const q = {
-          res: h >= 2160 ? "4K (2160p)" : h >= 1440 ? "2K (1440p)" : h >= 1080 ? "1080p Full HD" : h >= 720 ? "720p HD" : h >= 480 ? "480p SD" : h > 0 ? `${h}p` : "Auto Quality",
+          res,
           size: sz > 0 ? fmtSize(sz) : "",
           format: "MP4",
           tip: `${h > 0 ? h + "p" : "Stream"} · MP4 · ${title}`,
-          send: () => sendDownload(vr.url || item.url, fname, "video/mp4", sz || null, null, qStr, vdur || null),
+          send: () => sendDownload(vr.url || item.url, fname, "video/mp4", sz || null, null, qStr, vdur || null, false, formatList),
         };
         api.addQuality({ ...q, onPick: () => api.setInfo(q) });
       }
     } else {
-      const q = {
-        res: "Best Quality",
-        size: item.size > 0 ? fmtSize(item.size) : "",
+      const ladders = [
+        { h: 2160, label: "4K (2160p)", bw: 18000000 },
+        { h: 1440, label: "2K (1440p)", bw: 9000000 },
+        { h: 1080, label: "1080p Full HD", bw: 4500000 },
+        { h: 720, label: "720p HD", bw: 2500000 },
+        { h: 480, label: "480p SD", bw: 1000000 },
+        { h: 360, label: "360p SD", bw: 600000 },
+      ].filter((l) => l.h <= Math.max(1080, vHeight));
+
+      const bestBw = ladders[0] ? ladders[0].bw : 4500000;
+      const bestSz = vdur > 0 ? Math.round((bestBw / 8) * vdur) : (item.size || 0);
+      formatList.push({
+        label: bestSz > 0 ? `Best Quality • ${fmtSize(bestSz)}` : "Best Quality (Auto)",
+        quality_val: "best",
+        size: bestSz || undefined,
+        is_audio: false,
+        url: item.url,
+      });
+
+      for (const ld of ladders) {
+        const sz = vdur > 0 ? Math.round((ld.bw / 8) * vdur) : 0;
+        formatList.push({
+          label: sz > 0 ? `${ld.label} • ${fmtSize(sz)}` : ld.label,
+          quality_val: `${ld.h}p`,
+          size: sz || undefined,
+          is_audio: false,
+          url: item.url,
+        });
+      }
+
+      const qBest = {
+        res: "★ Best Quality (Auto)",
+        size: bestSz > 0 ? fmtSize(bestSz) : "",
         format: "MP4",
         tip: `Stream · MP4 · ${title}`,
-        send: () => sendDownload(item.url, fname, item.mime || "video/mp4", item.size || null, null, "best", vdur || null),
+        send: () => sendDownload(item.url, fname, item.mime || "video/mp4", bestSz || null, null, "best", vdur || null, false, formatList),
       };
-      api.addQuality({ ...q, onPick: () => api.setInfo(q) });
+      api.addQuality({ ...qBest, onPick: () => api.setInfo(qBest) });
+
+      for (const ld of ladders) {
+        const sz = vdur > 0 ? Math.round((ld.bw / 8) * vdur) : 0;
+        const q = {
+          res: ld.label,
+          size: sz > 0 ? fmtSize(sz) : "",
+          format: "MP4",
+          tip: `${ld.label} · MP4 · ${title}`,
+          send: () => sendDownload(item.url, fname.replace(/\.mp4$/i, ` [${ld.h}p].mp4`), item.mime || "video/mp4", sz || null, null, `${ld.h}p`, vdur || null, false, formatList),
+        };
+        api.addQuality({ ...q, onPick: () => api.setInfo(q) });
+      }
     }
+
+    const asz = vdur > 0 ? Math.round((128000 / 8) * vdur) : 0;
+    const aUrl = (item.audios && item.audios[0] && item.audios[0].url) || item.url;
+    formatList.push({
+      label: asz > 0 ? `Audio Only (MP3) • ${fmtSize(asz)}` : "Audio Only (MP3)",
+      quality_val: "audio",
+      size: asz || undefined,
+      is_audio: true,
+      url: aUrl,
+    });
 
     if (item.audios && item.audios.length) {
       const a = item.audios[0];
-      const asz = vdur > 0 ? Math.round((128000 / 8) * vdur) : 0;
       api.addChip({
         label: `♪ MP3 ${asz > 0 ? fmtSize(asz) : ""}`,
         tip: "Audio only track",
-        send: () => sendDownload(a.url || item.url, safeName(title, ".mp3"), "audio/mp4", asz || null, null, "audio", vdur || null),
+        send: () => sendDownload(a.url || item.url, safeName(title, ".mp3"), "audio/mp4", asz || null, null, "audio", vdur || null, false, formatList),
+      });
+    } else {
+      api.addChip({
+        label: `♪ MP3 ${asz > 0 ? fmtSize(asz) : ""}`,
+        tip: "Audio only track",
+        send: () => sendDownload(aUrl, safeName(title, ".mp3"), "audio/mp4", asz || null, null, "audio", vdur || null, false, formatList),
       });
     }
 

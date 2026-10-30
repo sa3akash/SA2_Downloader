@@ -6598,7 +6598,7 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
     let p = pref.trim().to_ascii_lowercase();
     if p.is_empty() || p == "best" || p == "max" || p == "highest" || p == "auto" {
         return if can_merge {
-            "bv*+ba/bv*+ba[ext=m4a]/b".to_string()
+            "bv*+ba[ext=m4a]/bv*+ba/b".to_string()
         } else {
             "b".to_string()
         };
@@ -6611,10 +6611,10 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
     }
     match (quality_cap(pref), can_merge) {
         (Some(h), true) => format!(
-            "bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}]/bv*+ba/b"
+            "bv*[height<={h}]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b"
         ),
         (Some(h), false) => format!("b[height<={h}]/b"),
-        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b".to_string(),
+        (None, true) => "bv*+ba[ext=m4a]/bv*+ba/b".to_string(),
         (None, false) => "b".to_string(),
     }
 }
@@ -6623,9 +6623,9 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
 /// format. Require a real audio leg or a muxed format with an audio codec.
 fn audio_required_format(pref: &str, can_merge: bool) -> String {
     match (quality_cap(pref), can_merge) {
-        (Some(h), true) => format!("bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}][acodec!=none]/bv*+ba/b[acodec!=none]"),
+        (Some(h), true) => format!("bv[height<={h}]+ba[ext=m4a]/bv[height<={h}]+ba/b[height<={h}][acodec!=none]/bv+ba/b[acodec!=none]"),
         (Some(h), false) => format!("b[height<={h}][acodec!=none]/b[acodec!=none]"),
-        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b[acodec!=none]".to_string(),
+        (None, true) => "bv+ba[ext=m4a]/bv+ba/b[acodec!=none]".to_string(),
         (None, false) => "b[acodec!=none]".to_string(),
     }
 }

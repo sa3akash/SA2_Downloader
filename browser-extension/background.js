@@ -633,9 +633,10 @@ async function sniffUrl(url, headers) {
 
 // Master flag + child references + stream variants of a playlist, for parent/part linking and resolution selection.
 async function playlistShape(url, headers) {
-  let master = false, children = [], variants = [], audios = [];
+  let master = false, children = [], variants = [], audios = [], dur = 0;
   try {
-    const res = await fetch(url, { credentials: "include", headers: headers || {}, signal: AbortSignal.timeout(8000) });
+    const fetchHeaders = { Referer: url, ...(headers || {}) };
+    const res = await fetch(url, { credentials: "include", headers: fetchHeaders, signal: AbortSignal.timeout(8000) });
     if (res.ok && (!res.headers.get("content-length") || Number(res.headers.get("content-length")) <= 2 * 1024 * 1024)) {
       const reader = res.body.getReader();
       let body = "", size = 0;
@@ -658,13 +659,78 @@ async function playlistShape(url, headers) {
               if (parsed && Array.isArray(parsed.audios) && parsed.audios.length) {
                 audios = parsed.audios;
               }
+              if (parsed && parsed.duration > 0) dur = Math.round(parsed.duration);
+            } catch (e) {}
+          } else if (/<MPD[\s>]/i.test(body)) {
+            master = true;
+            try {
+              const durMatch = body.match(/mediaPresentationDuration="([^"]+)"/i);
+              if (durMatch && typeof DCStreams.isoDur === "function") {
+                dur = Math.round(DCStreams.isoDur(durMatch[1]));
+              }
+              // Parse each AdaptationSet block to inherit width/height/mimeType
+              const adaptRe = /<AdaptationSet\b([^>]*?)>([\s\S]*?)<\/AdaptationSet>/gi;
+              let adaptMatch;
+              let foundReps = false;
+              while ((adaptMatch = adaptRe.exec(body)) !== null) {
+                const adaptAttrs = adaptMatch[1];
+                const adaptInner = adaptMatch[2];
+                const setW = parseInt((adaptAttrs.match(/\bwidth=["']?(\d+)["']?/i) || [])[1] || "0", 10);
+                const setH = parseInt((adaptAttrs.match(/\bheight=["']?(\d+)["']?/i) || [])[1] || "0", 10);
+                const setMime = (adaptAttrs.match(/\bmimeType=["']?([^"'\s]+)["']?/i) || [])[1] || "";
+                const setContent = (adaptAttrs.match(/\bcontentType=["']?([^"'\s]+)["']?/i) || [])[1] || "";
+                const isSetAudio = /audio/i.test(setMime) || /audio/i.test(setContent);
+
+                const repRe = /<Representation\b([^>]*?)(\/?>|>[\s\S]*?<\/Representation>)/gi;
+                let repMatch;
+                while ((repMatch = repRe.exec(adaptInner)) !== null) {
+                  foundReps = true;
+                  const attrs = repMatch[1];
+                  let w = parseInt((attrs.match(/\bwidth=["']?(\d+)["']?/i) || [])[1] || "0", 10) || setW;
+                  let h = parseInt((attrs.match(/\bheight=["']?(\d+)["']?/i) || [])[1] || "0", 10) || setH;
+                  const bw = parseInt((attrs.match(/\bbandwidth=["']?(\d+)["']?/i) || [])[1] || "0", 10);
+                  const mime = (attrs.match(/\bmimeType=["']?([^"'\s]+)["']?/i) || [])[1] || setMime;
+                  const isAudio = isSetAudio || /audio/i.test(mime);
+                  if (isAudio && bw > 0) {
+                    audios.push({ bw, url, mime: "audio/mp4" });
+                  } else if (h > 0 || bw > 0) {
+                    if (!h && bw > 0) {
+                      h = bw >= 4500000 ? 1080 : bw >= 2200000 ? 720 : bw >= 900000 ? 480 : 360;
+                      w = Math.round(h * 16 / 9);
+                    }
+                    variants.push({ w, h, bw, url, mime: mime || "video/mp4" });
+                  }
+                }
+              }
+              // Fallback for flat MPDs without AdaptationSet tags
+              if (!foundReps) {
+                const repRe = /<Representation\b([^>]*?)(\/?>|>[\s\S]*?<\/Representation>)/gi;
+                let repMatch;
+                while ((repMatch = repRe.exec(body)) !== null) {
+                  const attrs = repMatch[1];
+                  let w = parseInt((attrs.match(/\bwidth=["']?(\d+)["']?/i) || [])[1] || "0", 10);
+                  let h = parseInt((attrs.match(/\bheight=["']?(\d+)["']?/i) || [])[1] || "0", 10);
+                  const bw = parseInt((attrs.match(/\bbandwidth=["']?(\d+)["']?/i) || [])[1] || "0", 10);
+                  const mime = (attrs.match(/\bmimeType=["']?([^"'\s]+)["']?/i) || [])[1] || "";
+                  const isAudio = /audio/i.test(mime);
+                  if (isAudio && bw > 0) {
+                    audios.push({ bw, url, mime: "audio/mp4" });
+                  } else if (h > 0 || bw > 0) {
+                    if (!h && bw > 0) {
+                      h = bw >= 4500000 ? 1080 : bw >= 2200000 ? 720 : bw >= 900000 ? 480 : 360;
+                      w = Math.round(h * 16 / 9);
+                    }
+                    variants.push({ w, h, bw, url, mime: mime || "video/mp4" });
+                  }
+                }
+              }
             } catch (e) {}
           }
         }
       } finally { await reader.cancel(); }
     }
   } catch (e) { /* metadata optional; keep the original signed URL */ }
-  return { master, children, variants, audios };
+  return { master, children, variants, audios, dur };
 }
 
 function responseMeta(details) {
@@ -722,6 +788,7 @@ async function onMediaResponse(details) {
     // A playlist's byte length is its text, not the video.
     size: hit.kind === "playlist" ? 0 : (meta.size || 0),
     pageUrl: details.documentUrl || null,
+    dur: shape.dur || undefined,
     frameId: details.tabId >= 0 ? details.frameId : undefined,
     segment: hit.kind === "segment" || undefined,
     subtitle: hit.kind === "subtitle" || undefined,
@@ -1443,6 +1510,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       } catch (e) {}
       return { ok: true };
     }
+    if (msg.type === "fetchShape" && msg.url) {
+      try {
+        const shape = await playlistShape(msg.url, replayHeaders(mediaAuth.get(stripFbSlice(msg.url)) || null));
+        return { ok: true, shape };
+      } catch (e) {
+        return { ok: false, error: String(e) };
+      }
+    }
     if (msg.type === "download" && msg.url) {
       if ((!/^https?:\/\//i.test(msg.url) && !msg.url.startsWith("magnet:")) || msg.url.length > 8000) {
         return { ok: false, error: "only http(s) and magnet links up to 8000 chars can be sent" };
@@ -1463,17 +1538,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           /* best effort script update */
         }
       }
-      markSeen(msg.url, msg.filename);
+      const targetUrl = msg.variant_url || msg.url;
+      markSeen(targetUrl, msg.filename);
       try {
         const pageUrl = msg.pageUrl || (sender && sender.tab && sender.tab.url) || null;
-        const ok = await sendToHost(msg.url, msg.filename, {
+        const ok = await sendToHost(targetUrl, msg.filename, {
           pageUrl,
           referer: msg.referer || pageUrl,
           mime: msg.mime || null,
           size: msg.size || null,
           pairUrl: msg.pairUrl || null,
           pairMime: msg.pairMime || null,
-          quality: msg.quality || null,
+          quality: msg.quality || msg.quality_val || null,
           dur: msg.dur || null,
           audioExpected: !!msg.audioExpected,
           is_playlist: !!(msg.is_playlist || msg.isPlaylist),
@@ -1530,8 +1606,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!it || !http(it.url, it.mime) || hostBlocked(it.url, cfg.blockHosts)) continue;
         const mime = typeof it.mime === "string" && it.mime.length < 100 ? it.mime : "";
         const dur = Number(it.dur);
+        const isPl = /(\.m3u8|\.mpd)(\?|#|$)/i.test(it.url.split("?")[0]) || /mpegurl|dash/i.test(it.mime);
+        let shape = { master: false, children: [], variants: [], audios: [], dur: 0 };
+        if (isPl) {
+          try {
+            shape = await playlistShape(it.url, replayHeaders(mediaAuth.get(stripFbSlice(it.url)) || null));
+          } catch (e) {}
+        }
         noteMedia(tabId, {
-          master: false, children: [],
+          master: shape.master, children: shape.children,
+          variants: shape.variants || [],
+          audios: shape.audios || [],
           url: it.url,
           mime,
           size: 0,
@@ -1542,7 +1627,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           // even when the CDN names it like a fragment (Bilibili .m4s).
           whole: http(it.pairUrl) || undefined,
           pairMime: http(it.pairUrl) && typeof it.pairMime === "string" ? it.pairMime.slice(0, 100) : undefined,
-          dur: dur > 0 && dur < 86400 ? Math.round(dur) : undefined,
+          dur: (dur > 0 && dur < 86400 ? Math.round(dur) : undefined) || (shape.dur > 0 ? shape.dur : undefined),
           via: "page",
         });
       }

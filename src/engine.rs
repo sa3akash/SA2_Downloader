@@ -3145,10 +3145,11 @@ fn hls_pick_variant(text: &str, base: &str, quality_pref: &str) -> Option<String
                     let kv = kv.trim();
                     kv.strip_prefix("BANDWIDTH=")
                         .or_else(|| kv.strip_prefix("bandwidth="))
+                        .or_else(|| kv.strip_prefix("AVERAGE-BANDWIDTH="))
                         .and_then(|v| v.parse::<u64>().ok())
                 })
                 .unwrap_or(0);
-            let h = t
+            let mut h = t
                 .split([':', ',', ' '])
                 .find_map(|kv| {
                     let kv = kv.trim();
@@ -3157,6 +3158,17 @@ fn hls_pick_variant(text: &str, base: &str, quality_pref: &str) -> Option<String
                     h_str.parse::<u64>().ok()
                 })
                 .unwrap_or(0);
+            if h == 0 && bw > 0 {
+                h = if bw >= 4_500_000 {
+                    1080
+                } else if bw >= 2_200_000 {
+                    720
+                } else if bw >= 900_000 {
+                    480
+                } else {
+                    360
+                };
+            }
             // Next non-empty, non-comment line is the variant URI.
             let mut uri: Option<String> = None;
             while let Some(n) = lines.next() {
@@ -4287,15 +4299,13 @@ async fn fallback_chain(
         let bot = format!("{err:#}").to_ascii_lowercase();
         if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") || bot.contains("exit code: 1") || bot.contains("failed") {
             if let Ok(exe) = ensure_ytdlp(&client).await {
-                // Strategy 1: Rotate player clients to bypass YouTube IP/bot check without needing cookies
                 for client_profile in [
-                    "youtube:player_client=android,ios,web;player_skip=configs",
-                    "youtube:player_client=mweb,android;player_skip=configs",
-                    "youtube:player_client=ios,web;player_skip=configs",
-                    "youtube:player_client=android;player_skip=configs",
+                    "youtube:player_client=visionos,web;player_skip=configs",
+                    "youtube:player_client=visionos;player_skip=configs",
+                    "youtube:player_client=tv,mweb;player_skip=configs",
                 ] {
                     if shared.cancelled.load(Ordering::SeqCst) { break; }
-                    job_log(&opts.log_key, format!("retrying with player client profile to bypass verification"));
+                    job_log(&opts.log_key, format!("retrying with alternative player profile to bypass verification"));
                     let mut o2 = opts.clone();
                     o2.ytdlp_extractor_args = client_profile.to_string();
                     reset_counters(shared);
@@ -4311,14 +4321,16 @@ async fn fallback_chain(
                         return Ok(());
                     }
                 }
-                for b_name in ["chrome", "edge", "firefox", "brave"] {
-                    if shared.cancelled.load(Ordering::SeqCst) { break; }
-                    job_log(&opts.log_key, format!("retrying with {b_name} browser cookies to bypass verification"));
-                    let mut o2 = opts.clone();
-                    o2.ytdlp_cookies_browser = b_name.to_string();
-                    reset_counters(shared);
-                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
-                        return Ok(());
+                let configured_b = crate::model::ui_pref_str("browser_cookies", "");
+                if !configured_b.is_empty() && configured_b != "none" {
+                    if !shared.cancelled.load(Ordering::SeqCst) {
+                        job_log(&opts.log_key, format!("retrying with {configured_b} browser cookies to bypass verification"));
+                        let mut o2 = opts.clone();
+                        o2.ytdlp_cookies_browser = configured_b;
+                        reset_counters(shared);
+                        if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
+                            return Ok(());
+                        }
                     }
                 }
             }
@@ -6586,7 +6598,7 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
     let p = pref.trim().to_ascii_lowercase();
     if p.is_empty() || p == "best" || p == "max" || p == "highest" || p == "auto" {
         return if can_merge {
-            "bv*+ba[ext=m4a]/bv*+ba/b".to_string()
+            "bv*+ba/bv*+ba[ext=m4a]/b".to_string()
         } else {
             "b".to_string()
         };
@@ -6599,10 +6611,10 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
     }
     match (quality_cap(pref), can_merge) {
         (Some(h), true) => format!(
-            "bv*[height<={h}]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b"
+            "bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}]/bv*+ba/b"
         ),
         (Some(h), false) => format!("b[height<={h}]/b"),
-        (None, true) => "bv*+ba[ext=m4a]/bv*+ba/b".to_string(),
+        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b".to_string(),
         (None, false) => "b".to_string(),
     }
 }
@@ -6611,9 +6623,9 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
 /// format. Require a real audio leg or a muxed format with an audio codec.
 fn audio_required_format(pref: &str, can_merge: bool) -> String {
     match (quality_cap(pref), can_merge) {
-        (Some(h), true) => format!("bv[height<={h}]+ba[ext=m4a]/bv[height<={h}]+ba/b[height<={h}][acodec!=none]/bv+ba/b[acodec!=none]"),
+        (Some(h), true) => format!("bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}][acodec!=none]/bv*+ba/b[acodec!=none]"),
         (Some(h), false) => format!("b[height<={h}][acodec!=none]/b[acodec!=none]"),
-        (None, true) => "bv+ba[ext=m4a]/bv+ba/b[acodec!=none]".to_string(),
+        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b[acodec!=none]".to_string(),
         (None, false) => "b[acodec!=none]".to_string(),
     }
 }
@@ -6911,7 +6923,7 @@ fn phase_for_line(line: &str) -> Option<&'static str> {
         || l.starts_with("[twitter]")
         || l.starts_with("[facebook]")
     {
-        return Some("Getting info");
+        return Some("Connecting to stream...");
     }
     None
 }
@@ -7128,15 +7140,11 @@ async fn download_with_ytdlp(
     }
     if !opts.ytdlp_extractor_args.trim().is_empty() {
         cmd.arg("--extractor-args").arg(opts.ytdlp_extractor_args.trim());
-    } else if is_youtube_page(url) || is_googlevideo_url(url) || url.contains("youtube.com") || url.contains("youtu.be") {
-        if !opts.ytdlp_visitor_data.is_empty() {
-            cmd.arg("--extractor-args").arg(format!(
-                "youtube:visitor_data={};player_skip=configs,webpage;player_client=android,ios,web",
-                opts.ytdlp_visitor_data
-            ));
-        } else {
-            cmd.arg("--extractor-args").arg("youtube:player_client=android,ios,web;player_skip=configs");
-        }
+    } else if !opts.ytdlp_visitor_data.is_empty() && (is_youtube_page(url) || is_googlevideo_url(url) || url.contains("youtube.com") || url.contains("youtu.be")) {
+        cmd.arg("--extractor-args").arg(format!(
+            "youtube:visitor_data={};player_skip=configs,webpage",
+            opts.ytdlp_visitor_data
+        ));
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
         opts.ytdlp_cookies_browser.clone()
@@ -7187,9 +7195,9 @@ async fn download_with_ytdlp(
     let mut child = cmd.spawn().map_err(|e| anyhow!("yt-dlp launch: {e}"))?;
     let process_tree=crate::platform::HelperProcessTree::attach(&child)
         .map_err(|e|anyhow!("Could not supervise media helper processes: {e}"))?;
-    // Nothing is on the wire until the player challenge is solved, so say what
-    // is happening instead of showing a motionless 0%.
-    shared.set_phase("Getting info");
+    // Nothing is on the wire until the stream connection completes, so report
+    // connecting to stream instead of showing a motionless 0%.
+    shared.set_phase("Connecting to stream...");
     let stdout = child
         .stdout
         .take()
@@ -10060,7 +10068,7 @@ mod tests {
         // of a motionless 0%.
         assert_eq!(
             phase_for_line("[youtube] jNQXAC9IVRw: Downloading webpage"),
-            Some("Getting info")
+            Some("Connecting to stream...")
         );
         assert_eq!(
             phase_for_line("[download] Destination: C:\\x\\y.mp4"),
@@ -10074,7 +10082,7 @@ mod tests {
         // and unrelated chatter must not invent a stage.
         assert_eq!(
             phase_for_line("\r[youtube] Extracting URL: https://x"),
-            Some("Getting info")
+            Some("Connecting to stream...")
         );
         assert_eq!(phase_for_line("some unrelated log line"), None);
     }

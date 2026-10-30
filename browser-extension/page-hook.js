@@ -43,8 +43,8 @@
       const ext = m[1].toLowerCase();
       const mime = MIME[ext] || (ext === "m4s" || ext === "m4v" ? "video/mp4" : "");
       post([{ url: u, mime }]);
-    } else if (STREAM_HINT_RE.test(u)) {
-      post([{ url: u, mime: u.includes(".mpd") ? MIME.mpd : MIME.m3u8 }]);
+    } else if (STREAM_HINT_RE.test(u) || /[?&](?:format|type|output)=(?:m3u8|mpd|hls|dash)/i.test(u) || /(?:\/hls\/|\/dash\/|\/manifest\/|\/playlist\/|\.m3u8|\.mpd)/i.test(u)) {
+      post([{ url: u, mime: /mpd|dash/i.test(u) ? MIME.mpd : MIME.m3u8 }]);
     }
   }
 

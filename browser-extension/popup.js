@@ -656,13 +656,14 @@ function collectItems(peek, pageUrl) {
         opts.push({
           label: f.label,
           size: f.size || 0,
-          url: f.url,
+          url: f.url || n.url,
           quality_val: f.quality_val,
-          browser: browserJob(f.url, streamName, { mime: n.mime || "" }),
+          browser: browserJob(f.url || n.url, streamName, { mime: n.mime || "" }),
           msg: {
             type: "download",
-            url: n.url,
-            variant_url: f.url,
+            url: f.url || n.url,
+            variant_url: f.url || n.url,
+            quality: f.quality_val,
             quality_val: f.quality_val,
             filename: streamName,
             pageUrl: pageUrl || undefined,
@@ -673,21 +674,18 @@ function collectItems(peek, pageUrl) {
         });
       }
     } else {
-      if (isStream && (!n.variants || !n.variants.length) && !n._fetchingVariants && (/\.m3u8(\?|$)/i.test(n.url) || /mpegurl/i.test(n.mime))) {
+      if (isStream && (!n.variants || !n.variants.length) && !n._fetchingVariants) {
         n._fetchingVariants = true;
-        fetch(n.url, { credentials: "include" })
-          .then((r) => r.text())
-          .then((txt) => {
-            if (typeof DCStreams !== "undefined" && txt.includes("#EXTM3U")) {
-              const parsed = DCStreams.parseM3u8(txt, n.url);
-              if (parsed && Array.isArray(parsed.variants) && parsed.variants.length) {
-                n.variants = parsed.variants;
-                if (parsed.audios) n.audios = parsed.audios;
-                render(peek, pageUrl);
-              }
+        api.runtime.sendMessage({ type: "fetchShape", url: n.url }, (res) => {
+          if (res && res.ok && res.shape) {
+            if (Array.isArray(res.shape.variants) && res.shape.variants.length) {
+              n.variants = res.shape.variants;
+              if (res.shape.audios) n.audios = res.shape.audios;
+              if (res.shape.dur) n.dur = res.shape.dur;
+              render(peek, pageUrl);
             }
-          })
-          .catch(() => {});
+          }
+        });
       }
       opts = [{
         label: isStream ? (n.master ? "Best quality" : "Stream") : isSub ? "Subtitles" : `${tag}${n.pairUrl ? " + audio" : ""}`,

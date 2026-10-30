@@ -3239,13 +3239,36 @@
             waitFor(() => sniffedNow().then(pick), (best) => {
               barBusy(pill, null);
               if (best) {
-                const base = mediaBase(best.url);
-                // Page readers hand over a video track with its audio pair
-                // (merged by the app) and the player's duration.
-                const pair = best.pairUrl ? { url: best.pairUrl, mime: best.pairMime || "audio/mp4" } : null;
-                let vdur = best.dur || null;
-                try { const d = Math.round(v.duration); if (!vdur && Number.isFinite(d) && d > 0 && d < 86400) vdur = d; } catch (e) { }
-                sendDownload(best.url, base + ".mp4", best.mime, best.size || null, pair, null, vdur);
+                const isStream = (typeof DCRank !== "undefined" && DCRank.kindOf(best) === "playlist")
+                  || /(\.m3u8|\.mpd)(\?|#|$)/i.test(String(best.url).split("?")[0])
+                  || /mpegurl|dash/i.test(String(best.mime || ""));
+                if (isStream) {
+                  if (best.variants && best.variants.length) {
+                    openUniversalStreamMenu(pill, best, v);
+                  } else {
+                    barBusy(pill, dcT("busyResolving", "Resolving…"));
+                    chrome.runtime.sendMessage({ type: "fetchShape", url: best.url }, (res) => {
+                      barBusy(pill, null);
+                      if (res && res.ok && res.shape && res.shape.variants && res.shape.variants.length) {
+                        best.variants = res.shape.variants;
+                        if (res.shape.audios) best.audios = res.shape.audios;
+                        if (res.shape.dur) best.dur = res.shape.dur;
+                        openUniversalStreamMenu(pill, best, v);
+                      } else {
+                        const base = mediaBase(best.url);
+                        let vdur = best.dur || null;
+                        try { const d = Math.round(v.duration); if (!vdur && Number.isFinite(d) && d > 0 && d < 86400) vdur = d; } catch (e) { }
+                        sendDownload(best.url, base + ".mp4", best.mime, best.size || null, null, null, vdur);
+                      }
+                    });
+                  }
+                } else {
+                  const base = mediaBase(best.url);
+                  const pair = best.pairUrl ? { url: best.pairUrl, mime: best.pairMime || "audio/mp4" } : null;
+                  let vdur = best.dur || null;
+                  try { const d = Math.round(v.duration); if (!vdur && Number.isFinite(d) && d > 0 && d < 86400) vdur = d; } catch (e) { }
+                  sendDownload(best.url, base + ".mp4", best.mime, best.size || null, pair, null, vdur);
+                }
               } else {
                 sendDownload(location.href, undefined, null);
               }
@@ -3444,6 +3467,78 @@
       const h = location.hostname.toLowerCase();
       return h === "facebook.com" || h.endsWith(".facebook.com");
     } catch (e) { return false; }
+  }
+
+  // Universal stream resolution panel (IDM-style): HLS / DASH multi-resolution dropdown
+  function openUniversalStreamMenu(pill, item, video) {
+    try { document.querySelectorAll("#dc-stream-panel, #dc-fb-panel").forEach((m) => m.remove()); } catch (e) { }
+    let vdur = item.dur || (video && Number.isFinite(video.duration) && video.duration > 0 && Math.round(video.duration)) || 0;
+    const rawTitle = document.title || "Video";
+    const title = safeFilename(rawTitle.replace(/\.(mp4|m3u8|webm)$/i, ""));
+    const thumb = (video && video.poster) || (document.querySelector('meta[property="og:image"]') && document.querySelector('meta[property="og:image"]').content) || "";
+    const fname = safeName(title, ".mp4");
+
+    const api = dcPanel({
+      title,
+      thumb,
+      dur: vdur > 0 ? fmtDurSec(vdur) : "",
+      res: "",
+      size: "",
+      format: "MP4",
+      hint: dcT("panelHint", "Pick a quality below to download."),
+      onSendLink: () => sendDownload(item.url, fname, item.mime || "video/mp4", null, null, "best", vdur || null),
+      onPrimary: () => {
+        const it = api.selected();
+        if (it && it.q && it.q.send) it.q.send();
+      },
+    });
+    api.panel.id = "dc-stream-panel";
+    pill.__dcStreamPanel = api.panel;
+
+    const variants = (item.variants && item.variants.length) ? item.variants : [];
+    if (variants.length) {
+      const sorted = variants.slice().sort((a, b) => (b.h || 0) - (a.h || 0) || (b.bw || 0) - (a.bw || 0));
+      const seenH = new Set();
+      for (const vr of sorted) {
+        const h = vr.h || 0;
+        if (h > 0 && seenH.has(h)) continue;
+        if (h > 0) seenH.add(h);
+        const sz = (vdur > 0 && vr.bw > 0) ? Math.round((vr.bw / 8) * vdur) : 0;
+        const qStr = h > 0 ? `${h}p` : "best";
+        const q = {
+          res: h >= 2160 ? "4K (2160p)" : h >= 1440 ? "2K (1440p)" : h >= 1080 ? "1080p Full HD" : h >= 720 ? "720p HD" : h >= 480 ? "480p SD" : h > 0 ? `${h}p` : "Auto Quality",
+          size: sz > 0 ? fmtSize(sz) : "",
+          format: "MP4",
+          tip: `${h > 0 ? h + "p" : "Stream"} · MP4 · ${title}`,
+          send: () => sendDownload(vr.url || item.url, fname, "video/mp4", sz || null, null, qStr, vdur || null),
+        };
+        api.addQuality({ ...q, onPick: () => api.setInfo(q) });
+      }
+    } else {
+      const q = {
+        res: "Best Quality",
+        size: item.size > 0 ? fmtSize(item.size) : "",
+        format: "MP4",
+        tip: `Stream · MP4 · ${title}`,
+        send: () => sendDownload(item.url, fname, item.mime || "video/mp4", item.size || null, null, "best", vdur || null),
+      };
+      api.addQuality({ ...q, onPick: () => api.setInfo(q) });
+    }
+
+    if (item.audios && item.audios.length) {
+      const a = item.audios[0];
+      const asz = vdur > 0 ? Math.round((128000 / 8) * vdur) : 0;
+      api.addChip({
+        label: `♪ MP3 ${asz > 0 ? fmtSize(asz) : ""}`,
+        tip: "Audio only track",
+        send: () => sendDownload(a.url || item.url, safeName(title, ".mp3"), "audio/mp4", asz || null, null, "audio", vdur || null),
+      });
+    }
+
+    api.sync();
+    api.panel.style.display = "block";
+    placeFbPanel(pill, api.panel);
+    paintDcPanel(api.panel);
   }
 
   // Facebook quality panel (IDM-style): the same circle + bubble as YouTube,
@@ -3720,11 +3815,19 @@
             }
           }
         } catch (e) { fb = []; }
+        let pageDur = 0;
+        try {
+          const v = document.querySelector("video");
+          if (v && Number.isFinite(v.duration) && v.duration > 0 && v.duration < 86400) {
+            pageDur = Math.round(v.duration);
+          }
+        } catch (e) {}
         sendResponse({
           videos,
           links,
           fb,
-          net: net.map((n) => (n.thumb ? n : { ...n, thumb })),
+          dur: pageDur || undefined,
+          net: net.map((n) => (n.thumb ? n : { ...n, thumb, dur: n.dur || pageDur || undefined })),
           page: location.href,
           title: document.title || "",
         });

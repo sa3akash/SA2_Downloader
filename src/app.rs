@@ -2033,6 +2033,8 @@ enum ToolId {
     StopSel,
     /// Toolbar "Delete": remove the checked rows (dimmed while none is checked).
     Delete,
+    /// Toolbar "Clear Completed": remove all finished downloads from the list.
+    ClearCompleted,
     Scheduler,
     Share,
 }
@@ -3278,7 +3280,7 @@ impl sa2App {
                 ("Start queue".into(), 23),
                 ("Stop queue".into(), 24),
                 ("Remove selected".into(), 6),
-                ("Clear finished".into(), 7),
+                ("Clear completed".into(), 7),
                 ("Delete completed file(s)".into(), 15),
             ],
             2 => vec![("Open Queues".into(), 8), ("Settings".into(), 9)],
@@ -7088,11 +7090,13 @@ impl eframe::App for sa2App {
                 // ---- toolbar card: Add URL, the actions, Settings ----
                 // Manual routing: paint (+record hit); process_hits acts.
                 let n_checked = self.selected_ids().len();
+                let has_completed = self.downloads.iter().any(|d| matches!(d.status, Status::Completed));
                 let mut tools: Vec<(ToolId, &str, &str, bool, &str)> = Vec::new();
                 tools.push((ToolId::ResumeSel, MI_PLAY, crate::i18n::t("Resume"), true, crate::i18n::t("Resume the selected downloads (all paused when none is checked)")));
                 tools.push((ToolId::StopSel, MI_STOP, crate::i18n::t("Stop"), true, crate::i18n::t("Pause the selected downloads (all active when none is checked)")));
                 tools.push((ToolId::StopAll, MI_STOP_CIRCLE, crate::i18n::t("Stop All"), true, crate::i18n::t("Pause every active download now")));
                 tools.push((ToolId::Delete, MI_DELETE, crate::i18n::t("Delete"), n_checked > 0, crate::i18n::t("Remove the checked rows from the list")));
+                tools.push((ToolId::ClearCompleted, MI_SWAP_VERT, crate::i18n::t("Clear Completed"), has_completed, crate::i18n::t("Remove all finished/completed downloads from the list")));
                 tools.push((ToolId::Settings, MI_TUNE, crate::i18n::t("Options"), true, crate::i18n::t("Open Settings in its own window")));
                 tools.push((ToolId::Queues, MI_REORDER, crate::i18n::t("Queues"), true, crate::i18n::t("Queues: start, stop, schedule (also in Tasks)")));
                 tools.push((ToolId::Scheduler, MI_SCHEDULE, crate::i18n::t("Scheduler"), true, crate::i18n::t("Scheduler and Queue timings")));
@@ -7370,7 +7374,11 @@ impl eframe::App for sa2App {
                                                     if d.downloaded_bytes == 0
                                                         && p != "Downloading" =>
                                                 {
-                                                    p.clone()
+                                                    if p.contains("info") {
+                                                        "Connecting...".to_string()
+                                                    } else {
+                                                        p.clone()
+                                                    }
                                                 }
                                                 _ => String::new(),
                                             };
@@ -10649,6 +10657,14 @@ impl sa2App {
                 enabled: true,
                 danger: false,
             });
+            v.push(CtxEntry::Item {
+                label: t("Clear completed"),
+                icon: MI_SWAP_VERT,
+                hint: "",
+                act: RowAct::Menu(7),
+                enabled: true,
+                danger: false,
+            });
         } else {
             v.push(CtxEntry::Item {
                 label: t("Delete"),
@@ -10951,6 +10967,19 @@ impl sa2App {
                                     self.remove(id);
                                 }
                                 self.push_log(format!("Removed {n} selected download(s)."));
+                            }
+                            ToolId::ClearCompleted => {
+                                let ids: Vec<u64> = self
+                                    .downloads
+                                    .iter()
+                                    .filter(|d| matches!(d.status, Status::Completed))
+                                    .map(|d| d.id)
+                                    .collect();
+                                let n = ids.len();
+                                for id in ids {
+                                    self.remove(id);
+                                }
+                                self.push_log(format!("Cleared {n} completed download(s)."));
                             }
                         }
                     }

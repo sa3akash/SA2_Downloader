@@ -35,8 +35,13 @@
     for (const l of lines) {
       if (l.startsWith("#EXT-X-STREAM-INF:")) {
         const a = attrs(l.slice(18));
-        const [w, h] = (a.RESOLUTION || "").split("x").map(Number);
-        pendingVariant = { bw: Number(a.BANDWIDTH) || 0, w: w || 0, h: h || 0, audio: a.AUDIO || "", codecs: a.CODECS || "" };
+        let [w, h] = (a.RESOLUTION || "").split("x").map(Number);
+        const bw = Number(a.BANDWIDTH || a["AVERAGE-BANDWIDTH"]) || 0;
+        if (!h && bw > 0) {
+          h = bw >= 4500000 ? 1080 : bw >= 2200000 ? 720 : bw >= 900000 ? 480 : 360;
+          w = Math.round(h * (16 / 9));
+        }
+        pendingVariant = { bw, w: w || 0, h: h || 0, audio: a.AUDIO || "", codecs: a.CODECS || "" };
       } else if (l.startsWith("#EXT-X-MEDIA:")) {
         const a = attrs(l.slice(13));
         if (a.TYPE === "AUDIO" && a.URI) {

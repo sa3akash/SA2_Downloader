@@ -4325,12 +4325,11 @@ async fn fallback_chain(
         if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") || bot.contains("exit code: 1") || bot.contains("failed") {
             if let Ok(exe) = ensure_ytdlp(&client).await {
                 for client_profile in [
-                    "youtube:player_client=android,web;player_skip=configs",
-                    "youtube:player_client=android;player_skip=configs",
-                    "youtube:player_client=ios,web;player_skip=configs",
-                    "youtube:player_client=mweb;player_skip=configs",
-                    "youtube:player_client=tv;player_skip=configs",
+                    "youtube:player_client=tv_embedded,web;player_skip=configs",
                     "youtube:player_client=visionos,web;player_skip=configs",
+                    "youtube:player_client=mweb,web;player_skip=configs",
+                    "youtube:player_client=tv;player_skip=configs",
+                    "youtube:player_client=android;player_skip=configs",
                 ] {
                     if shared.cancelled.load(Ordering::SeqCst) { break; }
                     job_log(&opts.log_key, format!("retrying with alternative player profile ({client_profile}) to bypass verification"));
@@ -7208,11 +7207,11 @@ async fn download_with_ytdlp(
     } else if is_yt {
         if !opts.ytdlp_visitor_data.is_empty() {
             cmd.arg("--extractor-args").arg(format!(
-                "youtube:visitor_data={};player_client=android,web;player_skip=configs",
+                "youtube:visitor_data={};player_skip=configs",
                 opts.ytdlp_visitor_data
             ));
         } else {
-            cmd.arg("--extractor-args").arg("youtube:player_client=android,web;player_skip=configs");
+            cmd.arg("--extractor-args").arg("youtube:player_skip=configs");
         }
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
@@ -7816,7 +7815,7 @@ pub async fn probe_real_video_formats(
     }
     let is_yt = is_youtube_page(target) || is_googlevideo_url(target) || target.contains("youtube.com") || target.contains("youtu.be");
     if is_yt {
-        cmd.arg("--extractor-args").arg("youtube:player_client=android,web;player_skip=configs");
+        cmd.arg("--extractor-args").arg("youtube:player_skip=configs");
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
         opts.ytdlp_cookies_browser.clone()

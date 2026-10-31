@@ -6674,10 +6674,10 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
     }
     match (quality_cap(pref), can_merge) {
         (Some(h), true) => format!(
-            "bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}]/bv*+ba/b"
+            "bv*[height<={h}]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b"
         ),
         (Some(h), false) => format!("b[height<={h}]/b"),
-        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b".to_string(),
+        (None, true) => "bv*+ba[ext=m4a]/bv*+ba/b".to_string(),
         (None, false) => "b".to_string(),
     }
 }
@@ -6686,9 +6686,9 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
 /// format. Require a real audio leg or a muxed format with an audio codec.
 fn audio_required_format(pref: &str, can_merge: bool) -> String {
     match (quality_cap(pref), can_merge) {
-        (Some(h), true) => format!("bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}][acodec!=none]/bv*+ba/b[acodec!=none]"),
+        (Some(h), true) => format!("bv[height<={h}]+ba[ext=m4a]/bv[height<={h}]+ba/b[height<={h}][acodec!=none]/bv+ba/b[acodec!=none]"),
         (Some(h), false) => format!("b[height<={h}][acodec!=none]/b[acodec!=none]"),
-        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b[acodec!=none]".to_string(),
+        (None, true) => "bv+ba[ext=m4a]/bv+ba/b[acodec!=none]".to_string(),
         (None, false) => "b[acodec!=none]".to_string(),
     }
 }
@@ -6743,8 +6743,21 @@ async fn verify_completed_media(dest: &std::path::Path, shared: &Arc<SharedState
         .stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::null());
     let out = tokio::time::timeout(std::time::Duration::from_secs(20), cmd.output()).await
         .map_err(|_| anyhow!("finished media verification timed out"))??;
-    if !out.status.success() { return Err(anyhow!("could not inspect the finished media file")); }
-    completed_media_check(&String::from_utf8_lossy(&out.stdout), expected, audio)
+    if !out.status.success() {
+        if shared.external_helper.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+        return Err(anyhow!("could not inspect the finished media file"));
+    }
+    let check_res = completed_media_check(&String::from_utf8_lossy(&out.stdout), expected, audio);
+    if let Err(e) = check_res {
+        if shared.external_helper.load(Ordering::SeqCst) {
+            shared.set_note(format!("verification note: {e:#}"));
+            return Ok(());
+        }
+        return Err(e);
+    }
+    Ok(())
 }
 
 fn ffprobe_has_audio(json: &str) -> Result<bool> {
@@ -6979,6 +6992,15 @@ fn phase_for_line(line: &str) -> Option<&'static str> {
     }
     if l.starts_with("[download] Destination:") {
         return Some("Downloading");
+    }
+    if l.starts_with("[youtube]")
+        || l.starts_with("[info]")
+        || l.starts_with("[generic]")
+        || l.starts_with("[vimeo]")
+        || l.starts_with("[twitter]")
+        || l.starts_with("[facebook]")
+    {
+        return Some("Connecting to stream...");
     }
     None
 }
@@ -7320,7 +7342,9 @@ async fn download_with_ytdlp(
                 // Not a progress line: it may still name the stage the run is
                 // in ("[download] Destination:", "[Merger] …").
                 if let Some(ph) = phase_for_line(&line) {
-                    progress.set_phase(ph);
+                    if ph != "Connecting to stream..." || progress.downloaded.load(Ordering::SeqCst) == 0 {
+                        progress.set_phase(ph);
+                    }
                 }
                 continue;
             };

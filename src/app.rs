@@ -6010,15 +6010,15 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
 
     // IDM-style policy allowlist: allow dragging & dropping the CRX without
     // Chrome / Edge / Brave blocking it as "not from any known source".
-    let policy_path = match browser {
-        "chrome" => Some(r"HKCU\Software\Policies\Google\Chrome"),
-        "edge" => Some(r"HKCU\Software\Policies\Microsoft\Edge"),
-        "brave" => Some(r"HKCU\Software\Policies\BraveSoftware\Brave-Browser"),
-        "opera" => Some(r"HKCU\Software\Policies\Opera Software"),
-        "vivaldi" => Some(r"HKCU\Software\Policies\Vivaldi"),
-        _ => None,
+    let policy_roots = match browser {
+        "chrome" => vec![r"HKCU\Software\Policies\Google\Chrome", r"HKLM\Software\Policies\Google\Chrome"],
+        "edge" => vec![r"HKCU\Software\Policies\Microsoft\Edge", r"HKLM\Software\Policies\Microsoft\Edge"],
+        "brave" => vec![r"HKCU\Software\Policies\BraveSoftware\Brave-Browser", r"HKLM\Software\Policies\BraveSoftware\Brave-Browser"],
+        "opera" => vec![r"HKCU\Software\Policies\Opera Software", r"HKLM\Software\Policies\Opera Software"],
+        "vivaldi" => vec![r"HKCU\Software\Policies\Vivaldi", r"HKLM\Software\Policies\Vivaldi"],
+        _ => Vec::new(),
     };
-    if let Some(p) = policy_path {
+    for p in policy_roots {
         let mut r1 = std::process::Command::new("reg");
         r1.args(["add", &format!("{p}\\ExtensionInstallAllowlist"), "/v", "1", "/t", "REG_SZ", "/d", EXTENSION_ID, "/f"]);
         quiet(&mut r1);

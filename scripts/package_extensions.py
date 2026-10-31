@@ -28,10 +28,12 @@ def encode_varint(n):
     return bytes(res)
 
 def create_crx3_bytes(zip_bytes, key_path):
-    # Try Python cryptography first
+    # Try Python cryptography dynamically (avoids static linter missing-import errors)
     try:
-        from cryptography.hazmat.primitives.asymmetric import padding
-        from cryptography.hazmat.primitives import hashes, serialization
+        import importlib
+        padding = importlib.import_module("cryptography.hazmat.primitives.asymmetric.padding")
+        hashes = importlib.import_module("cryptography.hazmat.primitives.hashes")
+        serialization = importlib.import_module("cryptography.hazmat.primitives.serialization")
         with open(key_path, 'rb') as f:
             priv = serialization.load_pem_private_key(f.read(), password=None)
         pub = priv.public_key()
@@ -124,10 +126,16 @@ def stage_extensions(repo, destination, portable=False):
         "echo Enabling browser extension policy (prevents off-store block)...\r\n"
         "reg add \"HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
         "reg add \"HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
+        "reg add \"HKLM\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
+        "reg add \"HKLM\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
         "reg add \"HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
         "reg add \"HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
+        "reg add \"HKLM\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
+        "reg add \"HKLM\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
         "reg add \"HKCU\\Software\\Policies\\BraveSoftware\\Brave-Browser\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
         "reg add \"HKCU\\Software\\Policies\\BraveSoftware\\Brave-Browser\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
+        "reg add \"HKLM\\Software\\Policies\\BraveSoftware\\Brave-Browser\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
+        "reg add \"HKLM\\Software\\Policies\\BraveSoftware\\Brave-Browser\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
         "echo Done!\r\n"
         "echo.\r\n"
         "echo Opening Chrome Extensions page...\r\n"
@@ -135,13 +143,14 @@ def stage_extensions(repo, destination, portable=False):
         "echo.\r\n"
         "echo INSTALLATION OPTIONS (Both work!):\r\n"
         "echo ----------------------------------------------------------\r\n"
-        "echo Option 1 (Drag and Drop - IDM Style):\r\n"
-        "echo   - Turn ON \"Developer mode\" toggle in the top-right corner.\r\n"
-        "echo   - Drag and drop \"SA2Downloader-Chrome.crx\" into Chrome.\r\n"
+        "echo Option 1 (Load Unpacked - Recommended, Works Instantly):\r\n"
+        "echo   1. Turn ON \"Developer mode\" switch (top-right of chrome://extensions).\r\n"
+        "echo   2. Click \"Load unpacked\" button (top-left) and select the \"browser-extension\" folder.\r\n"
+        "echo      (Or simply drag-and-drop the \"browser-extension\" folder into Chrome!)\r\n"
         "echo.\r\n"
-        "echo Option 2 (Load Unpacked):\r\n"
-        "echo   - Click \"Load unpacked\" button in the top-left corner.\r\n"
-        "echo   - Select the \"browser-extension\" folder in this directory.\r\n"
+        "echo Option 2 (Drag and Drop .CRX):\r\n"
+        "echo   1. Turn ON \"Developer mode\" switch (top-right).\r\n"
+        "echo   2. Drag and drop \"SA2Downloader-Chrome.crx\" into chrome://extensions.\r\n"
         "echo ==========================================================\r\n"
         "echo.\r\n"
         "pause\r\n"

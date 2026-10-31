@@ -904,10 +904,24 @@ impl ProgressApp {
     /// `Some("Downloading — Getting info")`, or `None` when there is nothing
     /// more to say than the status label.
     fn stage_text(&self) -> Option<String> {
-        if !self.preparing() {
+        let dl = self.item.as_ref().map(|it| it.downloaded_bytes).unwrap_or(0).max(self.snap.downloaded);
+        let phase = &self.snap.phase;
+        if phase.is_empty() || phase == "Completed" {
             return None;
         }
-        Some(format!("Downloading — {}", self.snap.phase))
+        if phase.contains("Merg") || phase.contains("ffmpeg") || phase.contains("Remux") {
+            return Some(format!("{} — {}", crate::i18n::t("Finalizing"), crate::i18n::t("Merging")));
+        }
+        if phase == "Connecting to stream..." {
+            if dl > 0 {
+                return None;
+            }
+            return Some(crate::i18n::t("Connecting to stream...").to_string());
+        }
+        if phase != "Downloading" {
+            return Some(format!("{} — {}", crate::i18n::t("Downloading"), phase));
+        }
+        None
     }
 
     /// Concept Info tab: the detail rows, laid out in order. The resolution row

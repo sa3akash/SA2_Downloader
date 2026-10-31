@@ -74,42 +74,21 @@ def stage_extensions(repo, destination, portable=False):
     chrome = destination / 'browser-extension'
     shutil.copytree(source, chrome, ignore=ignore, dirs_exist_ok=True)
 
-    if portable:
-        return [chrome]
-
-    firefox = destination / 'browser-extension-firefox'
-    shutil.copytree(source, firefox, ignore=ignore, dirs_exist_ok=True)
-
-    shutil.copy2(source / 'manifest-firefox.json', firefox / 'manifest.json')
-    (firefox / 'manifest-firefox.json').unlink(missing_ok=True)
-    for chrome_only in ['offscreen.html', 'offscreen.js']:
-        (firefox / chrome_only).unlink(missing_ok=True)
-
     version = json.loads((chrome / 'manifest.json').read_text(encoding='utf-8')).get('version', '1.2.1')
-
-    # Firefox XPI package (drag & drop into Firefox)
-    xpi = destination / f'SA2Downloader-Firefox-{version}.xpi'
-    xpi_std = destination / 'SA2Downloader-Firefox.xpi'
-    with zipfile.ZipFile(xpi, 'w', zipfile.ZIP_DEFLATED) as z:
-        for f in sorted(firefox.rglob('*')):
-            if f.is_file():
-                z.write(f, f.relative_to(firefox))
-    shutil.copy2(xpi, xpi_std)
-
-    # Chrome zip package (files placed at root so extraction is clean)
-    chrome_zip = destination / f'SA2Downloader-Chrome-{version}.zip'
-    chrome_zip_std = destination / 'SA2Downloader-Chrome.zip'
-    with zipfile.ZipFile(chrome_zip, 'w', zipfile.ZIP_DEFLATED) as z:
-        for f in sorted(chrome.rglob('*')):
-            if f.is_file():
-                z.write(f, f.relative_to(chrome))
-    shutil.copy2(chrome_zip, chrome_zip_std)
 
     # Chrome CRX3 package (drag & drop into chrome://extensions with Developer mode ON)
     crx = destination / f'SA2Downloader-Chrome-{version}.crx'
     crx_std = destination / 'SA2Downloader-Chrome.crx'
 
-    zip_bytes = chrome_zip.read_bytes()
+    # Build zip in memory for CRX packaging
+    import io
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(chrome.rglob('*')):
+            if f.is_file():
+                z.write(f, f.relative_to(chrome))
+    zip_bytes = zip_buf.getvalue()
+
     crx_bytes = None
     if key_path.exists():
         crx_bytes = create_crx3_bytes(zip_bytes, key_path)
@@ -120,35 +99,82 @@ def stage_extensions(repo, destination, portable=False):
             try:
                 subprocess.run([runner, str(repo / 'scripts' / 'pack_crx.js'), str(destination)],
                                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if crx.exists():
+                if crx_std.exists():
+                    crx_bytes = crx_std.read_bytes()
+                    break
+                elif crx.exists():
                     crx_bytes = crx.read_bytes()
                     break
             except Exception:
                 continue
 
     if crx_bytes:
-        crx.write_bytes(crx_bytes)
         crx_std.write_bytes(crx_bytes)
-        shutil.copy2(crx, destination / 'sa2_downloader-chrome.crx')
-        shutil.copy2(xpi, destination / 'sa2_downloader-firefox.xpi')
+        if not portable:
+            crx.write_bytes(crx_bytes)
+            shutil.copy2(crx_std, destination / 'sa2_downloader-chrome.crx')
 
     bat_content = (
         "@echo off\r\n"
-        "title SA2 Downloader - Chrome Extension Quick Installer\r\n"
-        "echo ===================================================\r\n"
-        "echo   SA2 Downloader - Chrome Extension Quick Installer\r\n"
-        "echo ===================================================\r\n"
+        "title SA2 Downloader - Browser Extension Installer\r\n"
+        "echo ==========================================================\r\n"
+        "echo   SA2 Downloader - Browser Extension Installer (IDM Style)\r\n"
+        "echo ==========================================================\r\n"
         "echo.\r\n"
-        "echo 1. Opening Chrome Extensions page...\r\n"
+        "echo Enabling browser extension policy (prevents off-store block)...\r\n"
+        "reg add \"HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
+        "reg add \"HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
+        "reg add \"HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
+        "reg add \"HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
+        "reg add \"HKCU\\Software\\Policies\\BraveSoftware\\Brave-Browser\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
+        "reg add \"HKCU\\Software\\Policies\\BraveSoftware\\Brave-Browser\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
+        "echo Done!\r\n"
+        "echo.\r\n"
+        "echo Opening Chrome Extensions page...\r\n"
         "start chrome \"chrome://extensions\"\r\n"
         "echo.\r\n"
-        "echo 2. Turn ON \"Developer mode\" toggle in top-right corner.\r\n"
-        "echo 3. Drag and drop \"SA2Downloader-Chrome.crx\" (or the browser-extension folder)\r\n"
-        "echo    directly into your Chrome extensions window.\r\n"
+        "echo INSTALLATION OPTIONS (Both work!):\r\n"
+        "echo ----------------------------------------------------------\r\n"
+        "echo Option 1 (Drag and Drop - IDM Style):\r\n"
+        "echo   - Turn ON \"Developer mode\" toggle in the top-right corner.\r\n"
+        "echo   - Drag and drop \"SA2Downloader-Chrome.crx\" into Chrome.\r\n"
+        "echo.\r\n"
+        "echo Option 2 (Load Unpacked):\r\n"
+        "echo   - Click \"Load unpacked\" button in the top-left corner.\r\n"
+        "echo   - Select the \"browser-extension\" folder in this directory.\r\n"
+        "echo ==========================================================\r\n"
         "echo.\r\n"
         "pause\r\n"
     )
     (destination / 'install_chrome_extension.bat').write_text(bat_content, encoding='utf-8')
+
+    if portable:
+        return [chrome, crx_std]
+
+    # Non-portable (for full release dist): also generate Firefox XPI and Chrome ZIP
+    firefox = destination / 'browser-extension-firefox'
+    shutil.copytree(source, firefox, ignore=ignore, dirs_exist_ok=True)
+    shutil.copy2(source / 'manifest-firefox.json', firefox / 'manifest.json')
+    (firefox / 'manifest-firefox.json').unlink(missing_ok=True)
+    for chrome_only in ['offscreen.html', 'offscreen.js']:
+        (firefox / chrome_only).unlink(missing_ok=True)
+
+    xpi = destination / f'SA2Downloader-Firefox-{version}.xpi'
+    xpi_std = destination / 'SA2Downloader-Firefox.xpi'
+    with zipfile.ZipFile(xpi, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(firefox.rglob('*')):
+            if f.is_file():
+                z.write(f, f.relative_to(firefox))
+    shutil.copy2(xpi, xpi_std)
+    shutil.copy2(xpi, destination / 'sa2_downloader-firefox.xpi')
+
+    chrome_zip = destination / f'SA2Downloader-Chrome-{version}.zip'
+    chrome_zip_std = destination / 'SA2Downloader-Chrome.zip'
+    with zipfile.ZipFile(chrome_zip, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(chrome.rglob('*')):
+            if f.is_file():
+                z.write(f, f.relative_to(chrome))
+    shutil.copy2(chrome_zip, chrome_zip_std)
 
     return [chrome, firefox, xpi, xpi_std, crx, crx_std, chrome_zip]
 

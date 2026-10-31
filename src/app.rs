@@ -6007,6 +6007,29 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
     rc.args(["delete", legacy_key, "/f"]);
     quiet(&mut rc);
     let _ = rc.output();
+
+    // IDM-style policy allowlist: allow dragging & dropping the CRX without
+    // Chrome / Edge / Brave blocking it as "not from any known source".
+    let policy_path = match browser {
+        "chrome" => Some(r"HKCU\Software\Policies\Google\Chrome"),
+        "edge" => Some(r"HKCU\Software\Policies\Microsoft\Edge"),
+        "brave" => Some(r"HKCU\Software\Policies\BraveSoftware\Brave-Browser"),
+        "opera" => Some(r"HKCU\Software\Policies\Opera Software"),
+        "vivaldi" => Some(r"HKCU\Software\Policies\Vivaldi"),
+        _ => None,
+    };
+    if let Some(p) = policy_path {
+        let mut r1 = std::process::Command::new("reg");
+        r1.args(["add", &format!("{p}\\ExtensionInstallAllowlist"), "/v", "1", "/t", "REG_SZ", "/d", EXTENSION_ID, "/f"]);
+        quiet(&mut r1);
+        let _ = r1.output();
+
+        let mut r2 = std::process::Command::new("reg");
+        r2.args(["add", &format!("{p}\\ExtensionInstallSources"), "/v", "1", "/t", "REG_SZ", "/d", "<all_urls>", "/f"]);
+        quiet(&mut r2);
+        let _ = r2.output();
+    }
+
     Ok(manifest_path.to_string_lossy().to_string())
 }
 

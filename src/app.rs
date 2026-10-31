@@ -2771,7 +2771,7 @@ impl sa2App {
     }
 
     /// Pop the standalone "Download complete" dialog for one finished download.
-    fn spawn_complete(id: u64) {
+    pub(crate) fn spawn_complete(id: u64) {
         let Ok(exe) = crate::platform::launch_path() else {
             return;
         };
@@ -5356,11 +5356,8 @@ impl sa2App {
                 }
                 if let Some((name, path)) = finished_info {
                     self.on_download_finished(&name, &path);
-                    // IDM pops its "Download complete" dialog for a finished
-                    // transfer (the dialog's own checkbox switches it off).
-                    if self.show_complete {
-                        Self::spawn_complete(id);
-                    }
+                    // IDM pops its "Download complete" dialog for a finished transfer.
+                    Self::spawn_complete(id);
                 }
                 if let Some(m) = msg {
                     self.push_log(m);

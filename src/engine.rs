@@ -4325,12 +4325,15 @@ async fn fallback_chain(
         if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") || bot.contains("exit code: 1") || bot.contains("failed") {
             if let Ok(exe) = ensure_ytdlp(&client).await {
                 for client_profile in [
+                    "youtube:player_client=android,web;player_skip=configs",
+                    "youtube:player_client=android;player_skip=configs",
+                    "youtube:player_client=ios,web;player_skip=configs",
+                    "youtube:player_client=mweb;player_skip=configs",
+                    "youtube:player_client=tv;player_skip=configs",
                     "youtube:player_client=visionos,web;player_skip=configs",
-                    "youtube:player_client=visionos;player_skip=configs",
-                    "youtube:player_client=tv,mweb;player_skip=configs",
                 ] {
                     if shared.cancelled.load(Ordering::SeqCst) { break; }
-                    job_log(&opts.log_key, format!("retrying with alternative player profile to bypass verification"));
+                    job_log(&opts.log_key, format!("retrying with alternative player profile ({client_profile}) to bypass verification"));
                     let mut o2 = opts.clone();
                     o2.cookie.clear();
                     o2.ytdlp_extractor_args = client_profile.to_string();
@@ -4348,15 +4351,19 @@ async fn fallback_chain(
                     }
                 }
                 let configured_b = crate::model::ui_pref_str("browser_cookies", "");
-                if !configured_b.is_empty() && configured_b != "none" {
-                    if !shared.cancelled.load(Ordering::SeqCst) {
-                        job_log(&opts.log_key, format!("retrying with {configured_b} browser cookies to bypass verification"));
-                        let mut o2 = opts.clone();
-                        o2.ytdlp_cookies_browser = configured_b;
-                        reset_counters(shared);
-                        if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
-                            return Ok(());
-                        }
+                let candidate_browsers: Vec<&str> = if !configured_b.is_empty() && configured_b != "none" {
+                    vec![configured_b.as_str()]
+                } else {
+                    vec!["chrome", "edge", "firefox", "brave"]
+                };
+                for b_name in candidate_browsers {
+                    if shared.cancelled.load(Ordering::SeqCst) { break; }
+                    job_log(&opts.log_key, format!("retrying with {b_name} browser cookies to bypass verification"));
+                    let mut o2 = opts.clone();
+                    o2.ytdlp_cookies_browser = b_name.to_string();
+                    reset_counters(shared);
+                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
+                        return Ok(());
                     }
                 }
             }
@@ -7201,11 +7208,11 @@ async fn download_with_ytdlp(
     } else if is_yt {
         if !opts.ytdlp_visitor_data.is_empty() {
             cmd.arg("--extractor-args").arg(format!(
-                "youtube:visitor_data={};player_skip=configs",
+                "youtube:visitor_data={};player_client=android,web;player_skip=configs",
                 opts.ytdlp_visitor_data
             ));
         } else {
-            cmd.arg("--extractor-args").arg("youtube:player_skip=configs");
+            cmd.arg("--extractor-args").arg("youtube:player_client=android,web;player_skip=configs");
         }
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
@@ -7214,9 +7221,7 @@ async fn download_with_ytdlp(
         crate::model::ui_pref_str("browser_cookies", "")
     };
     if let Some(jar) = &jar {
-        if !is_yt {
-            cmd.arg("--cookies").arg(&jar.0);
-        }
+        cmd.arg("--cookies").arg(&jar.0);
     } else if !b_cookie.trim().is_empty() && b_cookie.trim() != "none" {
         cmd.arg("--cookies-from-browser").arg(b_cookie.trim());
     }
@@ -7811,14 +7816,14 @@ pub async fn probe_real_video_formats(
     }
     let is_yt = is_youtube_page(target) || is_googlevideo_url(target) || target.contains("youtube.com") || target.contains("youtu.be");
     if is_yt {
-        cmd.arg("--extractor-args").arg("youtube:player_skip=configs");
+        cmd.arg("--extractor-args").arg("youtube:player_client=android,web;player_skip=configs");
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {
         opts.ytdlp_cookies_browser.clone()
     } else {
         crate::model::ui_pref_str("browser_cookies", "")
     };
-    if !opts.cookie.trim().is_empty() && !is_yt {
+    if !opts.cookie.trim().is_empty() {
         if let Ok(Some(jar)) = write_cookie_jar(&opts.cookie, &cookie_domain(target)).await {
             cmd.arg("--cookies").arg(&jar.0);
         }

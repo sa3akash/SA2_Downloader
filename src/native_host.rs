@@ -850,14 +850,14 @@ fn spawn_confirm(msg: &Incoming) {
     if !(url.starts_with("http://") || url.starts_with("https://") || url.starts_with("magnet:")) {
         return;
     }
-    // Prevent duplicate popups (e.g. 3-4 popups triggered by simultaneous webRequest + downloads.onCreated).
-    let debounce_key = format!("{}|{}", url, msg.page_url.as_deref().unwrap_or(""));
+    // Prevent duplicate popups (e.g. simultaneous webRequest + downloads.onCreated).
+    let debounce_key = format!("{}|{}|{:?}", url, msg.page_url.as_deref().unwrap_or(""), msg.quality);
     let cache = RECENT_CONFIRMS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
     if let Ok(mut map) = cache.lock() {
         let now = std::time::Instant::now();
-        map.retain(|_, t| now.duration_since(*t).as_secs() < 10);
+        map.retain(|_, t| now.duration_since(*t).as_secs() < 5);
         if let Some(t) = map.get(&debounce_key) {
-            if now.duration_since(*t).as_millis() < 4000 {
+            if now.duration_since(*t).as_millis() < 600 {
                 return;
             }
         }

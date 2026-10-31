@@ -78,9 +78,19 @@ fn at(o: egui::Pos2, x: f32, y: f32, w: f32, h: f32) -> egui::Rect {
 }
 
 fn read_item(id: u64) -> Option<DownloadItem> {
-    let data = std::fs::read_to_string(config_dir()?.join("queue.json")).ok()?;
-    let items: Vec<DownloadItem> = serde_json::from_str(&data).ok()?;
-    items.into_iter().find(|d| d.id == id)
+    for _ in 0..10 {
+        if let Some(cfg) = config_dir() {
+            if let Ok(data) = std::fs::read_to_string(cfg.join("queue.json")) {
+                if let Ok(items) = serde_json::from_str::<Vec<DownloadItem>>(&data) {
+                    if let Some(it) = items.into_iter().find(|d| d.id == id) {
+                        return Some(it);
+                    }
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    None
 }
 
 /// Close bulletproofing: viewport Close is async and has been observed to

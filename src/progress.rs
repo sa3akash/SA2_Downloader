@@ -507,11 +507,9 @@ impl ProgressApp {
         self.last_poll = Instant::now();
         // A finished transfer hands over to the standalone "Download complete"
         // dialog, so this window has done its job (IDM closes it the same way).
-        // With that dialog switched off it stays put, which keeps its
-        // Open file / Open folder actions reachable.
-        self.handoff = !self.snap.live
-            && matches!(self.item.as_ref().map(|d| &d.status), Some(Status::Completed))
-            && crate::model::ui_pref_bool("show_complete", true);
+        let is_completed = matches!(self.item.as_ref().map(|d| &d.status), Some(Status::Completed))
+            || (!self.snap.live && self.item.as_ref().map(|it| self.frac(it)).unwrap_or(0.0) >= 1.0);
+        self.handoff = is_completed;
     }
 
     /// Close bulletproofing: viewport Close is async and has been observed
@@ -658,7 +656,9 @@ impl eframe::App for ProgressApp {
             self.refresh();
         }
         if self.handoff {
+            crate::app::spawn_complete(self.id);
             Self::close_soon(ctx);
+            return;
         }
         let downloading = self.snap.live
             && matches!(self.item.as_ref().map(|d| &d.status), Some(Status::Downloading | Status::Queued));
@@ -772,8 +772,18 @@ impl ProgressApp {
         let frac = self.frac(item);
         let pct = (frac * 100.0).floor() as u64;
         let is_completed = matches!(item.status, Status::Completed) || (!self.snap.live && frac >= 1.0);
-        let title = if is_completed {
-            crate::i18n::t("Download Complete").to_string()
+        if is_completed {
+            self.handoff = true;
+            crate::app::spawn_complete(self.id);
+            Self::close_soon(ui.ctx());
+            return;
+        }
+        let title = if pct >= 100 || !self.snap.phase.is_empty() {
+            if !self.snap.phase.is_empty() {
+                format!("{} — {}", crate::i18n::t("Finalizing"), self.snap.phase)
+            } else {
+                format!("{} 100%", crate::i18n::t("Finalizing"))
+            }
         } else {
             format!("{} {pct}%", crate::i18n::t("Downloading"))
         };

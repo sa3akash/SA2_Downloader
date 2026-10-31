@@ -38,7 +38,7 @@ jobs:
           name: SA2Downloader-Linux
           path: dist/*
   macos:
-    runs-on: macos-14
+    runs-on: macos-latest
     env:
       MACOSX_DEPLOYMENT_TARGET: '12.0'
     steps:

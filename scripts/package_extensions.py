@@ -129,6 +129,24 @@ def stage_extensions(repo, destination):
         shutil.copy2(crx, destination / 'sa2_downloader-chrome.crx')
         shutil.copy2(xpi, destination / 'sa2_downloader-firefox.xpi')
 
+    bat_content = (
+        "@echo off\r\n"
+        "title SA2 Downloader - Chrome Extension Quick Installer\r\n"
+        "echo ===================================================\r\n"
+        "echo   SA2 Downloader - Chrome Extension Quick Installer\r\n"
+        "echo ===================================================\r\n"
+        "echo.\r\n"
+        "echo 1. Opening Chrome Extensions page...\r\n"
+        "start chrome \"chrome://extensions\"\r\n"
+        "echo.\r\n"
+        "echo 2. Turn ON \"Developer mode\" toggle in top-right corner.\r\n"
+        "echo 3. Drag and drop \"SA2Downloader-Chrome.crx\" (or the browser-extension folder)\r\n"
+        "echo    directly into your Chrome extensions window.\r\n"
+        "echo.\r\n"
+        "pause\r\n"
+    )
+    (destination / 'install_chrome_extension.bat').write_text(bat_content, encoding='utf-8')
+
     return [chrome, firefox, xpi, xpi_std, crx, crx_std, chrome_zip]
 
 if __name__ == '__main__':

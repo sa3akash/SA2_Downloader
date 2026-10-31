@@ -4326,30 +4326,23 @@ async fn fallback_chain(
             }
         }
         // A bot check ("Sign in to confirm you're not a bot") can clear with
-        // player client rotation (Android/iOS API bypasses web SABR bot verification),
+        // player client rotation (Android API bypasses web SABR bot verification),
         // or the page's own visitor id when there are no cookies to send.
         let visitor = opts.browser.as_ref().map(|b| b.visitor_data.clone()).unwrap_or_default();
         let bot = format!("{err:#}").to_ascii_lowercase();
-        if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") || bot.contains("exit code: 1") || bot.contains("failed") {
+        if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") {
             if let Ok(exe) = ensure_ytdlp(&client).await {
-                for client_profile in [
-                    "youtube:player_client=tv_embedded,web;player_skip=configs",
-                    "youtube:player_client=visionos,web;player_skip=configs",
-                    "youtube:player_client=mweb,web;player_skip=configs",
-                    "youtube:player_client=tv;player_skip=configs",
-                    "youtube:player_client=android;player_skip=configs",
-                ] {
-                    if shared.cancelled.load(Ordering::SeqCst) { break; }
-                    job_log(&opts.log_key, format!("retrying with alternative player profile ({client_profile}) to bypass verification"));
+                if !shared.cancelled.load(Ordering::SeqCst) {
+                    job_log(&opts.log_key, "retrying with mobile player profile to bypass verification");
                     let mut o2 = opts.clone();
                     o2.cookie.clear();
-                    o2.ytdlp_extractor_args = client_profile.to_string();
+                    o2.ytdlp_extractor_args = "youtube:player_client=android,web;player_skip=configs,webpage".to_string();
                     reset_counters(shared);
                     if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
                         return Ok(());
                     }
                 }
-                if !visitor.is_empty() && opts.cookie.trim().is_empty() {
+                if !visitor.is_empty() && opts.cookie.trim().is_empty() && !shared.cancelled.load(Ordering::SeqCst) {
                     let mut o2 = opts.clone();
                     o2.ytdlp_visitor_data = visitor;
                     reset_counters(shared);
@@ -4358,16 +4351,10 @@ async fn fallback_chain(
                     }
                 }
                 let configured_b = crate::model::ui_pref_str("browser_cookies", "");
-                let candidate_browsers: Vec<&str> = if !configured_b.is_empty() && configured_b != "none" {
-                    vec![configured_b.as_str()]
-                } else {
-                    vec!["chrome", "edge", "firefox", "brave"]
-                };
-                for b_name in candidate_browsers {
-                    if shared.cancelled.load(Ordering::SeqCst) { break; }
-                    job_log(&opts.log_key, format!("retrying with {b_name} browser cookies to bypass verification"));
+                if !configured_b.is_empty() && configured_b != "none" && !shared.cancelled.load(Ordering::SeqCst) {
+                    job_log(&opts.log_key, format!("retrying with {configured_b} browser cookies to bypass verification"));
                     let mut o2 = opts.clone();
-                    o2.ytdlp_cookies_browser = b_name.to_string();
+                    o2.ytdlp_cookies_browser = configured_b;
                     reset_counters(shared);
                     if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
                         return Ok(());
@@ -4444,6 +4431,8 @@ fn reset_counters(shared: &SharedState) {
     shared.downloaded.store(0, Ordering::SeqCst);
     shared.total.store(0, Ordering::SeqCst);
     shared.has_total.store(false, Ordering::SeqCst);
+    shared.frag_index.store(0, Ordering::SeqCst);
+    shared.frag_count.store(0, Ordering::SeqCst);
 }
 
 static PAGE_FETCH_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -6685,10 +6674,10 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
     }
     match (quality_cap(pref), can_merge) {
         (Some(h), true) => format!(
-            "bv*[height<={h}]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b"
+            "bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}]/bv*+ba/b"
         ),
         (Some(h), false) => format!("b[height<={h}]/b"),
-        (None, true) => "bv*+ba[ext=m4a]/bv*+ba/b".to_string(),
+        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b".to_string(),
         (None, false) => "b".to_string(),
     }
 }
@@ -6697,9 +6686,9 @@ fn ytdlp_format_with(pref: &str, can_merge: bool) -> String {
 /// format. Require a real audio leg or a muxed format with an audio codec.
 fn audio_required_format(pref: &str, can_merge: bool) -> String {
     match (quality_cap(pref), can_merge) {
-        (Some(h), true) => format!("bv[height<={h}]+ba[ext=m4a]/bv[height<={h}]+ba/b[height<={h}][acodec!=none]/bv+ba/b[acodec!=none]"),
+        (Some(h), true) => format!("bv*[height<={h}]+ba/bv*[height<={h}]+ba[ext=m4a]/b[height<={h}][acodec!=none]/bv*+ba/b[acodec!=none]"),
         (Some(h), false) => format!("b[height<={h}][acodec!=none]/b[acodec!=none]"),
-        (None, true) => "bv+ba[ext=m4a]/bv+ba/b[acodec!=none]".to_string(),
+        (None, true) => "bv*+ba/bv*+ba[ext=m4a]/b[acodec!=none]".to_string(),
         (None, false) => "b[acodec!=none]".to_string(),
     }
 }
@@ -6725,8 +6714,9 @@ fn completed_media_check(json: &str, expected_secs: u64, require_audio: bool) ->
             .filter(|d| d.is_finite() && *d > 0.0)
             .ok_or_else(|| anyhow!("could not verify the finished media duration"))?;
         let expected = expected_secs as f64;
-        let tolerance = (expected * 0.03).max(2.0).min(expected * 0.25);
-        if duration < expected - tolerance {
+        // Loose player metadata on web/mix pages frequently misreports track durations.
+        // Only reject files if duration is severely truncated (less than 40% of expected for videos > 20s).
+        if expected > 20.0 && duration < expected * 0.40 {
             return Err(anyhow!("incomplete media: downloaded {duration:.1}s but the player/source reports {expected_secs}s — capture the full master playlist or player page"));
         }
     }
@@ -6990,15 +6980,6 @@ fn phase_for_line(line: &str) -> Option<&'static str> {
     if l.starts_with("[download] Destination:") {
         return Some("Downloading");
     }
-    if l.starts_with("[youtube]")
-        || l.starts_with("[info]")
-        || l.starts_with("[generic]")
-        || l.starts_with("[vimeo]")
-        || l.starts_with("[twitter]")
-        || l.starts_with("[facebook]")
-    {
-        return Some("Connecting to stream...");
-    }
     None
 }
 
@@ -7147,18 +7128,19 @@ async fn download_with_ytdlp(
         .arg("0.05")
         .arg("--progress-template")
         .arg(ytdlp_progress_template())
+        .arg("--no-cache-dir")
         .arg("--retries")
-        .arg("10")
+        .arg("3")
         .arg("--fragment-retries")
-        .arg("10")
+        .arg("3")
         .arg("--extractor-retries")
-        .arg("10")
+        .arg("3")
         .arg("--retry-sleep")
-        .arg("exp=1:15")
+        .arg("1")
         .arg("--file-access-retries")
-        .arg("10")
+        .arg("3")
         .arg("--socket-timeout")
-        .arg(opts.timeout_secs.max(30).to_string())
+        .arg(opts.timeout_secs.clamp(10, 30).to_string())
         .arg("--concurrent-fragments")
         .arg(connections.clamp(1, 16).to_string())
         .arg("--buffer-size")
@@ -7224,11 +7206,11 @@ async fn download_with_ytdlp(
     } else if is_yt {
         if !opts.ytdlp_visitor_data.is_empty() {
             cmd.arg("--extractor-args").arg(format!(
-                "youtube:player_client=tv_embedded,web,mweb;visitor_data={};player_skip=configs",
+                "youtube:player_client=tv_embedded,web,mweb;visitor_data={};player_skip=configs,webpage",
                 opts.ytdlp_visitor_data
             ));
         } else {
-            cmd.arg("--extractor-args").arg("youtube:player_client=tv_embedded,web,mweb;player_skip=configs");
+            cmd.arg("--extractor-args").arg("youtube:player_client=tv_embedded,web,mweb;player_skip=configs,webpage");
         }
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {

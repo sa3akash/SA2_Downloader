@@ -788,15 +788,17 @@ impl ProgressApp {
         let title = if is_completed {
             crate::i18n::t("Download Complete").to_string()
         } else if pct >= 100 {
-            if !self.snap.phase.is_empty() && self.snap.phase != "Downloading" {
-                format!("{} — {}", crate::i18n::t("Finalizing"), self.snap.phase)
+            if self.snap.phase.contains("Merg") || self.snap.phase.contains("ffmpeg") {
+                format!("{} — {}", crate::i18n::t("Finalizing"), crate::i18n::t("Merging"))
             } else {
                 format!("{} 100%", crate::i18n::t("Finalizing"))
             }
-        } else if !self.snap.phase.is_empty() && self.snap.phase != "Downloading" {
-            format!("{} {pct}% — {}", crate::i18n::t("Downloading"), self.snap.phase)
-        } else {
+        } else if pct > 0 {
             format!("{} {pct}%", crate::i18n::t("Downloading"))
+        } else if !self.snap.phase.is_empty() && self.snap.phase != "Downloading" {
+            format!("{} — {}", crate::i18n::t("Downloading"), self.snap.phase)
+        } else {
+            format!("{} 0%", crate::i18n::t("Downloading"))
         };
         self.chrome(ui, o, &title);
 
@@ -889,10 +891,13 @@ impl ProgressApp {
     /// extension measured it before the transfer started — so "nothing has
     /// arrived" is the signal, not "size unknown".
     fn preparing(&self) -> bool {
+        let dl = self.item.as_ref().map(|it| it.downloaded_bytes).unwrap_or(0).max(self.snap.downloaded);
         self.snap.live
-            && self.snap.downloaded == 0
+            && dl == 0
+            && self.smooth_frac <= 0.01
             && !self.snap.phase.is_empty()
             && self.snap.phase != "Downloading"
+            && self.snap.phase != "Completed"
     }
 
     /// The stage a live transfer is in, worded for the Status row:
@@ -1509,7 +1514,10 @@ impl ProgressApp {
 
             let frac = self.frac(item);
             let pct = (frac * 100.0).floor() as u64;
-            let is_finalizing = pct >= 100 || frac >= 1.0 || (!self.snap.phase.is_empty() && self.snap.phase != "Downloading");
+            let is_finalizing = (pct >= 100 || frac >= 1.0)
+                || self.snap.phase.contains("Merg")
+                || self.snap.phase.contains("ffmpeg")
+                || self.snap.phase.contains("Remux");
             let paused = matches!(item.status, Status::Paused);
             let pause_label = if is_finalizing {
                 crate::i18n::t("Finalizing")

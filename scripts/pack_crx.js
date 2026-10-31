@@ -166,6 +166,11 @@ function main() {
   fs.writeFileSync(versionedZip, chromeZipBytes);
   fs.writeFileSync(standardZip, chromeZipBytes);
 
+  // 4. Quick install helper for Chrome
+  const batPath = path.join(outDir, 'install_chrome_extension.bat');
+  const batContent = `@echo off\r\ntitle SA2 Downloader - Chrome Extension Quick Installer\r\necho ===================================================\r\necho   SA2 Downloader - Chrome Extension Quick Installer\r\necho ===================================================\r\necho.\r\necho 1. Opening Chrome Extensions page...\r\nstart chrome "chrome://extensions"\r\necho.\r\necho 2. Turn ON "Developer mode" toggle in top-right corner.\r\necho 3. Drag and drop "SA2Downloader-Chrome.crx" (or the browser-extension folder)\r\necho    directly into your Chrome extensions window.\r\necho.\r\npause\r\n`;
+  fs.writeFileSync(batPath, batContent);
+
   console.log(`Generated Chrome CRX: ${versionedCrx} (${(crxBytes.length / 1024).toFixed(1)} KB)`);
   console.log(`Generated Firefox XPI: ${versionedXpi} (${(firefoxZipBytes.length / 1024).toFixed(1)} KB)`);
   console.log(`Generated Chrome ZIP: ${versionedZip} (${(chromeZipBytes.length / 1024).toFixed(1)} KB)`);

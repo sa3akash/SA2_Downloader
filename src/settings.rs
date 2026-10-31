@@ -3591,9 +3591,9 @@ impl SettingsApp {
                         wrapped(
                             ui,
                             if firefox {
-                                "about:debugging → This Firefox → Load Temporary Add-on, then pick manifest.json in this folder (or install the .xpi)."
+                                "about:debugging → This Firefox → Load Temporary Add-on, then pick manifest.json (or drag and drop SA2Downloader-Firefox.xpi)."
                             } else {
-                                "chrome://extensions → turn on Developer mode → Load unpacked, then pick this folder. The same folder works in Edge, Brave and Opera."
+                                "1. Open chrome://extensions (click button below).\n2. Turn ON Developer mode in the top right.\n3. Drag and drop SA2Downloader-Chrome.crx (or the browser-extension folder) into Chrome."
                             },
                             reg(10.0),
                             t.text2,
@@ -3614,8 +3614,13 @@ impl SettingsApp {
                             if btn_icon(ui, "\u{e2c7}", "Open extension folder", true).clicked() {
                                 open_folder = true;
                             }
-                            if !firefox && btn_icon(ui, "\u{e14d}", "Copy extension ID", false).clicked() {
-                                copy_id = true;
+                            if !firefox {
+                                if btn_icon(ui, "\u{e87b}", "Open chrome://extensions", false).clicked() {
+                                    crate::platform::open_url("chrome://extensions");
+                                }
+                                if btn_icon(ui, "\u{e14d}", "Copy extension ID", false).clicked() {
+                                    copy_id = true;
+                                }
                             }
                         });
                         ui.add_space(12.0);

@@ -2772,17 +2772,7 @@ impl sa2App {
 
     /// Pop the standalone "Download complete" dialog for one finished download.
     pub(crate) fn spawn_complete(id: u64) {
-        let Ok(exe) = crate::platform::launch_path() else {
-            return;
-        };
-        let mut cmd = std::process::Command::new(exe);
-        cmd.arg("--complete").arg(id.to_string());
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x00000008);
-        }
-        let _ = cmd.spawn();
+        spawn_complete(id);
     }
     fn ui_state_path() -> Option<std::path::PathBuf> {
         crate::model::config_dir().map(|p| p.join("ui.json"))
@@ -5897,6 +5887,24 @@ pub(crate) fn open_path(path: &std::path::Path, reveal: bool) {
 
 #[cfg(not(windows))]
 pub(crate) fn open_path(path: &std::path::Path, reveal: bool) { crate::platform::open(path,reveal); }
+
+/// Pop the standalone "Download complete" dialog for one finished download.
+pub(crate) fn spawn_complete(id: u64) {
+    if !crate::model::ui_pref_bool("show_complete", true) {
+        return;
+    }
+    let Ok(exe) = crate::platform::launch_path() else {
+        return;
+    };
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("--complete").arg(id.to_string());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x00000008);
+    }
+    let _ = cmd.spawn();
+}
 
 /// Show `path` selected in the file manager.
 #[cfg(windows)]

@@ -3655,15 +3655,18 @@ async fn download_hls(
                 sampled_total
             } else {
                 let multiplied = avg.saturating_mul(segs.len() as u64);
-                // Sanity cap: an HLS video stream should not estimate > 200 GB
-                if multiplied > 200 * 1024 * 1024 * 1024 {
+                // Sanity cap: an HLS video stream should not estimate > 50 GB
+                if multiplied > 50 * 1024 * 1024 * 1024 {
                     avg
                 } else {
                     multiplied
                 }
             };
-            shared.total.store(total_known, Ordering::SeqCst);
-            shared.has_total.store(true, Ordering::SeqCst);
+            let total_known = total_known.min(50 * 1024 * 1024 * 1024);
+            if total_known > 0 {
+                shared.total.store(total_known, Ordering::SeqCst);
+                shared.has_total.store(true, Ordering::SeqCst);
+            }
         }
     }
     // Progress: one slot per segment, sized by the stream estimate until the
@@ -5219,6 +5222,14 @@ async fn download_inner(
 fn tool_dirs() -> Vec<std::path::PathBuf> {
     #[allow(unused_mut)]
     let mut paths: Vec<_> = std::env::var_os("PATH").map(|v| std::env::split_paths(&v).collect()).unwrap_or_default();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let p = dir.to_path_buf();
+            if !paths.contains(&p) {
+                paths.insert(0, p);
+            }
+        }
+    }
     #[cfg(windows)]
     {
         for dir in [
@@ -7213,11 +7224,11 @@ async fn download_with_ytdlp(
     } else if is_yt {
         if !opts.ytdlp_visitor_data.is_empty() {
             cmd.arg("--extractor-args").arg(format!(
-                "youtube:visitor_data={};player_skip=configs",
+                "youtube:player_client=tv_embedded,web,mweb;visitor_data={};player_skip=configs",
                 opts.ytdlp_visitor_data
             ));
         } else {
-            cmd.arg("--extractor-args").arg("youtube:player_skip=configs");
+            cmd.arg("--extractor-args").arg("youtube:player_client=tv_embedded,web,mweb;player_skip=configs");
         }
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {

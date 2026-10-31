@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: sudo apt-get update && sudo apt-get install -y pkg-config libx11-dev libxi-dev libxcursor-dev libxrandr-dev libgl1-mesa-dev libdbus-1-dev libxkbcommon-dev rpm squashfs-tools
-      - run: pip install cargo-zigbuild ziglang==0.17.0
+      - run: pip install cargo-zigbuild ziglang==0.17.0 cryptography
       - run: node --test browser-extension/*.test.js
       - run: cargo test --release --workspace
       - run: cargo zigbuild --release --target x86_64-unknown-linux-gnu.2.28
@@ -74,6 +74,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install cryptography for CRX packaging
+        run: pip install cryptography
       - name: Windows resource compiler
         shell: pwsh
         run: |
@@ -130,7 +132,7 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
           mkdir -p release-dist
-          find artifacts -type f \( -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o -name "*.xpi" -o -name "*.exe" \) -exec cp -v {} release-dist/ \;
+          find artifacts -type f \( -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o -name "*.xpi" -o -name "*.crx" -o -name "*.exe" \) -exec cp -v {} release-dist/ \;
           cd release-dist
           sha256sum * > SHA256SUMS.txt
           echo "All release files to publish:"

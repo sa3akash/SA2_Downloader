@@ -485,8 +485,8 @@ impl ProgressApp {
                 // Only a *known* snapshot total may replace the row's size: the
                 // helper reports none between the legs of a merged transfer, and
                 // adopting that blank flipped the window to "Unknown".
-                // Reject dummy CDN stream sizes exceeding 500 GB (e.g. 28 TB synthetic ranges).
-                if let Some(t) = self.snap.total.filter(|t| *t > 0 && *t <= 500 * 1024 * 1024 * 1024) {
+                // Reject dummy CDN stream sizes exceeding 50 GB (e.g. 28 TB synthetic ranges).
+                if let Some(t) = self.snap.total.filter(|t| *t > 0 && *t <= 50 * 1024 * 1024 * 1024) {
                     if it.total_bytes != Some(t) {
                         it.total_bytes = Some(t);
                         it.downloaded_bytes = self.snap.downloaded;
@@ -957,9 +957,14 @@ impl ProgressApp {
         }
         // A stream has no size until it is done: IDM says so and shows the
         // duration instead of a number that changes with every fragment.
-        let size = match item.total_bytes {
+        let size = match item.total_bytes.filter(|t| *t > 0 && *t <= 50 * 1024 * 1024 * 1024) {
             Some(t) => format_bytes(t),
-            None if item.duration_secs > 0 => format!("Unknown ({})", fmt_duration(item.duration_secs)),
+            None if item.duration_secs > 0 => {
+                let mut d = item.duration_secs;
+                if d > 86400 && d / 1000 <= 86400 { d /= 1000; }
+                if d > 86400 { d = 0; }
+                if d > 0 { format!("Unknown ({})", fmt_duration(d)) } else { "-".into() }
+            }
             None if self.snap.fragments.is_some() => "Unknown (stream)".into(),
             None => "-".into(),
         };
@@ -1301,25 +1306,38 @@ impl ProgressApp {
         let thumb_r = at(o, PAD_X, r1_y, 44.0, 36.0);
         dm_file_thumbnail(&p, thumb_r, &item.filename);
 
-        let sz_txt = if let Some(t) = item.total_bytes.filter(|t| *t > 0) {
+        let valid_total = item.total_bytes.filter(|t| *t > 0 && *t <= 50 * 1024 * 1024 * 1024);
+        let sz_txt = if let Some(t) = valid_total {
             format_bytes(t)
         } else if item.duration_secs > 0 {
-            let bps: u64 = if item.quality_pref == "audio" {
-                20_000
-            } else if item.quality_pref.contains("4320") || item.quality_pref.contains("8k") {
-                5_000_000
-            } else if item.quality_pref.contains("2160") || item.quality_pref.contains("4k") {
-                2_250_000
-            } else if item.quality_pref.contains("1440") || item.quality_pref.contains("2k") {
-                1_125_000
-            } else if item.quality_pref.contains("1080") {
-                562_500
-            } else if item.quality_pref.contains("720") {
-                312_500
+            let mut dur = item.duration_secs;
+            if dur > 86400 && dur / 1000 <= 86400 {
+                dur /= 1000;
+            }
+            if dur > 86400 {
+                dur = 0;
+            }
+            if dur > 0 {
+                let bps: u64 = if item.quality_pref == "audio" {
+                    20_000
+                } else if item.quality_pref.contains("4320") || item.quality_pref.contains("8k") {
+                    5_000_000
+                } else if item.quality_pref.contains("2160") || item.quality_pref.contains("4k") {
+                    2_250_000
+                } else if item.quality_pref.contains("1440") || item.quality_pref.contains("2k") {
+                    1_125_000
+                } else if item.quality_pref.contains("1080") {
+                    562_500
+                } else if item.quality_pref.contains("720") {
+                    312_500
+                } else {
+                    125_000
+                };
+                let est = (dur * bps).min(50 * 1024 * 1024 * 1024);
+                format!("~{}", format_bytes(est))
             } else {
-                125_000
-            };
-            format!("~{}", format_bytes(item.duration_secs * bps))
+                "Unknown".into()
+            }
         } else if !item.quality_pref.is_empty() && item.quality_pref != "best" {
             item.quality_pref.clone()
         } else {
@@ -1387,11 +1405,11 @@ impl ProgressApp {
 
         // ---- Row 3: Stats (Downloaded / Total | ETA | Speed in Bleu De France) ----
         let stats_y = prog_y + prog_h + 8.0;
-        let dl_str = format!(
-            "{}/{}",
-            format_bytes(item.downloaded_bytes),
-            item.total_bytes.map(format_bytes).unwrap_or_else(|| "—".into())
-        );
+        let stats_total_str = item.total_bytes
+            .filter(|t| *t > 0 && *t <= 50 * 1024 * 1024 * 1024)
+            .map(format_bytes)
+            .unwrap_or_else(|| "—".into());
+        let dl_str = format!("{}/{}", format_bytes(item.downloaded_bytes), stats_total_str);
         p.text(
             egui::pos2(o.x + PAD_X, o.y + stats_y),
             egui::Align2::LEFT_TOP,
@@ -1489,15 +1507,25 @@ impl ProgressApp {
 
             btn_pill(&p, det_r, det_b.hovered(), details_lbl, pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
 
+            let frac = self.frac(item);
+            let pct = (frac * 100.0).floor() as u64;
+            let is_finalizing = pct >= 100 || frac >= 1.0 || (!self.snap.phase.is_empty() && self.snap.phase != "Downloading");
             let paused = matches!(item.status, Status::Paused);
+            let pause_label = if is_finalizing {
+                crate::i18n::t("Finalizing")
+            } else if paused {
+                crate::i18n::t("Resume")
+            } else {
+                crate::i18n::t("Pause")
+            };
             btn_pill(
                 &p,
                 pause_r,
-                pause_b.hovered(),
-                if paused { crate::i18n::t("Resume") } else { crate::i18n::t("Pause") },
+                !is_finalizing && pause_b.hovered(),
+                pause_label,
                 pl().dm_card,
-                COLOR_APPLE_GREEN,
-                pl().dm_txt,
+                if is_finalizing { pl().dm_box_bd } else { COLOR_APPLE_GREEN },
+                if is_finalizing { pl().dm_dim } else { pl().dm_txt },
                 None,
             );
 
@@ -1505,13 +1533,13 @@ impl ProgressApp {
 
             btn_pill(&p, cancel_r, cancel_b.hovered(), crate::i18n::t("Cancel"), pl().dm_card, pl().dm_box_bd, pl().dm_dim, Some(DmIcon::Close));
 
-            if det_b.hovered() || pause_b.hovered() || hide_b.hovered() || cancel_b.hovered() {
+            if det_b.hovered() || (!is_finalizing && pause_b.hovered()) || hide_b.hovered() || cancel_b.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
             }
             if det_b.clicked() {
                 self.parts_open = !self.parts_open;
             }
-            if pause_b.clicked() {
+            if pause_b.clicked() && !is_finalizing {
                 if paused {
                     send_cmd(self.id, "resume");
                 } else {

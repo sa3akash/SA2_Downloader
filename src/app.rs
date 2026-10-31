@@ -5942,10 +5942,10 @@ fn select_in_file_manager(path: &std::path::Path) {
 /// Write the native-messaging manifest + launcher and register it (HKCU, no admin).
 /// Zero-config: the unpacked extension carries a pinned key, so its ID is
 /// always this value — nothing to paste.
-pub(crate) const EXTENSION_ID: &str = "pgdhmfgefjnfijmlheboncdmfhcnoikk";
+pub(crate) const EXTENSION_ID: &str = "lekpmkgkkhcfocbigmdjnoalfnidjlal";
 /// IDs the Edge / Opera stores give the same extension once it is listed
 /// there (each store assigns its own); the host accepts them too.
-pub(crate) const STORE_EXTENSION_IDS: &[&str] = &[];
+pub(crate) const STORE_EXTENSION_IDS: &[&str] = &["pgdhmfgefjnfijmlheboncdmfhcnoikk"];
 
 #[cfg(windows)]
 pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {

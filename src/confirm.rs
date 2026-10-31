@@ -562,9 +562,16 @@ impl ConfirmApp {
                     self.probe_size = Some(first_sz);
                 }
             }
+            if self.duration_secs > 86400 && self.duration_secs / 1000 <= 86400 {
+                self.duration_secs /= 1000;
+            }
+            if self.duration_secs > 86400 {
+                self.duration_secs = 0;
+            }
             if self.probe_size.is_none() && self.duration_secs > 0 {
                 let bps = bps_for_quality(&self.quality_pref);
-                self.probe_size = Some(self.duration_secs * bps);
+                let est = (self.duration_secs * bps).min(50 * 1024 * 1024 * 1024);
+                self.probe_size = Some(est);
             }
             // Formats and sizes already available in cache — do not re-probe!
             return;
@@ -949,9 +956,17 @@ pub fn run() -> eframe::Result<()> {
             probe_size = Some(first_sz);
         }
     }
+    let mut duration_secs = duration_secs;
+    if duration_secs > 86400 && duration_secs / 1000 <= 86400 {
+        duration_secs /= 1000;
+    }
+    if duration_secs > 86400 {
+        duration_secs = 0;
+    }
     if probe_size.is_none() && duration_secs > 0 {
         let bps = bps_for_quality(&quality_pref);
-        probe_size = Some(duration_secs * bps);
+        let est = (duration_secs * bps).min(50 * 1024 * 1024 * 1024);
+        probe_size = Some(est);
     }
     let probing = probe_size.is_none() && real_formats.is_empty();
 
@@ -1560,7 +1575,8 @@ impl eframe::App for ConfirmApp {
                             self.probe_size = Some(sz);
                         } else if self.duration_secs > 0 {
                             let bps = bps_for_quality(&self.quality_pref);
-                            self.probe_size = Some(self.duration_secs * bps);
+                            let est = (self.duration_secs * bps).min(50 * 1024 * 1024 * 1024);
+                            self.probe_size = Some(est);
                         }
                         if rf.is_audio {
                             self.category = "Music".to_string();
@@ -1597,7 +1613,8 @@ impl eframe::App for ConfirmApp {
                         }
                         if self.duration_secs > 0 {
                             let bps = bps_for_quality(&self.quality_pref);
-                            self.probe_size = Some(self.duration_secs * bps);
+                            let est = (self.duration_secs * bps).min(50 * 1024 * 1024 * 1024);
+                            self.probe_size = Some(est);
                         }
                     }
                 }

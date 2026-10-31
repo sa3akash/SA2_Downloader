@@ -343,8 +343,7 @@ fn card_h(n: usize) -> f32 {
 }
 
 /// The expandable details tabs.
-const TABS: [(DmIcon, &str); 5] = [
-    (DmIcon::Archive, "Parts"),
+const TABS: [(DmIcon, &str); 4] = [
     (DmIcon::Info, "Info"),
     (DmIcon::Chart, "Speed"),
     (DmIcon::Sliders, "Settings"),
@@ -787,17 +786,16 @@ impl ProgressApp {
         if self.parts_open {
             self.draw_details_tabs(ui, o);
             match self.tab {
-                0 => self.parts(ui, o, item, downloading),
-                1 => self.body_info(ui, o, item, downloading),
-                2 => self.body_speed(ui, o, item, downloading),
-                3 => self.body_settings(ui, o),
-                4 => self.body_log(ui, o),
-                _ => self.parts(ui, o, item, downloading),
+                0 => self.body_info(ui, o, item, downloading),
+                1 => self.body_speed(ui, o, item, downloading),
+                2 => self.body_settings(ui, o),
+                3 => self.body_log(ui, o),
+                _ => self.body_info(ui, o, item, downloading),
             }
         }
     }
 
-    /// Segmented tab switcher: Parts, Info, Speed, Settings, Log.
+    /// Segmented tab switcher: Info, Speed, Settings, Log.
     fn draw_details_tabs(&mut self, ui: &mut egui::Ui, o: egui::Pos2) {
         let p = ui.painter().clone();
         let bar_y = 194.0;
@@ -1412,21 +1410,32 @@ impl ProgressApp {
         let btn_y = stats_y + 24.0;
         let is_completed = matches!(item.status, Status::Completed) || (!self.snap.live && frac >= 1.0);
 
-        if is_completed {
-            let open_r = at(o, PAD_X, btn_y, 110.0, 32.0);
-            let folder_r = at(o, PAD_X + 120.0, btn_y, 125.0, 32.0);
-            let close_r = at(o, IN_R - 95.0, btn_y, 95.0, 32.0);
+        let details_lbl = if self.parts_open { crate::i18n::t("Hide Details") } else { crate::i18n::t("Show Details") };
 
+        if is_completed {
+            let det_r = at(o, PAD_X, btn_y, 96.0, 32.0);
+            let open_r = at(o, PAD_X + 102.0, btn_y, 76.0, 32.0);
+            let folder_r = at(o, PAD_X + 184.0, btn_y, 104.0, 32.0);
+            let hide_r = at(o, PAD_X + 294.0, btn_y, 70.0, 32.0);
+            let close_r = at(o, IN_R - 70.0, btn_y, 70.0, 32.0);
+
+            let det_b = ui.interact(det_r, egui::Id::new("pg-details-btn"), egui::Sense::click());
             let open_b = ui.interact(open_r, egui::Id::new("pg-open-btn"), egui::Sense::click());
             let folder_b = ui.interact(folder_r, egui::Id::new("pg-folder-btn"), egui::Sense::click());
+            let hide_b = ui.interact(hide_r, egui::Id::new("pg-hide-btn"), egui::Sense::click());
             let close_b = ui.interact(close_r, egui::Id::new("pg-close-btn"), egui::Sense::click());
 
+            btn_pill(&p, det_r, det_b.hovered(), details_lbl, pl().dm_card, pl().dm_box_bd, pl().dm_dim, None);
             btn_pill(&p, open_r, open_b.hovered(), crate::i18n::t("Open"), pl().dm_card, COLOR_APPLE_GREEN, pl().dm_txt, None);
             btn_pill(&p, folder_r, folder_b.hovered(), crate::i18n::t("Open Folder"), pl().dm_card, pl().dm_box_bd, pl().dm_txt, None);
+            btn_pill(&p, hide_r, hide_b.hovered(), crate::i18n::t("Hide"), pl().dm_card, pl().dm_box_bd, pl().dm_txt, None);
             btn_pill(&p, close_r, close_b.hovered(), crate::i18n::t("Close"), pl().dm_card, pl().dm_box_bd, pl().dm_dim, Some(DmIcon::Close));
 
-            if open_b.hovered() || folder_b.hovered() || close_b.hovered() {
+            if det_b.hovered() || open_b.hovered() || folder_b.hovered() || hide_b.hovered() || close_b.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            if det_b.clicked() {
+                self.parts_open = !self.parts_open;
             }
             if open_b.clicked() {
                 let dest = item.dest_path();
@@ -1437,11 +1446,13 @@ impl ProgressApp {
                 let dest = item.dest_path();
                 crate::app::open_path(&dest, true);
             }
+            if hide_b.clicked() {
+                Self::close_soon(ui.ctx());
+            }
             if close_b.clicked() {
                 Self::close_soon(ui.ctx());
             }
         } else {
-            let details_lbl = if self.parts_open { crate::i18n::t("Hide Details") } else { crate::i18n::t("Show Details") };
             let det_r = at(o, PAD_X, btn_y, 100.0, 32.0);
             let pause_r = at(o, PAD_X + 110.0, btn_y, 105.0, 32.0);
             let hide_r = at(o, PAD_X + 225.0, btn_y, 100.0, 32.0);
@@ -1495,6 +1506,7 @@ impl ProgressApp {
     }
 
     /// Part Info section: multi-thread table in rounded panel matching Image 2.
+    #[allow(dead_code)]
     fn parts(&mut self, ui: &mut egui::Ui, o: egui::Pos2, item: &DownloadItem, downloading: bool) {
         if !self.parts_open {
             return;
@@ -1617,6 +1629,7 @@ impl ProgressApp {
 
     /// Part Info for a fragmented stream: the strip fills with the fragments
     /// done, and one row says how many of how many.
+    #[allow(dead_code)]
     fn fragment_parts(&self, p: &egui::Painter, o: egui::Pos2, i: u64, n: u64, downloading: bool) {
         let table_card = egui::Rect::from_min_size(
             egui::pos2(o.x + PAD_X, o.y + 226.0),

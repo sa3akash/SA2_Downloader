@@ -2642,14 +2642,19 @@ impl sa2App {
             }
             return;
         }
-        if self.last_prog_write.elapsed().as_millis() < 100 {
+        if self.last_prog_write.elapsed().as_millis() < 30 {
             return;
         }
         self.last_prog_write = Instant::now();
         let mut items = serde_json::Map::new();
         for (id, task) in self.tasks.iter() {
             let row = self.downloads.iter().find(|d| d.id == *id);
-            let speed = row.map(|d| d.speed_bps).unwrap_or(0.0);
+            let helper_speed = task.shared.speed_bps.load(Ordering::SeqCst) as f64;
+            let speed = if helper_speed > 0.0 {
+                helper_speed
+            } else {
+                row.map(|d| d.speed_bps).unwrap_or(0.0)
+            };
             let totals = task.shared.part_total.lock().unwrap_or_else(|e| e.into_inner()).clone();
             let dones = task.shared.part_done.lock().unwrap_or_else(|e| e.into_inner()).clone();
             let parts: Vec<[u64; 3]> = totals
@@ -2662,8 +2667,14 @@ impl sa2App {
             // push the raw engine counter past its own total, and one leg of a
             // merged transfer can leave the helper reporting no size at all
             // (then the row's size is still the right answer).
+            // Reject fake CDN stream totals (> 500 GB).
             let mut total = if task.shared.has_total.load(Ordering::SeqCst) {
-                Some(task.shared.total.load(Ordering::SeqCst))
+                let t = task.shared.total.load(Ordering::SeqCst);
+                if t > 0 && t <= 500 * 1024 * 1024 * 1024 {
+                    Some(t)
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -2671,7 +2682,7 @@ impl sa2App {
             // still hold an estimate from before, which must not come back.
             let fragmented = task.shared.frag_count.load(Ordering::SeqCst) > 0;
             if total.unwrap_or(0) == 0 && !fragmented {
-                total = row.and_then(|d| d.total_bytes);
+                total = row.and_then(|d| d.total_bytes).filter(|t| *t <= 500 * 1024 * 1024 * 1024);
             }
             let mut downloaded = task.shared.downloaded.load(Ordering::SeqCst);
             if let Some(t) = total {

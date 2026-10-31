@@ -1407,7 +1407,10 @@ pub async fn probe(
             if let Some(cr) = resp.headers().get(reqwest::header::CONTENT_RANGE) {
                 if let Ok(s) = cr.to_str() {
                     if let Some(total) = s.split('/').next_back().and_then(|t| t.parse::<u64>().ok()) {
-                        return (Some(total), true, None, None);
+                        // Reject synthetic/dummy CDN range lengths (> 500 GB)
+                        if total > 0 && total <= 500 * 1024 * 1024 * 1024 {
+                            return (Some(total), true, None, None);
+                        }
                     }
                 }
             }
@@ -1454,7 +1457,9 @@ async fn probe_range_once(
         if let Some(cr) = resp.headers().get(reqwest::header::CONTENT_RANGE) {
             if let Ok(s) = cr.to_str() {
                 if let Some(total) = s.split('/').next_back().and_then(|t| t.parse::<u64>().ok()) {
-                    return Ok(Some(total));
+                    if total > 0 && total <= 500 * 1024 * 1024 * 1024 {
+                        return Ok(Some(total));
+                    }
                 }
             }
         }
@@ -7113,6 +7118,7 @@ async fn download_with_ytdlp(
     } else {
         cmd.arg("--no-playlist");
     }
+    cmd.env("PYTHONUNBUFFERED", "1");
     cmd.arg("--no-config")
         .arg("--no-warnings")
         .arg("--continue")
@@ -7126,14 +7132,16 @@ async fn download_with_ytdlp(
         // `--print` implies quiet mode, which hides progress: without this
         // the window sat at 0 B / "Getting info" until the file was done.
         .arg("--progress")
+        .arg("--progress-delta")
+        .arg("0.05")
         .arg("--progress-template")
         .arg(ytdlp_progress_template())
         .arg("--retries")
-        .arg("infinite")
+        .arg("10")
         .arg("--fragment-retries")
-        .arg("infinite")
+        .arg("10")
         .arg("--extractor-retries")
-        .arg("infinite")
+        .arg("10")
         .arg("--retry-sleep")
         .arg("exp=1:15")
         .arg("--file-access-retries")
@@ -7143,9 +7151,7 @@ async fn download_with_ytdlp(
         .arg("--concurrent-fragments")
         .arg(connections.clamp(1, 16).to_string())
         .arg("--buffer-size")
-        .arg("16M")
-        .arg("--http-chunk-size")
-        .arg("10M")
+        .arg("64K")
         .arg("-f")
         .arg(if wants_audio_only(&opts.quality_pref) {
             "ba[ext=m4a]/ba/b".to_string()
@@ -9541,8 +9547,10 @@ async fn single_stream_once(
     // Adopt server-advertised total when we didn't have one.
     if !shared.has_total.load(Ordering::SeqCst) {
         if let Some(len) = resp.content_length() {
-            shared.total.store(len.saturating_add(start_at), Ordering::SeqCst);
-            shared.has_total.store(true, Ordering::SeqCst);
+            if len <= 500 * 1024 * 1024 * 1024 {
+                shared.total.store(len.saturating_add(start_at), Ordering::SeqCst);
+                shared.has_total.store(true, Ordering::SeqCst);
+            }
         }
     }
     // Single part view for the details dialog.

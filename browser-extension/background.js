@@ -639,10 +639,11 @@ async function sniffUrl(url, headers) {
 }
 
 // Master flag + child references + stream variants of a playlist, for parent/part linking and resolution selection.
-async function playlistShape(url, headers) {
+async function playlistShape(url, headers, pageUrl) {
   let master = false, children = [], variants = [], audios = [], dur = 0;
   try {
-    const fetchHeaders = { Referer: url, ...(headers || {}) };
+    const ref = (headers && headers.Referer) || pageUrl || url;
+    const fetchHeaders = { Referer: ref, ...(headers || {}) };
     const res = await fetch(url, { credentials: "include", headers: fetchHeaders, signal: AbortSignal.timeout(8000) });
     if (res.ok && (!res.headers.get("content-length") || Number(res.headers.get("content-length")) <= 2 * 1024 * 1024)) {
       const reader = res.body.getReader();
@@ -750,12 +751,22 @@ function responseMeta(details) {
     const n = String(h.name || "").toLowerCase();
     const v = String(h.value || "");
     if (n === "content-type") meta.mime = v.split(";")[0].trim().toLowerCase();
-    else if (n === "content-length") clen = parseInt(v, 10) || 0;
+    else if (n === "content-length") {
+      const c = parseInt(v, 10) || 0;
+      clen = (c > 0 && c <= 500 * 1024 * 1024 * 1024) ? c : 0;
+    }
     // Range chunks (206) report the CHUNK size in content-length, not the
     // file size — judge the size filter by the Content-Range total
     // (`bytes 0-0/12345`), or a throttled CDN's drips get skipped and
     // Facebook reels never produce a pill without a reload.
-    else if (n === "content-range") { const m = v.match(/\/(\d+)\s*$/); if (m) total = parseInt(m[1], 10) || 0; }
+    // Cap synthetic/dummy CDN ranges (e.g. 28 TB).
+    else if (n === "content-range") {
+      const m = v.match(/\/(\d+)\s*$/);
+      if (m) {
+        const t = parseInt(m[1], 10) || 0;
+        total = (t > 0 && t <= 500 * 1024 * 1024 * 1024) ? t : 0;
+      }
+    }
     else if (n === "accept-ranges") meta.acceptRanges = /bytes/i.test(v);
     else if (n === "content-disposition" && typeof DCRank !== "undefined") meta.filename = DCRank.dispositionFilename(v);
   }
@@ -1519,7 +1530,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "fetchShape" && msg.url) {
       try {
-        const shape = await playlistShape(msg.url, replayHeaders(mediaAuth.get(stripFbSlice(msg.url)) || null));
+        const auth = mediaAuth.get(stripFbSlice(msg.url)) || null;
+        const hdrs = replayHeaders(auth);
+        const pageUrl = msg.pageUrl || (sender && sender.tab && sender.tab.url) || "";
+        if (pageUrl && !hdrs["Referer"]) {
+          hdrs["Referer"] = pageUrl;
+        }
+        const shape = await playlistShape(msg.url, hdrs, pageUrl);
         return { ok: true, shape };
       } catch (e) {
         return { ok: false, error: String(e) };

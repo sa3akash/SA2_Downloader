@@ -485,7 +485,8 @@ impl ProgressApp {
                 // Only a *known* snapshot total may replace the row's size: the
                 // helper reports none between the legs of a merged transfer, and
                 // adopting that blank flipped the window to "Unknown".
-                if let Some(t) = self.snap.total.filter(|t| *t > 0) {
+                // Reject dummy CDN stream sizes exceeding 500 GB (e.g. 28 TB synthetic ranges).
+                if let Some(t) = self.snap.total.filter(|t| *t > 0 && *t <= 500 * 1024 * 1024 * 1024) {
                     if it.total_bytes != Some(t) {
                         it.total_bytes = Some(t);
                         it.downloaded_bytes = self.snap.downloaded;
@@ -508,7 +509,8 @@ impl ProgressApp {
         // A finished transfer hands over to the standalone "Download complete"
         // dialog, so this window has done its job (IDM closes it the same way).
         let is_completed = matches!(self.item.as_ref().map(|d| &d.status), Some(Status::Completed))
-            || (!self.snap.live && self.item.as_ref().map(|it| self.frac(it)).unwrap_or(0.0) >= 1.0);
+            || (!self.snap.live && self.item.as_ref().map(|it| self.frac(it)).unwrap_or(0.0) >= 1.0)
+            || (!self.snap.live && self.item.as_ref().map(|it| it.dest_path().exists() && it.total_bytes.map(|t| it.downloaded_bytes >= t).unwrap_or(false)).unwrap_or(false));
         self.handoff = is_completed;
     }
 
@@ -650,9 +652,12 @@ impl eframe::App for ProgressApp {
             let lang = crate::model::ui_pref_str("language", "en");
             crate::i18n::set_language(&lang);
         }
-        // Fast enough that the speed readout visibly moves while a transfer
-        // runs: the app republishes progress.json about ten times a second.
-        if self.last_poll.elapsed() >= Duration::from_millis(250) {
+        let poll_interval = if self.snap.live {
+            Duration::from_millis(30)
+        } else {
+            Duration::from_millis(150)
+        };
+        if self.last_poll.elapsed() >= poll_interval {
             self.refresh();
         }
         if self.handoff {
@@ -663,11 +668,11 @@ impl eframe::App for ProgressApp {
         let downloading = self.snap.live
             && matches!(self.item.as_ref().map(|d| &d.status), Some(Status::Downloading | Status::Queued));
         let cur_frac = self.item.as_ref().map(|it| self.frac(it)).unwrap_or(0.0);
-        let bar_animating = (self.smooth_frac - cur_frac).abs() > 0.002;
+        let bar_animating = (self.smooth_frac - cur_frac).abs() > 0.001;
         if downloading || self.preparing() || bar_animating {
             ctx.request_repaint();
         } else {
-            ctx.request_repaint_after(Duration::from_millis(250));
+            ctx.request_repaint_after(Duration::from_millis(150));
         }
 
         let want_h = if self.item.is_none() && self.dead_count > 10 {
@@ -771,19 +776,25 @@ impl ProgressApp {
     fn paint(&mut self, ui: &mut egui::Ui, item: &DownloadItem, o: egui::Pos2) {
         let frac = self.frac(item);
         let pct = (frac * 100.0).floor() as u64;
-        let is_completed = matches!(item.status, Status::Completed) || (!self.snap.live && frac >= 1.0);
+        let is_completed = matches!(item.status, Status::Completed)
+            || (!self.snap.live && frac >= 1.0)
+            || (!self.snap.live && item.dest_path().exists() && item.total_bytes.map(|t| item.downloaded_bytes >= t).unwrap_or(false));
         if is_completed {
             self.handoff = true;
             crate::app::spawn_complete(self.id);
             Self::close_soon(ui.ctx());
             return;
         }
-        let title = if pct >= 100 || !self.snap.phase.is_empty() {
-            if !self.snap.phase.is_empty() {
+        let title = if is_completed {
+            crate::i18n::t("Download Complete").to_string()
+        } else if pct >= 100 {
+            if !self.snap.phase.is_empty() && self.snap.phase != "Downloading" {
                 format!("{} — {}", crate::i18n::t("Finalizing"), self.snap.phase)
             } else {
                 format!("{} 100%", crate::i18n::t("Finalizing"))
             }
+        } else if !self.snap.phase.is_empty() && self.snap.phase != "Downloading" {
+            format!("{} {pct}% — {}", crate::i18n::t("Downloading"), self.snap.phase)
         } else {
             format!("{} {pct}%", crate::i18n::t("Downloading"))
         };
@@ -1338,7 +1349,7 @@ impl ProgressApp {
         p.rect_filled(track, 10.0, pl().dm_line);
 
         let target_frac = frac.clamp(0.0, 1.0);
-        self.smooth_frac = egui::lerp(self.smooth_frac..=target_frac, 0.18);
+        self.smooth_frac = egui::lerp(self.smooth_frac..=target_frac, 0.35);
         if (self.smooth_frac - target_frac).abs() < 0.001 {
             self.smooth_frac = target_frac;
         }
@@ -1392,6 +1403,9 @@ impl ProgressApp {
         let downloading = self.snap.live && matches!(item.status, Status::Downloading | Status::Queued);
         let eta_str = match item.total_bytes {
             _ if matches!(item.status, Status::Paused) => "Paused".into(),
+            Some(_) if downloading && item.downloaded_bytes == 0 && item.speed_bps <= 0.0 => {
+                crate::i18n::t("Connecting...").to_string()
+            }
             Some(t) if downloading => fmt_eta(t.saturating_sub(item.downloaded_bytes), item.speed_bps),
             _ => "00:00:00".into(),
         };

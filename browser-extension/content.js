@@ -3181,18 +3181,13 @@
         if (!pill || !v) return;
         const isPlaying = !v.paused && !v.ended && v.currentTime > 0;
         const isHovered = !!(v.__dcHovered || pill.__dcHovered);
-        // IDM behavior on multi-video feeds (Facebook, TikTok, Instagram, etc.):
-        // Only show the download bar on the actively playing or hovered video.
-        if (vids.length > 1 || isSocialPage()) {
-          if (isPlaying || isHovered) {
-            pill.style.display = "block";
-            positionPillOnVideo(pill, v);
-          } else {
-            pill.style.display = "none";
-          }
-        } else {
+        // IDM style: Only show the download bar on the actively playing or hovered video.
+        // Unplayed/idle videos remain clean without cluttering the page feed.
+        if (isPlaying || isHovered) {
           pill.style.display = "block";
           positionPillOnVideo(pill, v);
+        } else {
+          pill.style.display = "none";
         }
       }
 
@@ -3245,7 +3240,10 @@
           } catch (e) { }
           const direct = mediaUrlOf(v);
           const src = String((v && (v.currentSrc || v.src)) || "");
-          const pick = (items) => bestSniffed(items, { streamPlayer: /^blob:/i.test(src) || !!(v && v.srcObject) });
+          const pick = (items) => {
+            const hasStream = (items || []).some((m) => typeof DCRank !== "undefined" && DCRank.kindOf(m) === "playlist");
+            return bestSniffed(items, { streamPlayer: /^blob:/i.test(src) || !!(v && v.srcObject) || hasStream });
+          };
 
           if (pill.__dcBusy) return;
 
@@ -3259,7 +3257,7 @@
                 || /mpegurl|dash/i.test(String(targetItem.mime || ""));
               if (isStream && (!targetItem.variants || !targetItem.variants.length)) {
                 barBusy(pill, dcT("busyResolving", "Resolving…"));
-                chrome.runtime.sendMessage({ type: "fetchShape", url: targetItem.url }, (res) => {
+                chrome.runtime.sendMessage({ type: "fetchShape", url: targetItem.url, pageUrl: location.href }, (res) => {
                   barBusy(pill, null);
                   if (res && res.ok && res.shape) {
                     if (res.shape.variants && res.shape.variants.length) targetItem.variants = res.shape.variants;
@@ -3311,6 +3309,15 @@
           v.addEventListener("play", () => {
             updatePillVis(pill, v);
             wakeBar(pill);
+          }, { passive: true });
+          v.addEventListener("playing", () => {
+            updatePillVis(pill, v);
+            wakeBar(pill);
+          }, { passive: true });
+          v.addEventListener("timeupdate", () => {
+            if (!v.paused && !v.ended && v.currentTime > 0) {
+              updatePillVis(pill, v);
+            }
           }, { passive: true });
           v.addEventListener("pause", () => {
             setTimeout(() => { updatePillVis(pill, v); }, 150);

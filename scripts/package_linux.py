@@ -26,7 +26,7 @@ StartupNotify=true
 def install_tree(root,binary):
     app=root/'usr/lib/SA2Downloader';app.mkdir(parents=True)
     shutil.copy2(binary,app/'sa2_downloader');(app/'sa2_downloader').chmod(0o755)
-    stage_extensions(REPO,app)
+    stage_extensions(REPO, app, portable=True)
     bindir=root/'usr/bin';bindir.mkdir(parents=True)
     (bindir/'sa2_downloader').symlink_to('../lib/SA2Downloader/sa2_downloader')
     desktop=root/'usr/share/applications/com.SA2Downloader.app.desktop';desktop.parent.mkdir(parents=True);desktop.write_text(DESKTOP)

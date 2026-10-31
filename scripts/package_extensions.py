@@ -64,18 +64,21 @@ def create_crx3_bytes(zip_bytes, key_path):
         pass
     return None
 
-def stage_extensions(repo, destination):
+def stage_extensions(repo, destination, portable=False):
     source = repo / 'browser-extension'
     key_path = source / 'key.pem'
     if not key_path.exists():
         key_path = repo / 'scripts' / 'extension_key.pem'
 
-    ignore = shutil.ignore_patterns('*.test.js', '*.md', 'testdata', '*.ps1', '*.pem', 'key.pem')
+    ignore = shutil.ignore_patterns('*.test.js', '*.md', 'testdata', '*.ps1', '*.pem', 'key.pem', 'manifest-firefox.json')
     chrome = destination / 'browser-extension'
-    firefox = destination / 'browser-extension-firefox'
+    shutil.copytree(source, chrome, ignore=ignore, dirs_exist_ok=True)
 
-    for folder in [chrome, firefox]:
-        shutil.copytree(source, folder, ignore=ignore, dirs_exist_ok=True)
+    if portable:
+        return [chrome]
+
+    firefox = destination / 'browser-extension-firefox'
+    shutil.copytree(source, firefox, ignore=ignore, dirs_exist_ok=True)
 
     shutil.copy2(source / 'manifest-firefox.json', firefox / 'manifest.json')
     (firefox / 'manifest-firefox.json').unlink(missing_ok=True)

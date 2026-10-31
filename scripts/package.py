@@ -59,10 +59,10 @@ with tempfile.TemporaryDirectory() as temp:
     if osname=='windows' and binary.name != 'sa2_downloader.exe':
         shutil.copy2(binary, root/'sa2_downloader.exe')
     if osname!='windows': dest.chmod(0o755)
-    stage_extensions(repo,root)
+    stage_extensions(repo, root, portable=True)
     if osname=='macos':
         resources=contents/'Resources';resources.mkdir(parents=True,exist_ok=True)
-        stage_extensions(repo,resources)
+        stage_extensions(repo, resources, portable=True)
     shutil.copy2(repo/'RELEASE-NOTES.md',root/'README.md')
     shutil.copy2(repo/'LICENSE',root/'LICENSE')
     for license_file in (repo/'assets/fonts').glob('OFL-*.txt'):

@@ -4336,23 +4336,19 @@ async fn fallback_chain(
                 }
             }
         }
-        // A bot check ("Sign in to confirm you're not a bot") can clear with
-        // player client rotation (Android API bypasses web SABR bot verification),
-        // or the page's own visitor id when there are no cookies to send.
+        // A bot check ("Sign in to confirm you're not a bot") or 429 rate limit
+        // can clear with authenticated browser cookies or visitor id, without
+        // sacrificing video/audio quality (no downscaling to 360p).
         let visitor = opts.browser.as_ref().map(|b| b.visitor_data.clone()).unwrap_or_default();
         let bot = format!("{err:#}").to_ascii_lowercase();
-        if bot.contains("not a bot") || bot.contains("sign in to confirm") || bot.contains("429") || bot.contains("too many requests") {
+        let is_rate_or_bot = bot.contains("not a bot")
+            || bot.contains("sign in to confirm")
+            || bot.contains("429")
+            || bot.contains("too many requests")
+            || bot.contains("exit code: 1")
+            || bot.contains("returned 1");
+        if is_rate_or_bot {
             if let Ok(exe) = ensure_ytdlp(&client).await {
-                if !shared.cancelled.load(Ordering::SeqCst) {
-                    job_log(&opts.log_key, "retrying with mobile player profile to bypass verification");
-                    let mut o2 = opts.clone();
-                    o2.cookie.clear();
-                    o2.ytdlp_extractor_args = "youtube:player_client=android,web;player_skip=configs,webpage".to_string();
-                    reset_counters(shared);
-                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
-                        return Ok(());
-                    }
-                }
                 if !visitor.is_empty() && opts.cookie.trim().is_empty() && !shared.cancelled.load(Ordering::SeqCst) {
                     let mut o2 = opts.clone();
                     o2.ytdlp_visitor_data = visitor;
@@ -4361,11 +4357,19 @@ async fn fallback_chain(
                         return Ok(());
                     }
                 }
+                // Retry with user's browser cookies (Chrome, Edge, Brave, Firefox)
+                // to authenticate without degrading quality.
                 let configured_b = crate::model::ui_pref_str("browser_cookies", "");
-                if !configured_b.is_empty() && configured_b != "none" && !shared.cancelled.load(Ordering::SeqCst) {
-                    job_log(&opts.log_key, format!("retrying with {configured_b} browser cookies to bypass verification"));
+                let browsers_to_try: Vec<String> = if !configured_b.is_empty() && configured_b != "none" {
+                    vec![configured_b]
+                } else {
+                    vec!["chrome".to_string(), "edge".to_string(), "brave".to_string(), "firefox".to_string()]
+                };
+                for b_name in browsers_to_try {
+                    if shared.cancelled.load(Ordering::SeqCst) { break; }
+                    job_log(&opts.log_key, format!("retrying with {b_name} browser cookies to bypass verification"));
                     let mut o2 = opts.clone();
-                    o2.ytdlp_cookies_browser = configured_b;
+                    o2.ytdlp_cookies_browser = b_name;
                     reset_counters(shared);
                     if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
                         return Ok(());
@@ -7162,7 +7166,6 @@ async fn download_with_ytdlp(
         .arg(ytdlp_progress_template())
         .arg("--progress-template")
         .arg("postprocess:[Merger] %(progress.status)s")
-        .arg("--no-cache-dir")
         .arg("--retries")
         .arg("3")
         .arg("--fragment-retries")
@@ -7316,8 +7319,16 @@ async fn download_with_ytdlp(
         // folds the finished legs in so the bar keeps moving forward and the
         // size ends up being all legs together.
         let mut folded = MergedProgress::default();
-        let mut final_path=None;
+        let mut final_path = None;
+        let mut kept_out_errs: std::collections::VecDeque<String> = std::collections::VecDeque::new();
         while let Ok(Some(line)) = lines.next_line().await {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && (trimmed.starts_with("ERROR:") || trimmed.starts_with("error:") || trimmed.contains("Traceback") || trimmed.contains("429")) {
+                if kept_out_errs.len() == 8 {
+                    kept_out_errs.pop_front();
+                }
+                kept_out_errs.push_back(trimmed.to_string());
+            }
             if let Some(json)=line.strip_prefix("dcfile@") {
                 final_path=serde_json::from_str::<String>(json).ok().map(PathBuf::from);
                 continue;
@@ -7394,7 +7405,7 @@ async fn download_with_ytdlp(
                 progress.speed_bps.store(speed as u64, Ordering::SeqCst);
             }
         }
-        final_path
+        (final_path, kept_out_errs.into_iter().collect::<Vec<_>>().join(" | "))
     });
     let err_log_key = opts.log_key.clone();
     let err_task = tokio::spawn(async move {
@@ -7427,16 +7438,21 @@ async fn download_with_ytdlp(
         }
     };
     drop(process_tree);
-    let final_path = out_task.await.unwrap_or(None);
+    let (final_path, out_err_tail) = out_task.await.unwrap_or((None, String::new()));
     let err_tail = err_task.await.unwrap_or_default();
+    let combined_err = if !err_tail.trim().is_empty() {
+        err_tail.trim().to_string()
+    } else {
+        out_err_tail.trim().to_string()
+    };
     drop(jar);
     let status = finish?;
     if !status.success() {
         // yt-dlp's own words are far more useful than an exit code.
-        let mut msg = if err_tail.trim().is_empty() {
+        let mut msg = if combined_err.is_empty() {
             format!("yt-dlp exited with {status}")
         } else {
-            format!("yt-dlp exited with {status}: {}", err_tail.trim())
+            format!("yt-dlp exited with {status}: {combined_err}")
         };
         let low_msg = msg.to_ascii_lowercase();
         if low_msg.contains("not a bot") || low_msg.contains("sign in to confirm") {

@@ -4474,6 +4474,10 @@ impl sa2App {
         }
 
     fn start(&mut self, id: u64) {
+        self.start_internal(id, true);
+    }
+
+    fn start_internal(&mut self, id: u64, show_progress: bool) {
         let idx = match self.downloads.iter().position(|d| d.id == id) {
             Some(i) => i,
             None => return,
@@ -4481,12 +4485,12 @@ impl sa2App {
         if self.tasks.contains_key(&id) {
             return;
         }
-        // IDM-style: a download that begins gets its own progress window, no
-        // matter which path started it (Add dialog, capture popup, Redownload,
-        // Resume, Start Queue, retry-all). The window claims a per-download
-        // slot, so a start while one is already open never stacks duplicates,
-        // while a window the user closed comes straight back on Retry.
-        Self::spawn_progress(id);
+        // IDM-style: a single download that begins gets its own progress window.
+        // For queue/playlist processing, progress is shown in the main window
+        // to prevent opening dozens of popup windows that freeze the desktop.
+        if show_progress && self.tasks.len() < 3 {
+            Self::spawn_progress(id);
+        }
         // The live limit is the task's only cap: make it current first.
         self.refresh_speed_limit();
         let item = self.downloads[idx].clone();
@@ -4635,7 +4639,7 @@ impl sa2App {
                 })
                 .map(|d| d.id);
             match next {
-                Some(id) => self.start(id),
+                Some(id) => self.start_internal(id, false),
                 None => return,
             }
         }
@@ -5370,7 +5374,7 @@ impl sa2App {
         // this is an internal retry, not a queue jump).
         for id in repair_restart {
             if !self.tasks.contains_key(&id) {
-                self.start(id);
+                self.start_internal(id, false);
             }
         }
         // P5: drop speed history for rows that no longer exist.
@@ -5803,12 +5807,13 @@ impl sa2App {
             return;
         }
         self.merge_queue_from_disk();
-        for id in ids {
+        if ids.len() == 1 {
+            let id = ids[0];
             let status = self.downloads.iter().find(|d| d.id == id).map(|d| d.status.clone());
             match status {
                 Some(Status::Queued) if !self.tasks.contains_key(&id) => {
                     self.queue_running = true;
-                    self.start(id);
+                    self.start_internal(id, true);
                 }
                 // A dialog that found the row Paused asks to start it: resume,
                 // or its "starting it" notice promised something that never
@@ -5819,6 +5824,12 @@ impl sa2App {
                 }
                 _ => {}
             }
+        } else {
+            // Batch / playlist download: do NOT start all items at once!
+            // Start the queue runner which strictly respects max_concurrent (e.g. 2 or 3)
+            // and does not spam 100 popup windows that freeze Windows desktop.
+            self.queue_running = true;
+            self.fill_next();
         }
     }
 

@@ -295,12 +295,8 @@ async function sendToHost(url, filename, extra) {
     if (ctx._cookie && !pageOnly && (!cookie || (extra && extra.fromRequest))) cookie = ctx._cookie;
     const sentReferer = ctx._referer;
     delete ctx._cookie; delete ctx._referer; delete ctx._post;
-    try {
-      const uHost = new URL(url).hostname.toLowerCase();
-      if (/(?:^|\.)(?:youtube\.com|youtu\.be|googlevideo\.com)$/.test(uHost)) {
-        cookie = null;
-      }
-    } catch (e) {}
+    // Keep cookies for media hosts so yt-dlp and the downloader can authenticate
+    // and avoid YouTube bot/429 rate limit checks.
     rememberCapture(url, filename, extra);
     const res = await hostSend({
       type: "download",

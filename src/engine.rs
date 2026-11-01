@@ -6996,6 +6996,8 @@ fn phase_for_line(line: &str) -> Option<&'static str> {
         || l.starts_with("[EmbedThumbnail]")
         || l.starts_with("[VideoRemuxer]")
         || l.starts_with("[VideoConvertor]")
+        || l.contains("[Merger]")
+        || l.contains("[ffmpeg]")
     {
         return Some("Merging");
     }
@@ -7158,6 +7160,8 @@ async fn download_with_ytdlp(
         .arg("0.05")
         .arg("--progress-template")
         .arg(ytdlp_progress_template())
+        .arg("--progress-template")
+        .arg("postprocess:[Merger] %(progress.status)s")
         .arg("--no-cache-dir")
         .arg("--retries")
         .arg("3")
@@ -7236,11 +7240,9 @@ async fn download_with_ytdlp(
     } else if is_yt {
         if !opts.ytdlp_visitor_data.is_empty() {
             cmd.arg("--extractor-args").arg(format!(
-                "youtube:player_client=tv_embedded,web,mweb;visitor_data={};player_skip=configs,webpage",
+                "youtube:visitor_data={}",
                 opts.ytdlp_visitor_data
             ));
-        } else {
-            cmd.arg("--extractor-args").arg("youtube:player_client=tv_embedded,web,mweb;player_skip=configs,webpage");
         }
     }
     let b_cookie = if !opts.ytdlp_cookies_browser.trim().is_empty() {

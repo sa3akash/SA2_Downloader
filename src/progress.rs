@@ -785,14 +785,13 @@ impl ProgressApp {
             Self::close_soon(ui.ctx());
             return;
         }
+        let is_merging = self.snap.phase.contains("Merg") || self.snap.phase.contains("ffmpeg") || self.snap.phase.contains("Remux");
         let title = if is_completed {
             crate::i18n::t("Download Complete").to_string()
+        } else if is_merging {
+            format!("{} — {}", crate::i18n::t("Finalizing"), crate::i18n::t("Merging"))
         } else if pct >= 100 {
-            if self.snap.phase.contains("Merg") || self.snap.phase.contains("ffmpeg") || self.snap.phase.contains("Remux") {
-                format!("{} — {}", crate::i18n::t("Finalizing"), crate::i18n::t("Merging"))
-            } else {
-                format!("{} 100%", crate::i18n::t("Finalizing"))
-            }
+            format!("{} 100%", crate::i18n::t("Finalizing"))
         } else if pct > 0 {
             format!("{} {pct}%", crate::i18n::t("Downloading"))
         } else if self.snap.phase == "Connecting to stream..." {

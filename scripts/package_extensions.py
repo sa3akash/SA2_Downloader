@@ -83,11 +83,6 @@ def stage_extensions(repo, destination, portable=False):
     chrome = destination / 'browser-extension-chrome'
     shutil.copytree(source, chrome, ignore=ignore, dirs_exist_ok=True)
 
-    # Also keep browser-extension folder for compatibility
-    compat_folder = destination / 'browser-extension'
-    if compat_folder != chrome:
-        shutil.copytree(source, compat_folder, ignore=ignore, dirs_exist_ok=True)
-
     # 2. Chrome CRX3 package (drag & drop into chrome://extensions with Developer mode ON)
     crx_std = destination / 'SA2Downloader-Chrome.crx'
 
@@ -119,11 +114,18 @@ def stage_extensions(repo, destination, portable=False):
     # 1-Click Chrome Installer Batch Script
     chrome_bat_content = (
         "@echo off\r\n"
+        "setlocal\r\n"
         "title SA2 Downloader - Chrome Extension Helper\r\n"
         "echo ==========================================================\r\n"
         "echo   SA2 Downloader - Chrome Extension Installer\r\n"
         "echo ==========================================================\r\n"
         "echo.\r\n"
+        "net session >nul 2>&1\r\n"
+        "if %errorLevel% neq 0 (\r\n"
+        "    echo Requesting Administrator privileges to register Chrome Policy...\r\n"
+        "    powershell -Command \"Start-Process cmd -ArgumentList '/c \\\"\\\"%~f0\\\"\\\"' -Verb RunAs\"\r\n"
+        "    exit /b\r\n"
+        ")\r\n"
         "echo Configuring extension policy allowlist (Chrome, Edge, Brave)...\r\n"
         "reg add \"HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist\" /v 1 /t REG_SZ /d \"lekpmkgkkhcfocbigmdjnoalfnidjlal\" /f >nul 2>&1\r\n"
         "reg add \"HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources\" /v 1 /t REG_SZ /d \"<all_urls>\" /f >nul 2>&1\r\n"
@@ -143,18 +145,15 @@ def stage_extensions(repo, destination, portable=False):
         "start chrome \"chrome://extensions\"\r\n"
         "echo.\r\n"
         "echo ==========================================================\r\n"
-        "echo HOW TO ACTIVATE IN CHROME:\r\n"
+        "echo HOW TO ACTIVATE IN CHROME (Recommended - 100%% Clean):\r\n"
         "echo ==========================================================\r\n"
+        "echo   1. On chrome://extensions, ensure \"Developer mode\" (top-right) is ON.\r\n"
+        "echo   2. Click \"Load unpacked\" button (top-left).\r\n"
+        "echo   3. Select the \"browser-extension-chrome\" folder.\r\n"
+        "echo   -- That's it! Zero warning banners, permanently active and connected.\r\n"
         "echo.\r\n"
-        "echo Option 1 (No Warnings - Recommended):\r\n"
-        "echo   1. On chrome://extensions, click \"Load unpacked\" (top-left).\r\n"
-        "echo   2. Select the \"browser-extension-chrome\" folder.\r\n"
-        "echo      (Or simply drag the \"browser-extension-chrome\" folder into Chrome!)\r\n"
-        "echo.\r\n"
-        "echo Option 2 (If using the .crx file):\r\n"
-        "echo   1. Simply click the toggle switch on the extension card to turn it ON!\r\n"
-        "echo   * Note: The yellow banner is Chrome's default prompt for off-store CRX files.\r\n"
-        "echo     Turning the switch ON activates the extension immediately!\r\n"
+        "echo   * If you previously dragged a .crx and see \"not from any known source\":\r\n"
+        "echo     Click \"Remove\" on that card, then click \"Load unpacked\" instead!\r\n"
         "echo ==========================================================\r\n"
         "echo.\r\n"
         "pause\r\n"

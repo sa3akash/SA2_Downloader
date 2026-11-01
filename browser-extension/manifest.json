@@ -25,26 +25,7 @@
     "https://*/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "scripts": [
-      "rank.js",
-      "streams.js",
-      "mp4merge.js",
-      "browserdl.js",
-      "bridge.js",
-      "background.js"
-    ]
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "send-to-download-sa2@example",
-      "strict_min_version": "115.0",
-      "data_collection_permissions": {
-        "required": [
-          "none"
-        ]
-      }
-    }
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {

@@ -1064,7 +1064,7 @@ async function loadVideos() {
   const tab = await activeTab();
   await loadHidden(tab);
   const tabUrl = (tab && tab.url && (/^https?:\/\//i.test(tab.url) || tab.url.startsWith("magnet:"))) ? tab.url : null;
-  const isPlaylist = tabUrl && (tabUrl.includes("list=") || tabUrl.includes("/playlist") || tabUrl.includes("/album/"));
+  const isPlaylist = tabUrl && !tabUrl.includes("list=RD") && !tabUrl.includes("list=UL") && (tabUrl.includes("list=") || tabUrl.includes("/playlist") || tabUrl.includes("/album/"));
   const plBanner = $("playlistBanner");
   if (plBanner) {
     plBanner.style.display = isPlaylist ? "flex" : "none";

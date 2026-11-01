@@ -4174,6 +4174,7 @@ impl sa2App {
     /// Returns true when the URL was newly queued or an existing same-file
     /// entry was refreshed (P4 grab-all counts on this).
     fn queue_url(&mut self, url: String, filename: Option<String>, autostart: bool, size: Option<u64>) -> bool {
+        let url = crate::engine::clean_youtube_url(&url);
         if !is_download_url(&url) {
             return false;
         }
@@ -4502,7 +4503,7 @@ impl sa2App {
         shared
             .downloaded
             .store(item.downloaded_bytes, Ordering::SeqCst);
-        let url = item.url.clone();
+        let url = crate::engine::clean_youtube_url(&item.url);
         let dest = item.dest_path();
         let conns = item.connections;
         let opts = EngineOpts {

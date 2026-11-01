@@ -169,9 +169,29 @@ function stripFbSlice(url) {
   } catch (e) { return url; }
 }
 
+function cleanYoutubeUrl(url, isPlaylist) {
+  try {
+    const u = new URL(url);
+    const h = u.hostname.toLowerCase();
+    if (!h.includes("youtube.com") && !h.includes("youtu.be")) return url;
+    if (u.pathname.startsWith("/playlist")) return url;
+    if (u.pathname.includes("/watch") && u.searchParams.has("v") && !isPlaylist) {
+      const v = u.searchParams.get("v");
+      return `https://www.youtube.com/watch?v=${v}`;
+    }
+    if (h.includes("youtu.be") && u.pathname.length > 1 && !isPlaylist) {
+      const id = u.pathname.replace(/^\/+/, "").split("/")[0].split("?")[0];
+      return `https://www.youtube.com/watch?v=${id}`;
+    }
+    return url;
+  } catch (e) { return url; }
+}
+
 async function sendToHost(url, filename, extra) {
   try {
-    url = stripFbSlice(url);
+    url = (typeof cleanYoutubeUrl !== "undefined")
+      ? cleanYoutubeUrl(stripFbSlice(url), !!(extra && (extra.is_playlist || extra.isPlaylist)))
+      : stripFbSlice(url);
     if (typeof DCRank !== "undefined" && DCRank.isVimeoAdaptive(url)) {
       // The captured document is the exact iframe which requested this
       // asset, unlike the popup's top-level page (possibly several videos).
@@ -266,7 +286,11 @@ async function sendToHost(url, filename, extra) {
       }
       pageOnly = fromPage && !fromNet;
     }
-    if (!cookie && /^https?:\/\//i.test(url) && !pageOnly) {
+    let isMediaTarget = false;
+    try {
+      isMediaTarget = /(?:^|\.)(?:youtube\.com|youtu\.be|googlevideo\.com|vimeo\.com|facebook\.com|instagram\.com)$/.test(new URL(url).hostname.toLowerCase());
+    } catch (e) {}
+    if (!cookie && /^https?:\/\//i.test(url) && (!pageOnly || isMediaTarget)) {
       cookie = await cookiesFor(url); // best-effort, same-host only
       // CDN hosts (fbcdn/lookaside) carry no cookies of their own — fall
       // back to the page's session cookies so expiring signed URLs keep
@@ -292,7 +316,7 @@ async function sendToHost(url, filename, extra) {
     const ctx = typeof DCBridge !== "undefined" ? DCBridge.browserContext(url, extra) : { fromExtension: true };
     // The exact Cookie the browser sent with this request beats a cookie-jar
     // lookup (and never leaves its own host: the request was to that URL).
-    if (ctx._cookie && !pageOnly && (!cookie || (extra && extra.fromRequest))) cookie = ctx._cookie;
+    if (ctx._cookie && (!pageOnly || isMediaTarget) && (!cookie || (extra && extra.fromRequest))) cookie = ctx._cookie;
     const sentReferer = ctx._referer;
     delete ctx._cookie; delete ctx._referer; delete ctx._post;
     // Keep cookies for media hosts so yt-dlp and the downloader can authenticate

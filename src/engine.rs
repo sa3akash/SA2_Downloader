@@ -1325,6 +1325,34 @@ pub fn is_youtube_page(url: &str) -> bool {
     url.contains("youtube.com") || url.contains("youtu.be")
 }
 
+/// Normalizes a YouTube URL to a clean single-video target.
+/// Strips mix/playlist parameters (like `&list=RD...`, `&start_radio=1`, `&index=...`)
+/// from watch URLs so yt-dlp queries only the single requested video rather than
+/// the entire radio mix playlist, which causes HTTP 429 rate limit errors.
+pub fn clean_youtube_url(url: &str) -> String {
+    let lower = url.trim().to_ascii_lowercase();
+    if !lower.contains("youtube.com") && !lower.contains("youtu.be") {
+        return url.to_string();
+    }
+    if is_pure_playlist_url(url) {
+        return url.to_string();
+    }
+    if let Ok(u) = url::Url::parse(url.trim()) {
+        if u.host_str().map(|h| h.contains("youtu.be")).unwrap_or(false) {
+            let id = u.path().trim_start_matches('/');
+            if !id.is_empty() {
+                return format!("https://www.youtube.com/watch?v={id}");
+            }
+        }
+        if let Some((_, v)) = u.query_pairs().find(|(k, _)| k == "v") {
+            if !v.is_empty() {
+                return format!("https://www.youtube.com/watch?v={v}");
+            }
+        }
+    }
+    url.to_string()
+}
+
 /// Verify a finished file against an expected SHA-256 hex digest.
 /// Returns Ok(()) when no digest was requested.
 pub async fn verify_checksum(path: &PathBuf, expected_hex: &str) -> Result<()> {
@@ -4313,14 +4341,15 @@ async fn fallback_chain(
     let dbg = std::env::var("sa2_downloader_DEBUG").is_ok();
     let actual = mutex_guard(&shared.resolved_name).clone().map(|n| dest.with_file_name(n)).unwrap_or_else(|| dest.clone());
     let yt_page = if is_youtube_page(url) {
-        Some(url.to_string())
+        Some(clean_youtube_url(url))
     } else if is_googlevideo_url(url) && is_youtube_page(&opts.referer) {
-        Some(opts.referer.clone())
+        Some(clean_youtube_url(&opts.referer))
     } else {
         None
     };
     let mut err = err;
     if let Some(page) = yt_page {
+        let clean_page = clean_youtube_url(&page);
         let client = opts.build_client()?;
         if !shared.ytdlp_tried.load(Ordering::SeqCst) {
             if let Ok(exe) = ensure_ytdlp(&client).await {
@@ -4330,15 +4359,15 @@ async fn fallback_chain(
                 shared.set_note(format!("the app's own YouTube engine failed ({err:#}) - yt-dlp took over"));
                 job_log(&opts.log_key, "falling back to yt-dlp");
                 reset_counters(shared);
-                match download_with_ytdlp(&exe, &page, &actual, connections, opts, shared).await {
+                match download_with_ytdlp(&exe, &clean_page, &actual, connections, opts, shared).await {
                     Ok(()) => return Ok(()),
                     Err(e) => err = e,
                 }
             }
         }
         // A bot check ("Sign in to confirm you're not a bot") or 429 rate limit
-        // can clear with authenticated browser cookies or visitor id, without
-        // sacrificing video/audio quality (no downscaling to 360p).
+        // can clear with clean video URL, authenticated browser cookies or visitor id,
+        // without sacrificing video/audio quality (no downscaling to 360p).
         let visitor = opts.browser.as_ref().map(|b| b.visitor_data.clone()).unwrap_or_default();
         let bot = format!("{err:#}").to_ascii_lowercase();
         let is_rate_or_bot = bot.contains("not a bot")
@@ -4353,7 +4382,7 @@ async fn fallback_chain(
                     let mut o2 = opts.clone();
                     o2.ytdlp_visitor_data = visitor;
                     reset_counters(shared);
-                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
+                    if let Ok(()) = download_with_ytdlp(&exe, &clean_page, &actual, connections, &o2, shared).await {
                         return Ok(());
                     }
                 }
@@ -4371,7 +4400,7 @@ async fn fallback_chain(
                     let mut o2 = opts.clone();
                     o2.ytdlp_cookies_browser = b_name;
                     reset_counters(shared);
-                    if let Ok(()) = download_with_ytdlp(&exe, &page, &actual, connections, &o2, shared).await {
+                    if let Ok(()) = download_with_ytdlp(&exe, &clean_page, &actual, connections, &o2, shared).await {
                         return Ok(());
                     }
                 }
@@ -4565,8 +4594,8 @@ async fn download_inner(
         Some(page) => Some(page),
         // YouTube, Instagram, TikTok, X, Reddit, Facebook, etc.: yt-dlp knows each site's
         // player (the video and its separate audio, the real qualities).
-        None if is_youtube_page(&url) => Some(url.clone()),
-        None if is_googlevideo_url(&url) && is_youtube_page(&opts.referer) => Some(opts.referer.clone()),
+        None if is_youtube_page(&url) => Some(clean_youtube_url(&url)),
+        None if is_googlevideo_url(&url) && is_youtube_page(&opts.referer) => Some(clean_youtube_url(&opts.referer)),
         None if social_video_page(&url) => Some(url.clone()),
         None if social_video_page(&opts.referer) => Some(opts.referer.clone()),
         None if !is_playlist_url(&url) && is_playlist_url_or_query(&url) => Some(url.clone()),
@@ -7138,7 +7167,10 @@ async fn download_with_ytdlp(
     let can_merge = merge_ffmpeg.is_some()
         || ffmpeg_on_path().is_some()
         || quality_cap(&opts.quality_pref).map(|h| h >= 720).unwrap_or(false);
-    let is_pl = opts.is_playlist || is_pure_playlist_url(url);
+    let cleaned_url = clean_youtube_url(url);
+    let url = cleaned_url.as_str();
+    let has_watch_id = url.contains("watch?v=") || url.contains("youtu.be/");
+    let is_pl = !has_watch_id && (opts.is_playlist || is_pure_playlist_url(url));
     if is_pl {
         cmd.arg("--yes-playlist");
         cmd.arg("--ignore-errors");
@@ -8339,9 +8371,9 @@ async fn download_adaptive_inner(
         && (is_youtube_page(&opts.referer) || is_youtube_page(&video_url))
     {
         let page_target = if is_youtube_page(&opts.referer) {
-            opts.referer.clone()
+            clean_youtube_url(&opts.referer)
         } else {
-            video_url.clone()
+            clean_youtube_url(&video_url)
         };
         let client = opts.build_client()?;
         if let Ok(exe) = ensure_ytdlp(&client).await {

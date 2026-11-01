@@ -5959,11 +5959,17 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
     // NOTE: `@echo off` is mandatory — cmd echoes every command to stdout
     // by default, which corrupts the length-prefixed native-messaging
     // protocol and makes Chrome report the host as unreachable.
-    std::fs::write(
-        &bat,
-        format!("@echo off\r\n\"{}\" --native-host %*\r\n", exe.display()),
-    )
-    .map_err(|e| e.to_string())?;
+    let bat_content = format!(
+        "@echo off\r\n\
+        set \"EXE={}\"\r\n\
+        if not exist \"%EXE%\" (\r\n\
+            if exist \"%~dp0..\\sa2_downloader.exe\" set \"EXE=%~dp0..\\sa2_downloader.exe\"\r\n\
+            if exist \"%LOCALAPPDATA%\\sa2_downloader\\sa2_downloader.exe\" set \"EXE=%LOCALAPPDATA%\\sa2_downloader\\sa2_downloader.exe\"\r\n\
+        )\r\n\
+        \"%EXE%\" --native-host %*\r\n",
+        exe.display()
+    );
+    std::fs::write(&bat, bat_content).map_err(|e| e.to_string())?;
 
     // Native host name (must match the browser extension's HOST constant).
     const HOST_NAME: &str = "com.sa2_downloader";
@@ -5974,7 +5980,10 @@ pub(crate) fn install_native_host(browser: &str) -> Result<String, String> {
             "description": "Download SA2 native host",
             "path": bat.to_string_lossy(),
             "type": "stdio",
-            "allowed_extensions": ["send-to-download-sa2@example"]
+            "allowed_extensions": [
+                "send-to-download-sa2@example",
+                "sa2_downloader@shakil.com"
+            ]
         }),
         _ => serde_json::json!({
             "name": HOST_NAME,
@@ -6098,8 +6107,26 @@ fn ensure_native_host(browser: &str) -> Result<bool, String> {
     let exe_s = exe.to_string_lossy().into_owned();
     let manifest_path = base.join(format!("{browser}.json"));
     let manifest_s = manifest_path.to_string_lossy().into_owned();
-    // Fresh = manifest exists and its launcher targets this exact binary.
-    let fresh = std::fs::read_to_string(&manifest_path)
+    // Fresh = manifest exists, its origins contain our extension ID, and its launcher targets this exact binary.
+    let origins_ok = std::fs::read_to_string(&manifest_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .map(|v| {
+            if browser == "firefox" {
+                v.get("allowed_extensions")
+                    .and_then(|a| a.as_array())
+                    .map(|arr| arr.iter().any(|x| x.as_str() == Some("send-to-download-sa2@example")))
+                    .unwrap_or(false)
+            } else {
+                let needle = format!("chrome-extension://{EXTENSION_ID}/");
+                v.get("allowed_origins")
+                    .and_then(|a| a.as_array())
+                    .map(|arr| arr.iter().any(|x| x.as_str() == Some(&needle)))
+                    .unwrap_or(false)
+            }
+        })
+        .unwrap_or(false);
+    let fresh = origins_ok && std::fs::read_to_string(&manifest_path)
         .ok()
         .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
         .and_then(|v| {

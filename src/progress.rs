@@ -788,15 +788,17 @@ impl ProgressApp {
         let title = if is_completed {
             crate::i18n::t("Download Complete").to_string()
         } else if pct >= 100 {
-            if self.snap.phase.contains("Merg") || self.snap.phase.contains("ffmpeg") {
+            if self.snap.phase.contains("Merg") || self.snap.phase.contains("ffmpeg") || self.snap.phase.contains("Remux") {
                 format!("{} — {}", crate::i18n::t("Finalizing"), crate::i18n::t("Merging"))
             } else {
                 format!("{} 100%", crate::i18n::t("Finalizing"))
             }
         } else if pct > 0 {
             format!("{} {pct}%", crate::i18n::t("Downloading"))
+        } else if self.snap.phase == "Connecting to stream..." {
+            crate::i18n::t("Connecting to stream...").to_string()
         } else if !self.snap.phase.is_empty() && self.snap.phase != "Downloading" {
-            format!("{} — {}", crate::i18n::t("Downloading"), self.snap.phase)
+            self.snap.phase.clone()
         } else {
             format!("{} 0%", crate::i18n::t("Downloading"))
         };
@@ -906,7 +908,7 @@ impl ProgressApp {
     fn stage_text(&self) -> Option<String> {
         let dl = self.item.as_ref().map(|it| it.downloaded_bytes).unwrap_or(0).max(self.snap.downloaded);
         let phase = &self.snap.phase;
-        if phase.is_empty() || phase == "Completed" {
+        if phase.is_empty() || phase == "Completed" || phase == "Downloading" {
             return None;
         }
         if phase.contains("Merg") || phase.contains("ffmpeg") || phase.contains("Remux") {
@@ -918,10 +920,10 @@ impl ProgressApp {
             }
             return Some(crate::i18n::t("Connecting to stream...").to_string());
         }
-        if phase != "Downloading" {
-            return Some(format!("{} — {}", crate::i18n::t("Downloading"), phase));
+        if dl > 0 {
+            return None;
         }
-        None
+        Some(phase.clone())
     }
 
     /// Concept Info tab: the detail rows, laid out in order. The resolution row

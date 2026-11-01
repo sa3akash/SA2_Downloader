@@ -1,7 +1,12 @@
 /target
 *.zip
 *.xpi
+*.crx
 /target-*/
 /dist/
+/browser-extension-chrome/
+/browser-extension-firefox/
+install_chrome_extension.bat
+install_firefox_extension.bat
 __pycache__/
 *.pyc

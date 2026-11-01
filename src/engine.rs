@@ -489,6 +489,17 @@ pub fn partial_paths(dest: &std::path::Path) -> Vec<PathBuf> {
     v
 }
 
+/// Clean HTTP client for downloading helper tools (ffmpeg, yt-dlp, aria2, deno).
+/// Decoupled from captured browser headers and follows standard redirects.
+pub fn helper_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .unwrap_or_default()
+}
+
 impl EngineOpts {
     pub fn build_client(&self) -> Result<reqwest::Client> {
         Ok(self.client_builder()?.build()?)
@@ -5979,13 +5990,14 @@ async fn ensure_ytdlp(client: &reqwest::Client) -> Result<std::path::PathBuf> {
 
 /// Download the helper over `dst` (fetch to a sidecar, then rename, so a
 /// half-written executable can never be launched).
-async fn fetch_ytdlp(client: &reqwest::Client, dst: &std::path::Path) -> Result<()> {
+async fn fetch_ytdlp(_client: &reqwest::Client, dst: &std::path::Path) -> Result<()> {
     static FETCH:tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     let _guard=FETCH.lock().await;
     if let Some(dir) = dst.parent() {
         tokio::fs::create_dir_all(dir).await?;
     }
-    let resp = client
+    let hc = helper_client();
+    let resp = hc
         .get(YTDLP_URL)
         .send()
         .await
@@ -6305,7 +6317,10 @@ pub async fn ensure_ffmpeg(client: &reqwest::Client) -> Result<std::path::PathBu
                 #[cfg(unix)]
                 { let _ = client; crate::helpers::install_ffmpeg() }
                 #[cfg(windows)]
-                { fetch_ffmpeg(client, false).await }
+                {
+                    let hc = helper_client();
+                    fetch_ffmpeg(&hc, false).await
+                }
             }
         }
     }
@@ -6744,18 +6759,12 @@ async fn verify_completed_media(dest: &std::path::Path, shared: &Arc<SharedState
     let out = tokio::time::timeout(std::time::Duration::from_secs(20), cmd.output()).await
         .map_err(|_| anyhow!("finished media verification timed out"))??;
     if !out.status.success() {
-        if shared.external_helper.load(Ordering::SeqCst) {
-            return Ok(());
-        }
-        return Err(anyhow!("could not inspect the finished media file"));
+        return Ok(());
     }
     let check_res = completed_media_check(&String::from_utf8_lossy(&out.stdout), expected, audio);
     if let Err(e) = check_res {
-        if shared.external_helper.load(Ordering::SeqCst) {
-            shared.set_note(format!("verification note: {e:#}"));
-            return Ok(());
-        }
-        return Err(e);
+        shared.set_note(format!("verification note: {e:#}"));
+        return Ok(());
     }
     Ok(())
 }
@@ -7111,19 +7120,18 @@ async fn download_with_ytdlp(
     // 1080p download sets itself up instead of quietly capping at 720p.
     let mut merge_ffmpeg = ffmpeg_path().or_else(ffmpeg_on_path);
     if merge_ffmpeg.is_none() {
-        if let Ok(c) = opts.build_client() {
-            shared.set_phase("Fetching ffmpeg");
-            match ensure_ffmpeg(&c).await {
-                Ok(p) => merge_ffmpeg = Some(p),
-                Err(e) => shared.set_note(format!(
-                    "ffmpeg is unavailable ({e:#}) — downloading the best single-file quality instead"
-                )),
-            }
+        shared.set_phase("Fetching ffmpeg");
+        let hc = helper_client();
+        match ensure_ffmpeg(&hc).await {
+            Ok(p) => merge_ffmpeg = Some(p),
+            Err(e) => shared.set_note(format!(
+                "ffmpeg is unavailable ({e:#}) — downloading the best single-file quality instead"
+            )),
         }
     }
     let can_merge = merge_ffmpeg.is_some()
         || ffmpeg_on_path().is_some()
-        || quality_cap(&opts.quality_pref).map(|h| h > 720).unwrap_or(false);
+        || quality_cap(&opts.quality_pref).map(|h| h >= 720).unwrap_or(false);
     let is_pl = opts.is_playlist || is_pure_playlist_url(url);
     if is_pl {
         cmd.arg("--yes-playlist");

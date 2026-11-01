@@ -91,7 +91,7 @@ function copyDirClean(src, dest, isFirefox = false) {
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     const s = path.join(src, entry.name);
     const d = path.join(dest, entry.name);
-    if (entry.name.endsWith('.test.js') || entry.name.endsWith('.md') || entry.name === 'testdata' || entry.name.endsWith('.ps1') || entry.name.endsWith('.pem')) {
+    if (entry.name.endsWith('.test.js') || entry.name.endsWith('.md') || entry.name === 'testdata' || entry.name.endsWith('.ps1') || entry.name.endsWith('.pem') || entry.name === 'key.pem') {
       continue;
     }
     if (isFirefox && (entry.name === 'offscreen.html' || entry.name === 'offscreen.js' || entry.name === 'manifest-firefox.json')) {
@@ -116,64 +116,58 @@ function main() {
   }
 
   const pem = fs.readFileSync(keyPath);
-  const manifest = JSON.parse(fs.readFileSync(path.join(source, 'manifest.json'), 'utf8'));
-  const version = manifest.version || '1.2.1';
 
   const outDir = process.argv[2] ? path.resolve(process.argv[2]) : repo;
   fs.mkdirSync(outDir, { recursive: true });
 
-  // Stage Chrome
-  const tempChromeDir = path.join(outDir, `_temp_chrome_${Date.now()}`);
-  copyDirClean(source, tempChromeDir, false);
+  // 1. Unpacked Chrome folder
+  const chromeDir = path.join(outDir, 'browser-extension-chrome');
+  copyDirClean(source, chromeDir, false);
+
+  // Compat folder
+  const compatDir = path.join(outDir, 'browser-extension');
+  if (compatDir !== chromeDir) {
+    copyDirClean(source, compatDir, false);
+  }
+
   const tempChromeZip = path.join(outDir, `_temp_chrome_${Date.now()}.zip`);
-  buildZip(tempChromeDir, tempChromeZip);
+  buildZip(chromeDir, tempChromeZip);
   const chromeZipBytes = fs.readFileSync(tempChromeZip);
-
-  // Stage Firefox
-  const tempFirefoxDir = path.join(outDir, `_temp_firefox_${Date.now()}`);
-  copyDirClean(source, tempFirefoxDir, true);
-  fs.copyFileSync(path.join(source, 'manifest-firefox.json'), path.join(tempFirefoxDir, 'manifest.json'));
-  const tempFirefoxZip = path.join(outDir, `_temp_firefox_${Date.now()}.zip`);
-  buildZip(tempFirefoxDir, tempFirefoxZip);
-  const firefoxZipBytes = fs.readFileSync(tempFirefoxZip);
-
-  // Clean temp dirs
-  fs.rmSync(tempChromeDir, { recursive: true, force: true });
-  fs.rmSync(tempFirefoxDir, { recursive: true, force: true });
   fs.unlinkSync(tempChromeZip);
+
+  // 2. Unpacked Firefox folder
+  const firefoxDir = path.join(outDir, 'browser-extension-firefox');
+  copyDirClean(source, firefoxDir, true);
+  if (fs.existsSync(path.join(source, 'manifest-firefox.json'))) {
+    fs.copyFileSync(path.join(source, 'manifest-firefox.json'), path.join(firefoxDir, 'manifest.json'));
+  }
+  const tempFirefoxZip = path.join(outDir, `_temp_firefox_${Date.now()}.zip`);
+  buildZip(firefoxDir, tempFirefoxZip);
+  const firefoxZipBytes = fs.readFileSync(tempFirefoxZip);
   fs.unlinkSync(tempFirefoxZip);
 
-  // 1. Pack CRX3
+  // 3. Single packaged files per browser
+  const standardCrx = path.join(outDir, 'SA2Downloader-Chrome.crx');
   const crxBytes = packCrx(chromeZipBytes, pem);
-  const versionedCrx = path.join(outDir, `SA2Downloader-Chrome-${version}.crx`);
-  const standardCrx = path.join(outDir, `SA2Downloader-Chrome.crx`);
-  const legacyCrx = path.join(outDir, `sa2_downloader-chrome.crx`);
-  fs.writeFileSync(versionedCrx, crxBytes);
   fs.writeFileSync(standardCrx, crxBytes);
-  fs.writeFileSync(legacyCrx, crxBytes);
 
-  // 2. Pack Firefox XPI
-  const versionedXpi = path.join(outDir, `SA2Downloader-Firefox-${version}.xpi`);
-  const standardXpi = path.join(outDir, `SA2Downloader-Firefox.xpi`);
-  const legacyXpi = path.join(outDir, `sa2_downloader-firefox.xpi`);
-  fs.writeFileSync(versionedXpi, firefoxZipBytes);
+  const standardXpi = path.join(outDir, 'SA2Downloader-Firefox.xpi');
   fs.writeFileSync(standardXpi, firefoxZipBytes);
-  fs.writeFileSync(legacyXpi, firefoxZipBytes);
-
-  // 3. Pack Chrome ZIP
-  const versionedZip = path.join(outDir, `SA2Downloader-Chrome-${version}.zip`);
-  const standardZip = path.join(outDir, `SA2Downloader-Chrome.zip`);
-  fs.writeFileSync(versionedZip, chromeZipBytes);
-  fs.writeFileSync(standardZip, chromeZipBytes);
 
   // 4. Quick install helper for Chrome
-  const batPath = path.join(outDir, 'install_chrome_extension.bat');
-  const batContent = `@echo off\r\ntitle SA2 Downloader - Chrome Extension Quick Installer\r\necho ===================================================\r\necho   SA2 Downloader - Chrome Extension Quick Installer\r\necho ===================================================\r\necho.\r\necho 1. Opening Chrome Extensions page...\r\nstart chrome "chrome://extensions"\r\necho.\r\necho 2. Turn ON "Developer mode" toggle in top-right corner.\r\necho 3. Drag and drop "SA2Downloader-Chrome.crx" (or the browser-extension folder)\r\necho    directly into your Chrome extensions window.\r\necho.\r\npause\r\n`;
-  fs.writeFileSync(batPath, batContent);
+  const chromeBatPath = path.join(outDir, 'install_chrome_extension.bat');
+  const chromeBatContent = `@echo off\r\ntitle SA2 Downloader - Chrome Extension Helper\r\necho ==========================================================\r\necho   SA2 Downloader - Chrome Extension Installer\r\necho ==========================================================\r\necho.\r\necho Configuring extension policy allowlist...\r\nreg add "HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist" /v 1 /t REG_SZ /d "lekpmkgkkhcfocbigmdjnoalfnidjlal" /f >nul 2>&1\r\nreg add "HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources" /v 1 /t REG_SZ /d "<all_urls>" /f >nul 2>&1\r\necho Done!\r\necho.\r\necho Opening Chrome Extensions page...\r\nstart chrome "chrome://extensions"\r\necho.\r\necho INSTALLATION STEPS:\r\necho   Method 1 (Recommended): Turn ON "Developer mode" switch (top-right).\r\necho            Drag and drop the "browser-extension-chrome" folder into Chrome!\r\necho.\r\necho   Method 2: Turn ON "Developer mode" switch (top-right).\r\necho            Drag and drop "SA2Downloader-Chrome.crx" into Chrome!\r\necho ==========================================================\r\necho.\r\npause\r\n`;
+  fs.writeFileSync(chromeBatPath, chromeBatContent);
 
-  console.log(`Generated Chrome CRX: ${versionedCrx} (${(crxBytes.length / 1024).toFixed(1)} KB)`);
-  console.log(`Generated Firefox XPI: ${versionedXpi} (${(firefoxZipBytes.length / 1024).toFixed(1)} KB)`);
-  console.log(`Generated Chrome ZIP: ${versionedZip} (${(chromeZipBytes.length / 1024).toFixed(1)} KB)`);
+  // 5. Quick install helper for Firefox
+  const firefoxBatPath = path.join(outDir, 'install_firefox_extension.bat');
+  const firefoxBatContent = `@echo off\r\ntitle SA2 Downloader - Firefox Extension Helper\r\necho ==========================================================\r\necho   SA2 Downloader - Firefox Extension Installer\r\necho ==========================================================\r\necho.\r\necho Opening Firefox Add-ons page...\r\nstart firefox "about:addons"\r\necho.\r\necho INSTALLATION STEPS:\r\necho   1. Simply drag and drop "SA2Downloader-Firefox.xpi" onto Firefox window!\r\necho   2. Click "Add" when Firefox prompts.\r\necho ==========================================================\r\necho.\r\npause\r\n`;
+  fs.writeFileSync(firefoxBatPath, firefoxBatContent);
+
+  console.log(`Generated Chrome Extension Folder: ${chromeDir}`);
+  console.log(`Generated Firefox Extension Folder: ${firefoxDir}`);
+  console.log(`Generated Chrome CRX: ${standardCrx} (${(crxBytes.length / 1024).toFixed(1)} KB)`);
+  console.log(`Generated Firefox XPI: ${standardXpi} (${(firefoxZipBytes.length / 1024).toFixed(1)} KB)`);
 }
 
 if (require.main === module) {

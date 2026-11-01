@@ -905,7 +905,7 @@ async function sendToHostPing() {
   } catch (e) {
     hostOk = false;
     lastHostError = (e && e.message) || String(e);
-    console.error(
+    console.warn(
       "[download-sa2] native host '" + HOST + "' unreachable:", lastHostError
     );
     // Say how to fix it (at most once a day). The extension keeps working
